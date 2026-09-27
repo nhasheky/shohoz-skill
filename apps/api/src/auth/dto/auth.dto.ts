@@ -1,4 +1,6 @@
-import { IsEnum, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, Matches, MinLength } from 'class-validator';
+
+/* ──────── existing OTP DTOs (kept for backward compat) ──────── */
 
 export class RequestOtpDto {
   @IsString()
@@ -6,7 +8,7 @@ export class RequestOtpDto {
   phone: string;
 
   @IsOptional()
-  @IsEnum(['LOGIN', 'REGISTER', 'RESET'])
+  @IsString()
   purpose?: 'LOGIN' | 'REGISTER' | 'RESET';
 
   @IsOptional()
@@ -22,7 +24,6 @@ export class VerifyOtpDto {
 
   @IsString()
   @MinLength(4)
-  @MaxLength(6)
   code: string;
 
   @IsOptional()
@@ -40,4 +41,32 @@ export type DeviceInfo = {
 export class RevokeSessionDto {
   @IsString()
   sessionId: string;
+}
+
+/* ──────── NEW: email + password DTOs ──────── */
+
+export class RegisterDto {
+  @IsString()
+  @MinLength(2)
+  name: string;
+
+  @IsString()
+  @Matches(/^01\d{9}$/, { message: 'Phone must be 11 digits starting with 01.' })
+  phone: string;
+
+  @IsEmail({}, { message: 'Please provide a valid email address.' })
+  email: string;
+
+  @IsString()
+  @MinLength(6, { message: 'Password must be at least 6 characters.' })
+  password: string;
+}
+
+export class LoginDto {
+  @IsString()
+  identifier: string; // email or phone
+
+  @IsString()
+  @MinLength(1)
+  password: string;
 }

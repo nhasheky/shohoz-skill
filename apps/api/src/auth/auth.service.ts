@@ -1,8 +1,8 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomInt } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service.js';
-import type { RequestOtpDto, VerifyOtpDto } from './dto/auth.dto.js';
+import type { RequestOtpDto, VerifyOtpDto, RegisterDto, LoginDto } from './dto/auth.dto.js';
 import type { DeviceInfo } from './dto/auth.dto.js';
 
 const MAX_DEVICES = 2;
@@ -14,6 +14,170 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
   ) {}
+
+  /* ═══════════════════════════════════════════════════════════════════
+   *  NEW: Register with name, phone, email, password
+   * ═══════════════════════════════════════════════════════════════════ */
+  async register(dto: RegisterDto) {
+    const normalizedPhone = normalizePhone(dto.phone);
+    const normalizedEmail = dto.email.toLowerCase().trim();
+
+    // Check if phone or email already taken
+    const existing = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { phone: normalizedPhone },
+          { email: normalizedEmail },
+        ],
+      },
+    });
+
+    if (existing) {
+      if (existing.phone === normalizedPhone) {
+        throw new ConflictException('এই মোবাইল নম্বর দিয়ে আগে থেকেই একাউন্ট আছে। লগইন করুন।');
+      }
+      throw new ConflictException('এই ইমেইল দিয়ে আগে থেকেই একাউন্ট আছে। লগইন করুন।');
+    }
+
+    // Hash the password
+    const passwordHash = hashPassword(dto.password);
+
+    // Create user
+    const user = await this.prisma.user.create({
+      data: {
+        name: dto.name.trim(),
+        phone: normalizedPhone,
+        email: normalizedEmail,
+        password: passwordHash,
+        role: 'STUDENT',
+        verified: false, // will be true after OTP verification
+      },
+    });
+
+    // Generate OTP and store (in real system, send via SMS + Email)
+    const otpCode = randomInt(1000, 9999).toString();
+    const codeHash = hash(otpCode);
+
+    await this.prisma.otpCode.create({
+      data: {
+        phone: normalizedPhone,
+        codeHash,
+        purpose: 'REGISTER',
+        expiresAt: new Date(Date.now() + OTP_TTL_MS),
+      },
+    });
+
+    // TODO: Send real SMS & Email with OTP
+    console.log(`[DEV OTP] ${normalizedPhone} / ${normalizedEmail} → ${otpCode}`);
+
+    return {
+      message: 'একাউন্ট তৈরি হয়েছে! ভেরিফিকেশন কোড পাঠানো হয়েছে।',
+      userId: user.id,
+      // In production, don't send the OTP back! Only for demo/dev:
+      _devOtp: otpCode,
+    };
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+   *  NEW: Login with email/phone + password
+   * ═══════════════════════════════════════════════════════════════════ */
+  async login(dto: LoginDto) {
+    const id = dto.identifier.trim();
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id);
+    const isPhone = /^01\d{9}$/.test(id.replace(/\D/g, ''));
+
+    if (!isEmail && !isPhone) {
+      throw new BadRequestException('সঠিক ইমেইল অথবা মোবাইল নম্বর দিন।');
+    }
+
+    // Find user
+    let user;
+    if (isEmail) {
+      user = await this.prisma.user.findFirst({
+        where: { email: id.toLowerCase().trim() },
+      });
+    } else {
+      const normalizedPhone = normalizePhone(id.replace(/\D/g, ''));
+      user = await this.prisma.user.findFirst({
+        where: { phone: normalizedPhone },
+      });
+    }
+
+    if (!user) {
+      throw new UnauthorizedException('এই ইমেইল/মোবাইল দিয়ে কোনো একাউন্ট পাওয়া যায়নি।');
+    }
+
+    // Validate password
+    if (!user.password) {
+      throw new UnauthorizedException('এই একাউন্টে পাসওয়ার্ড সেট করা হয়নি। OTP দিয়ে লগইন করুন।');
+    }
+
+    const passwordHash = hashPassword(dto.password);
+    if (passwordHash !== user.password) {
+      throw new UnauthorizedException('পাসওয়ার্ড ভুল হয়েছে। আবার চেষ্টা করুন।');
+    }
+
+    if (user.status !== 'ACTIVE') {
+      throw new UnauthorizedException('আপনার একাউন্ট সাসপেন্ড করা হয়েছে।');
+    }
+
+    const payload = { sub: user.id, phone: user.phone, role: user.role };
+    return {
+      accessToken: this.jwt.sign(payload),
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        verified: user.verified,
+      },
+    };
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+   *  NEW: Verify registration OTP
+   * ═══════════════════════════════════════════════════════════════════ */
+  async verifyRegistrationOtp(userId: string, code: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BadRequestException('ইউজার পাওয়া যায়নি।');
+
+    const otp = await this.prisma.otpCode.findFirst({
+      where: { phone: user.phone, purpose: 'REGISTER', usedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!otp || hash(code) !== otp.codeHash) {
+      throw new UnauthorizedException('ভুল কোড। সঠিক ভেরিফিকেশন কোড দিন।');
+    }
+    if (otp.expiresAt.getTime() < Date.now()) {
+      throw new UnauthorizedException('কোডের মেয়াদ শেষ। নতুন কোড নিন।');
+    }
+
+    // Mark OTP as used
+    await this.prisma.otpCode.update({ where: { id: otp.id }, data: { usedAt: new Date() } });
+
+    // Mark user as verified
+    await this.prisma.user.update({ where: { id: userId }, data: { verified: true } });
+
+    // Issue JWT
+    const payload = { sub: user.id, phone: user.phone, role: user.role };
+    return {
+      accessToken: this.jwt.sign(payload),
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        verified: true,
+      },
+    };
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+   *  EXISTING: OTP-based login (kept for backward compat)
+   * ═══════════════════════════════════════════════════════════════════ */
 
   /** Request a login/register OTP. In dev, the code is printed to the console. */
   async requestOtp(dto: RequestOtpDto) {
@@ -30,10 +194,8 @@ export class AuthService {
       },
     });
 
-    // TODO: send via SMS gateway (TWILIO/Robi/GP). For dev we log it.
     console.log(`[DEV OTP] ${normalized} → ${code}`);
 
-    // Auto-create the account on REGISTER so the subsequent verify has a user.
     if (dto.purpose === 'REGISTER') {
       await this.prisma.user.upsert({
         where: { phone: normalized },
@@ -70,15 +232,10 @@ export class AuthService {
 
     if (user.status !== 'ACTIVE') throw new UnauthorizedException('Account is not active.');
 
-    // ── Device-limit enforcement ────────────────────────────────────────────
-    // Premium policy: max 2 concurrent sessions. Free signups share a pool.
     if (dto.deviceName) {
-      const jti = this.jwt.sign({ sub: user.id }, { expiresIn: '10m' }).split('.')[2]; // placeholder jti
-
-      // Count only *current* (non-revoked) sessions — simplest enforcement:
+      const jti = this.jwt.sign({ sub: user.id }, { expiresIn: '10m' }).split('.')[2];
       const active = await this.prisma.deviceSession.count({ where: { userId: user.id } });
       if (active >= MAX_DEVICES) {
-        // Reap expired or revoke the oldest session.
         const oldest = await this.prisma.deviceSession.findFirst({
           where: { userId: user.id },
           orderBy: { lastActive: 'asc' },
@@ -169,4 +326,10 @@ function normalizePhone(phone: string) {
 
 function hash(value: string) {
   return createHash('sha256').update(value).digest('hex');
+}
+
+function hashPassword(password: string) {
+  // Using SHA-256 with a salt prefix for simplicity.
+  // In production, use bcrypt or argon2.
+  return createHash('sha256').update('shohoz_salt_' + password).digest('hex');
 }

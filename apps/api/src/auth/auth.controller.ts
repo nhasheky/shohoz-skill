@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service.js';
-import { RequestOtpDto, VerifyOtpDto } from './dto/auth.dto.js';
+import { RequestOtpDto, VerifyOtpDto, RegisterDto, LoginDto } from './dto/auth.dto.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { RolesGuard } from './guards/roles.guard.js';
 import { Roles } from './decorators/roles.decorator.js';
@@ -19,6 +19,29 @@ import type { Request } from 'express';
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
+
+  /* ══════ NEW: Register with name/phone/email/password ══════ */
+  @Post('register')
+  register(@Body() dto: RegisterDto) {
+    return this.auth.register(dto);
+  }
+
+  /* ══════ NEW: Login with email-or-phone + password ══════ */
+  @Post('login')
+  login(@Body() dto: LoginDto) {
+    return this.auth.login(dto);
+  }
+
+  /* ══════ NEW: Verify registration OTP ══════ */
+  @Post('verify-otp')
+  verifyRegistrationOtp(@Body() body: { userId: string; code: string }) {
+    if (!body.userId || !body.code) {
+      throw new BadRequestException('userId and code are required.');
+    }
+    return this.auth.verifyRegistrationOtp(body.userId, body.code);
+  }
+
+  /* ══════ EXISTING endpoints (kept) ══════ */
 
   @Post('otp/request')
   requestOtp(@Body() dto: RequestOtpDto) {
