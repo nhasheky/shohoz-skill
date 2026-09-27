@@ -6,7 +6,7 @@ import { SITE } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: `Login — ${SITE.name}`,
-  description: `Log in to ${SITE.name} with your mobile number.`,
+  description: `Log in to ${SITE.name} with your email or mobile number.`,
   robots: { index: false },
 };
 
