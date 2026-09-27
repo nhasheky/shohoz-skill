@@ -18,7 +18,7 @@ import type {
 } from "@/lib/types";
 import type { DemoEnrollment } from "@/lib/data/users";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://shohoz-api.onrender.com";
 
 // ─── Low-level request with fallback ──────────────────────────────────────
 async function withFallback<T>(

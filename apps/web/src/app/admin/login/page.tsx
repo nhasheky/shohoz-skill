@@ -28,7 +28,7 @@ export default function AdminLoginPage() {
     if (email.trim().toLowerCase() === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
       setBusy(true);
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "https://shohoz-api.onrender.com";
         const res = await fetch(`${apiUrl}/api/auth/admin-login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
