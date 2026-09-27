@@ -1,0 +1,28 @@
+{
+  "name": "shohoz-skill",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shohoz Skill - LMS platform · Learn to Earn",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @shohoz/web",
+    "dev:web": "npm run dev --workspace @shohoz/web",
+    "dev:api": "npm run start:dev --workspace @shohoz/api",
+    "build": "npm run build --workspace @shohoz/web",
+    "build:api": "npm run build --workspace @shohoz/api",
+    "start": "npm run start --workspace @shohoz/web",
+    "start:api": "npm run start:prod --workspace @shohoz/api",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:generate": "npm run db:generate --workspace @shohoz/api",
+    "db:migrate": "npm run db:migrate --workspace @shohoz/api",
+    "db:push": "npm run db:push --workspace @shohoz/api",
+    "db:seed": "npm run db:seed --workspace @shohoz/api"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

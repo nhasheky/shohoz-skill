@@ -1,0 +1,375 @@
+// Shohoz Skill — data model. Mirrors the frontend domain types (src/lib/types.ts).
+// Preview of the schema for the Postgres backend. `prisma migrate dev` once DB URL is set.
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ─── Auth & identity ───────────────────────────────────────────────
+model User {
+  id        String    @id @default(cuid())
+  name      String
+  nameBn    String?
+  email     String?   @unique
+  phone     String    @unique
+  password  String? // only if email+password login is enabled (otherwise OTP)
+  role      Role      @default(STUDENT)
+  status    UserStatus @default(ACTIVE)
+  verified  Boolean   @default(false)
+  joinedAt  DateTime  @default(now())
+
+  devices        DeviceSession[]
+  enrollments    Enrollment[]
+  orders         Order[]
+  examAttempts   ExamAttempt[]
+  reviews        Review[]
+  progressItems  ProgressItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+// OTP login codes (hashed, single-use)
+model OtpCode {
+  id        String   @id @default(cuid())
+  phone     String
+  codeHash  String
+  purpose   OtpPurpose @default(LOGIN)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([phone, purpose])
+}
+
+enum OtpPurpose {
+  LOGIN
+  REGISTER
+  RESET
+}
+
+// Device-limit (max 2 premium logins)
+model DeviceSession {
+  id          String   @id @default(cuid())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  deviceName  String
+  browser     String?
+  os          String?
+  ip          String?
+  tokenJti    String?  @unique // JWT ID for revoking the session
+  lastActive  DateTime @default(now())
+  current     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([userId, lastActive])
+}
+
+// ─── Catalogue ─────────────────────────────────────────────────────
+model Course {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  titleBn     String?
+  tagline     String
+  description String   @db.Text
+  category    String
+  categoryBn  String?
+  level       String
+  durationLabel String
+  totalHours  Int      @default(0)
+  lectures    Int      @default(0)
+  quizzes     Int      @default(0)
+  articles    Int      @default(0)
+  resources   Int      @default(0)
+  students    Int      @default(0)
+  rating      Float    @default(0)
+  reviewCount Int      @default(0)
+  certificate Boolean  @default(false)
+  featured    Boolean  @default(false)
+  published   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  seo         Json?
+  learningOutcomes String[] @default([])
+  requirements String[] @default([])
+  whoIsFor     String[] @default([])
+  faq          Json?
+
+  prices        CoursePrice[]
+  curriculum    CurriculumSection[]
+  instructor    Instructor?  @relation(fields: [instructorId], references: [id])
+  instructorId  String?
+
+  @@index([published, category])
+}
+
+// AccessDuration → price map
+model CoursePrice {
+  id       String @id @default(cuid())
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId String
+  duration String // LIFETIME | 1_MONTH | 2_MONTHS | 3_MONTHS | 6_MONTHS
+  amount   Int
+  originalAmount Int?
+
+  @@unique([courseId, duration])
+}
+
+model CurriculumSection {
+  id      String @id @default(cuid())
+  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId String
+  title   String
+  sortOrder Int   @default(0)
+  lessons Lesson[]
+
+  @@index([courseId])
+}
+
+model Lesson {
+  id          String @id @default(cuid())
+  section     CurriculumSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  sectionId   String
+  title       String
+  durationMinutes Int @default(0)
+  sourceKind  String @default("youtube") // youtube | direct
+  sourceId    String // youtubeId or hlsUrl
+  preview     Boolean @default(false)
+  sortOrder   Int @default(0)
+}
+
+model Instructor {
+  id       String  @id @default(cuid())
+  userId   String? @unique
+  name     String
+  nameBn   String?
+  title    String
+  bio      String  @db.Text
+  rating   Float   @default(0)
+  students Int     @default(0)
+  courses  Int     @default(0)
+  verified Boolean @default(false)
+  coursesTaught Course[]
+}
+
+model Book {
+  id          String @id @default(cuid())
+  slug        String @unique
+  title       String
+  titleBn     String?
+  subtitle    String?
+  description String @db.Text
+  category    String
+  author      String
+  pages       Int
+  edition     String
+  language    String @default("Bn")
+  publisher   String
+  pdfPrice    Int
+  hardcopyPrice Int?
+  samplePages Int    @default(12)
+  students    Int    @default(0)
+  rating      Float  @default(0)
+  reviewCount Int    @default(0)
+  featured    Boolean @default(false)
+  published   Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  seo         Json?
+}
+
+// Exam package or standalone exam; hierarchy: package → subject → topic → questions
+model Exam {
+  id          String @id @default(cuid())
+  slug        String @unique
+  title       String
+  titleBn     String?
+  tagline     String
+  description String @db.Text
+  examType    String @default("topic") // package | subject | topic
+  difficulty  String @default("Medium")
+  isFree      Boolean @default(false)
+  priceAmount Int    @default(0)
+  priceOriginalAmount Int?
+  durationMinutes Int @default(0)
+  questionsCount Int @default(0)
+  totalMarks  Int    @default(0)
+  negativeMarking Boolean @default(true)
+  defaultNegativeMarks Float @default(0.25)
+  marksPerQuestion Int @default(1)
+  attemptCount Int   @default(0)
+  passRate    Float  @default(50)
+  avgScore    Float  @default(0)
+  rating      Float  @default(0)
+  featured    Boolean @default(false)
+  published   Boolean @default(false)
+  createdAt   DateTime @default(now())
+  seo         Json?
+
+  subjects     ExamSubject[]
+  attempts     ExamAttempt[]
+
+  @@index([published])
+}
+
+model ExamSubject {
+  id     String @id @default(cuid())
+  exam   Exam   @relation(fields: [examId], references: [id], onDelete: Cascade)
+  examId String
+  title  String
+  sortOrder Int @default(0)
+  topics ExamTopic[]
+}
+
+model ExamTopic {
+  id       String @id @default(cuid())
+  subject  ExamSubject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  subjectId String
+  title    String
+  slug     String
+  questionsCount Int @default(0)
+  durationMinutes Int @default(0)
+  marksPerQuestion Int @default(1)
+  negativeMarks Float @default(0.25)
+  sortOrder Int @default(0)
+  questions Question[]
+
+  @@unique([subjectId, slug])
+}
+
+model Question {
+  id          String   @id @default(cuid())
+  topic       ExamTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  topicId     String
+  text        String   @db.Text
+  options     Json     // string[]
+  answerIndex Int
+  explanation String?
+  sortOrder   Int @default(0)
+
+  @@index([topicId])
+}
+
+// ─── Blog ──────────────────────────────────────────────────────────
+model BlogPost {
+  id         String @id @default(cuid())
+  slug       String @unique
+  title      String
+  excerpt    String
+  category   String
+  categoryBn String?
+  tags       String[] // PostgreSQL text[]
+  author     String
+  readMinutes Int @default(5)
+  content    Json   // BlogBlock[]
+  featured   Boolean @default(false)
+  scheduledFor DateTime?
+  published  Boolean @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  seo        Json?
+}
+
+// ─── Commerce ──────────────────────────────────────────────────────
+model Order {
+  id           String @id @default(cuid())
+  user         User   @relation(fields: [userId], references: [id])
+  userId       String
+  productType  String // course | book | exam
+  productId    String
+  productTitle String
+  amount       Int
+  method       String // BKASH | NAGAD | SSC | ROCKET
+  status       String @default("PENDING") // PENDING | PAID | FAILED | REFUNDED
+  txId         String? @unique
+  gatewayReference String? // poll uses this
+  refundedAt   DateTime?
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+model Enrollment {
+  id         String @id @default(cuid())
+  user       User   @relation(fields: [userId], references: [id])
+  userId     String
+  productType String
+  productId  String
+  accessFrom DateTime @default(now())
+  accessExpires DateTime?
+  viaAdmin   Boolean @default(false)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, productType, productId])
+  @@index([userId])
+}
+
+// ─── Learning ──────────────────────────────────────────────────────
+model ProgressItem {
+  id        String @id @default(cuid())
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  productId String
+  lessonId  String? // for courses
+  pageIndex Int?    // for books
+  percent   Int    @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, productId, lessonId])
+  @@index([userId, productId])
+}
+
+model ExamAttempt {
+  id        String @id @default(cuid())
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  exam      Exam   @relation(fields: [examId], references: [id])
+  examId    String
+  topicId   String?
+  score     Float
+  maxMarks  Float
+  correct   Int
+  wrong     Int
+  unanswered Int
+  passed    Boolean
+  answers   Json   // user's selected answers snapshot
+  startedAt DateTime @default(now())
+  submittedAt DateTime @default(now())
+
+  @@index([userId, examId, submittedAt])
+}
+
+model Review {
+  id        String @id @default(cuid())
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  productType String // course | book | exam
+  productId String
+  rating    Int
+  text      String @db.Text
+  status    String @default("PENDING") // PENDING | APPROVED | REJECTED
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productType, productId])
+  @@index([productType, productId, status])
+}

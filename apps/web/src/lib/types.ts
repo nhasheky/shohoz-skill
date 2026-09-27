@@ -1,0 +1,278 @@
+export type Role = "SUPER_ADMIN" | "ADMIN" | "TEACHER" | "STUDENT";
+
+export type AccessDuration = "LIFETIME" | "1_MONTH" | "2_MONTHS" | "3_MONTHS" | "6_MONTHS";
+
+export type ProductType = "course" | "book" | "exam";
+
+export type VideoSource = { type: "youtube"; youtubeId: string } | { type: "direct"; hlsUrl: string };
+
+export type Price = { amount: number; originalAmount?: number };
+
+export type Instructor = {
+  id: string;
+  name: string;
+  nameBn?: string;
+  title: string;
+  bio: string;
+  rating: number;
+  students: number;
+  courses: number;
+  avatar?: string;
+  verified?: boolean;
+};
+
+export type CurriculumSection = {
+  id: string;
+  title: string;
+  lessons: CurriculumLesson[];
+};
+
+export type CurriculumLesson = {
+  id: string;
+  title: string;
+  durationMinutes: number;
+  source: VideoSource;
+  preview?: boolean;
+};
+
+export type Course = {
+  id: string;
+  slug: string;
+  title: string;
+  titleBn?: string;
+  tagline: string;
+  description: string;
+  category: string;
+  categoryBn?: string;
+  level: "Beginner" | "Intermediate" | "Advanced" | "All Levels";
+  priceMap: Partial<Record<AccessDuration, Price>>;
+  durationLabel: string;
+  totalHours: number;
+  lectures: number;
+  quizzes: number;
+  articles: number;
+  resources: number;
+  students: number;
+  rating: number;
+  reviewCount: number;
+  certificate: boolean;
+  instructor: Instructor;
+  curriculum: CurriculumSection[];
+  learningOutcomes: string[];
+  requirements: string[];
+  whoIsFor: string[];
+  faq: FaqItem[];
+  videos: { youtube?: string; direct?: string };
+  enrolled?: boolean;
+  published: boolean;
+  featured?: boolean;
+  isNew?: boolean;
+  createdAt: string;
+  seo: Seo;
+};
+
+export type BookFormat = "pdf" | "hardcopy";
+
+export type Book = {
+  id: string;
+  slug: string;
+  title: string;
+  titleBn?: string;
+  subtitle: string;
+  description: string;
+  category: string;
+  author: BookAuthor;
+  pages: number;
+  edition: string;
+  language: "En" | "Bn" | "Mixture";
+  publisher: string;
+  pdfPrice: Price;
+  hardcopyPrice: Price;
+  tableOfContents: { title: string; pages: string }[];
+  samplePages: number;
+  students: number;
+  rating: number;
+  reviewCount: number;
+  published: boolean;
+  featured?: boolean;
+  isNew?: boolean;
+  createdAt: string;
+  seo: Seo;
+};
+
+export type BookAuthor = {
+  id: string;
+  name: string;
+  nameBn?: string;
+  title: string;
+  bio: string;
+  avatar?: string;
+};
+
+export type Question = {
+  id: string;
+  text: string;
+  options: string[];
+  answerIndex: number;
+  explanation?: string;
+};
+
+export type ExamTopic = {
+  id: string;
+  title: string;
+  titleBn?: string;
+  description?: string;
+  slug: string;
+  questionsCount: number;
+  durationMinutes: number;
+  marksPerQuestion: number;
+  negativeMarks: number;
+  questions: Question[];
+};
+
+export type ExamSubject = {
+  id: string;
+  title: string;
+  titleBn?: string;
+  topics: ExamTopic[];
+};
+
+export type Exam = {
+  id: string;
+  slug: string;
+  title: string;
+  titleBn?: string;
+  tagline: string;
+  description: string;
+  difficulty: "Easy" | "Medium" | "Hard";
+  examType: "subject" | "topic" | "package";
+  packageId?: string;
+  subjectId?: string;
+  category?: string;
+  isFree: boolean;
+  price: Price;
+  durationMinutes: number;
+  rating: number;
+  questionsCount: number;
+  totalMarks: number;
+  negativeMarking: boolean;
+  defaultNegativeMarks: number;
+  marksPerQuestion: number;
+  attemptCount: number;
+  passRate: number;
+  avgScore: number;
+  subjects: ExamSubject[];
+  accessDuration: AccessDuration;
+  featured?: boolean;
+  isNew?: boolean;
+  published: boolean;
+  createdAt: string;
+  seo: Seo;
+};
+
+export type BlogPost = {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string;
+  content: BlogBlock[];
+  category: string;
+  categoryBn?: string;
+  tags: string[];
+  author: BlogAuthor;
+  readMinutes: number;
+  featured?: boolean;
+  published: boolean;
+  scheduledFor?: string;
+  createdAt: string;
+  updatedAt?: string;
+  seo: Seo;
+};
+
+export type BlogBlock =
+  | { type: "paragraph"; text: string }
+  | { type: "heading"; text: string }
+  | { type: "list"; ordered: boolean; items: string[] }
+  | { type: "quote"; text: string; cite?: string }
+  | { type: "image"; src: string; alt: string; caption?: string }
+  | { type: "video"; youtubeId: string; title?: string }
+  | { type: "gallery"; images: { src: string; alt: string }[] };
+
+export type BlogAuthor = {
+  id: string;
+  name: string;
+  nameBn?: string;
+  title: string;
+  avatar?: string;
+};
+
+export type TestimonialReview = {
+  id: string;
+  type: "image" | "text";
+  imageSrc?: string;
+  text?: string;
+  name: string;
+  nameBn?: string;
+  role: string;
+  rating: number;
+  placement: "homepage" | "product" | "all";
+  productSlugs?: string[];
+  featured?: boolean;
+};
+
+export type FaqItem = { question: string; answer: string };
+
+export type Seo = {
+  title: string;
+  description: string;
+  keywords?: string[];
+  ogImage?: string;
+};
+
+export type DeviceSession = {
+  id: string;
+  deviceName: string;
+  browser: string;
+  os: string;
+  ip: string;
+  lastActive: string;
+  current: boolean;
+};
+
+export type AppUser = {
+  id: string;
+  name: string;
+  nameBn?: string;
+  email: string;
+  phone: string;
+  role: Role;
+  avatar?: string;
+  status: "ACTIVE" | "BANNED" | "SUSPENDED";
+  joinedAt: string;
+  devices: DeviceSession[];
+  verified: boolean;
+};
+
+export type OrderStatus = "PENDING" | "PAID" | "FAILED" | "REFUNDED";
+export type PaymentMethod = "BKASH" | "NAGAD" | "SSC" | "ROCKET";
+
+export type Order = {
+  id: string;
+  userId: string;
+  productType: ProductType;
+  productId: string;
+  productTitle: string;
+  amount: number;
+  method: PaymentMethod;
+  status: OrderStatus;
+  createdAt: string;
+  txId: string;
+};
+
+export type Category = {
+  slug: string;
+  label: string;
+  labelBn: string;
+  description: string;
+  count: number;
+};
