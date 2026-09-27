@@ -6,7 +6,12 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api');
   app.enableCors({
-    origin: process.env.WEB_ORIGIN?.split(',') ?? ['http://localhost:3000'],
+    origin: process.env.WEB_ORIGIN?.split(',') ?? [
+      'http://localhost:3000',
+      'https://shohozskill.com.bd',
+      'https://www.shohozskill.com.bd',
+      'https://shohoz-skill-web.vercel.app',
+    ],
     credentials: true,
   });
   app.useGlobalPipes(
