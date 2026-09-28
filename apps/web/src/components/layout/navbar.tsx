@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NAV_ITEMS, SITE } from "@/lib/site";
 import { cn } from "@/lib/cn";
 import { LogoMark } from "@/components/brand/logo-mark";
@@ -13,6 +13,11 @@ import { IconMenu, IconX } from "@/components/ui/icons";
 export function Navbar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    setIsLoggedIn(Boolean(localStorage.getItem("shohoz_token")));
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 glass">
@@ -41,12 +46,20 @@ export function Navbar() {
 
         <div className="flex items-center gap-2">
           <ThemeToggle className="hidden sm:inline-flex" />
-          <ButtonLink href="/login" variant="ghost" size="sm" className="hidden md:inline-flex">
-            Login
-          </ButtonLink>
-          <ButtonLink href="/register" variant="accent" size="sm" className="hidden md:inline-flex">
-            Get Started
-          </ButtonLink>
+          {isLoggedIn ? (
+            <ButtonLink href="/dashboard" variant="accent" size="sm" className="hidden md:inline-flex">
+              Dashboard
+            </ButtonLink>
+          ) : (
+            <>
+              <ButtonLink href="/login" variant="ghost" size="sm" className="hidden md:inline-flex">
+                Login
+              </ButtonLink>
+              <ButtonLink href="/register" variant="accent" size="sm" className="hidden md:inline-flex">
+                Get Started
+              </ButtonLink>
+            </>
+          )}
           <button
             type="button"
             className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border lg:hidden cursor-pointer"
@@ -82,12 +95,20 @@ export function Navbar() {
               );
             })}
             <div className="mt-3 flex flex-col gap-2 border-t border-border pt-4">
-              <ButtonLink href="/login" variant="outline" fullWidth>
-                Login
-              </ButtonLink>
-              <ButtonLink href="/register" variant="accent" fullWidth>
-                Get Started — {SITE.tagline}
-              </ButtonLink>
+              {isLoggedIn ? (
+                <ButtonLink href="/dashboard" variant="accent" fullWidth>
+                  Dashboard
+                </ButtonLink>
+              ) : (
+                <>
+                  <ButtonLink href="/login" variant="outline" fullWidth>
+                    Login
+                  </ButtonLink>
+                  <ButtonLink href="/register" variant="accent" fullWidth>
+                    Get Started — {SITE.tagline}
+                  </ButtonLink>
+                </>
+              )}
             </div>
           </div>
         </div>
