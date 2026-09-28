@@ -4,6 +4,8 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import type { CreateOrderDto } from './dto/create-order.dto.js';
 import type { UpdateOrderStatusDto } from './dto/update-order-status.dto.js';
 import type { CheckoutDto } from './dto/checkout.dto.js';
+// @ts-ignore
+import SSLCommerzPayment from 'sslcommerz-lts';
 
 type ResolvedProduct = {
   title: string;
@@ -94,10 +96,62 @@ export class OrdersService {
       await this.grantAccess(userId, dto.productType, dto.productId);
     }
 
-    const paymentUrl =
-      !isFree && dto.paymentMethod === 'SSLCOMMERZ'
-        ? `${this.config.get('SSLCOMMERZ_SANDBOX_URL') ?? 'https://sandbox.sslcommerz.com'}/checkout/${order.txId}`
-        : null;
+    let paymentUrl: string | null = null;
+    if (!isFree && dto.paymentMethod === 'SSLCOMMERZ') {
+      let customerName = order.guestName || 'Customer';
+      let customerEmail = order.guestEmail || 'customer@shohozskill.com';
+      let customerPhone = order.guestPhone || '01700000000';
+      if (userId) {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (user) {
+          customerName = user.name || customerName;
+          customerEmail = user.email || customerEmail;
+          customerPhone = user.phone || customerPhone;
+        }
+      }
+
+      const storeId = this.config.get('SSLCOMMERZ_STORE_ID') || 'shohozskillcombd0live';
+      const storePass = this.config.get('SSLCOMMERZ_STORE_PASS') || '69F07E8E9B34A63050';
+      const isLive = this.config.get('SSLCOMMERZ_IS_LIVE') === 'true' || true;
+      const apiUrl = this.config.get('API_URL') || 'https://shohoz-api.onrender.com';
+      const frontendUrl = this.config.get('FRONTEND_URL') || 'https://shohozskill.com.bd';
+      
+      const sslcz = new SSLCommerzPayment(storeId, storePass, isLive);
+      
+      const initData = {
+        total_amount: order.total,
+        currency: 'BDT',
+        tran_id: order.txId,
+        success_url: `${apiUrl}/api/orders/sslcommerz/success?orderId=${order.id}`,
+        fail_url: `${apiUrl}/api/orders/sslcommerz/fail?orderId=${order.id}`,
+        cancel_url: `${apiUrl}/api/orders/sslcommerz/cancel?orderId=${order.id}`,
+        ipn_url: `${apiUrl}/api/orders/sslcommerz/ipn`,
+        shipping_method: order.isPhysical ? 'Courier' : 'No',
+        product_name: order.productTitle,
+        product_category: order.productType,
+        product_profile: 'general',
+        cus_name: customerName,
+        cus_email: customerEmail,
+        cus_add1: order.address || 'Dhaka',
+        cus_city: 'Dhaka',
+        cus_state: 'Dhaka',
+        cus_postcode: '1000',
+        cus_country: 'Bangladesh',
+        cus_phone: customerPhone,
+      };
+
+      try {
+        const apiResponse = await sslcz.init(initData);
+        if (apiResponse?.GatewayPageURL) {
+          paymentUrl = apiResponse.GatewayPageURL;
+        } else {
+          throw new BadRequestException('Failed to initiate SSLCOMMERZ session.');
+        }
+      } catch (err) {
+        console.error('SSLCommerz Init Error:', err);
+        throw new BadRequestException('Payment gateway error. Try again.');
+      }
+    }
 
     return {
       orderId: order.id,
@@ -280,6 +334,76 @@ export class OrdersService {
       create: { userId, productType, productId, accessFrom: new Date() },
       update: {},
     });
+  }
+
+  // --- SSLCOMMERZ HANDLERS ---
+  private getSslcz() {
+    const storeId = this.config.get('SSLCOMMERZ_STORE_ID') || 'shohozskillcombd0live';
+    const storePass = this.config.get('SSLCOMMERZ_STORE_PASS') || '69F07E8E9B34A63050';
+    const isLive = this.config.get('SSLCOMMERZ_IS_LIVE') === 'true' || true;
+    return new SSLCommerzPayment(storeId, storePass, isLive);
+  }
+
+  async handleSslCallback(orderId: string, body: any, event: 'SUCCESS' | 'FAIL' | 'CANCEL'): Promise<string> {
+    const frontendUrl = this.config.get('FRONTEND_URL') || 'https://shohozskill.com.bd';
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) return `${frontendUrl}/checkout/fail?reason=not_found`;
+
+    if (event === 'SUCCESS' && body.val_id) {
+      try {
+        const sslcz = this.getSslcz();
+        // The sslcommerz-lts package validation validates the transaction and returns a boolean or object.
+        // It relies on `body` containing `val_id` and `store_id` logic.
+        const isValid = await sslcz.validate(body);
+        if (isValid) {
+          await this.prisma.order.update({
+            where: { id: orderId },
+            data: { status: 'PAID', txId: body.bank_tran_id || order.txId },
+          });
+          if (order.userId && !order.isPhysical) {
+            await this.grantAccess(order.userId, order.productType, order.productId);
+          }
+          return `${frontendUrl}/checkout/success`;
+        } else {
+          await this.prisma.order.update({ where: { id: orderId }, data: { status: 'FAILED' } });
+          return `${frontendUrl}/checkout/fail?reason=invalid`;
+        }
+      } catch (err) {
+        console.error('SSL validation error:', err);
+        return `${frontendUrl}/checkout/fail?reason=validation_error`;
+      }
+    } else {
+      await this.prisma.order.update({ where: { id: orderId }, data: { status: event === 'CANCEL' ? 'CANCELLED' : 'FAILED' } });
+      return `${frontendUrl}/checkout/fail?reason=${event.toLowerCase()}`;
+    }
+  }
+
+  async handleSslIpn(body: any) {
+    if (!body || !body.tran_id) return { message: 'Invalid IPN' };
+    
+    const txId = body.tran_id;
+    const order = await this.prisma.order.findFirst({ where: { txId } });
+    if (!order) return { message: 'Order not found' };
+
+    if (body.status === 'VALID' || body.status === 'VALIDATED') {
+       try {
+         const sslcz = this.getSslcz();
+         const isValid = await sslcz.validate(body);
+         if (isValid && order.status !== 'PAID') {
+            await this.prisma.order.update({ where: { id: order.id }, data: { status: 'PAID' } });
+            if (order.userId && !order.isPhysical) {
+              await this.grantAccess(order.userId, order.productType, order.productId);
+            }
+         }
+       } catch (err) {
+         console.error('IPN Validation Error:', err);
+       }
+    } else if (body.status === 'FAILED' || body.status === 'CANCELLED') {
+       if (order.status === 'PENDING') {
+         await this.prisma.order.update({ where: { id: order.id }, data: { status: body.status } });
+       }
+    }
+    return { message: 'IPN Processed' };
   }
 }
 

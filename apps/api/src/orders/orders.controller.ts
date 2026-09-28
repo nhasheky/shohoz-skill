@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
 import { OrdersService } from './orders.service.js';
 import { CreateOrderDto } from './dto/create-order.dto.js';
 import { CheckoutDto } from './dto/checkout.dto.js';
@@ -28,6 +29,31 @@ export class OrdersController {
   poll(@Param('id') id: string) {
     return this.orders.poll(id);
   }
+
+  // --- SSLCOMMERZ Callbacks ---
+  @Post('sslcommerz/success')
+  async sslSuccess(@Query('orderId') orderId: string, @Body() body: any, @Res() res: Response) {
+    const url = await this.orders.handleSslCallback(orderId, body, 'SUCCESS');
+    return res.redirect(url);
+  }
+
+  @Post('sslcommerz/fail')
+  async sslFail(@Query('orderId') orderId: string, @Body() body: any, @Res() res: Response) {
+    const url = await this.orders.handleSslCallback(orderId, body, 'FAIL');
+    return res.redirect(url);
+  }
+
+  @Post('sslcommerz/cancel')
+  async sslCancel(@Query('orderId') orderId: string, @Body() body: any, @Res() res: Response) {
+    const url = await this.orders.handleSslCallback(orderId, body, 'CANCEL');
+    return res.redirect(url);
+  }
+
+  @Post('sslcommerz/ipn')
+  async sslIpn(@Body() body: any) {
+    return this.orders.handleSslIpn(body);
+  }
+  // ----------------------------
 
   @Get('mine')
   @UseGuards(JwtAuthGuard, RolesGuard)
