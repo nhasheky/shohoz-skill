@@ -315,18 +315,29 @@ export class AuthService {
   }
 
   async adminLogin(email: string, password?: string) {
-    if (password !== 'admin123') {
+    if (!password) {
+      throw new UnauthorizedException('Password is required.');
+    }
+    
+    const admin = await this.prisma.user.findFirst({
+      where: { email: email.toLowerCase().trim() },
+    });
+    
+    if (!admin) {
+      throw new UnauthorizedException('Admin account not found.');
+    }
+    
+    if (admin.role !== 'ADMIN' && admin.role !== 'SUPER_ADMIN') {
+      throw new UnauthorizedException('Access denied. Admin privileges required.');
+    }
+    
+    if (!admin.password) {
+      throw new UnauthorizedException('This account has no password set. Please login via OTP and set a password.');
+    }
+    
+    if (hashPassword(password) !== admin.password) {
       throw new UnauthorizedException('Invalid credentials.');
     }
-    const admin = await this.prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: email.toLowerCase().trim() },
-          { role: 'SUPER_ADMIN' },
-        ],
-      },
-    });
-    if (!admin) throw new UnauthorizedException('Admin account not found.');
 
     const payload = { sub: admin.id, phone: admin.phone, role: admin.role };
     return {

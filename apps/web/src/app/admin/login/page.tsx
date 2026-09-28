@@ -37,7 +37,7 @@ export default function AdminLoginPage() {
       if (res.ok) {
         const data = await res.json();
         setAdminSession(data.accessToken, data.user?.role ?? "SUPER_ADMIN", data.user?.name ?? "Admin");
-        router.push("/admin");
+        window.location.href = "/admin";
       } else {
         const data = await res.json().catch(() => ({}));
         setError(data.message ?? "Invalid email or password.");
@@ -65,7 +65,7 @@ export default function AdminLoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@shohozskill.com"
+              placeholder="Enter your admin email"
               autoComplete="username"
               autoFocus
               className={inputCls}
