@@ -524,6 +524,7 @@ export function UsersPage() {
   const [mode, setMode] = useState<"live" | "demo">("demo");
   const [editing, setEditing] = useState<AppUser | null>(null);
   const [confirm, setConfirm] = useState<AppUser | null>(null);
+  const [deleting, setDeleting] = useState<AppUser | null>(null);
   const [busy, setBusy] = useState(false);
   const [demoUsers, setDemoUsers] = useState<AppUser[]>(seedUsers);
 
@@ -656,6 +657,7 @@ export function UsersPage() {
                       <button type="button" onClick={() => setConfirm(u)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-danger transition-colors hover:border-danger">
                         {u.status === "ACTIVE" ? "Suspend" : "Activate"}
                       </button>
+                      <button type="button" onClick={() => setDeleting(u)} className="rounded-lg border border-danger/30 bg-danger/5 px-3 py-1.5 text-xs font-bold text-danger transition-colors hover:bg-danger/20">Delete</button>
                     </div>
                   </td>
                 </tr>
@@ -679,6 +681,28 @@ export function UsersPage() {
         onConfirm={confirmAction}
         busy={busy}
         confirmLabel={confirm?.status === "ACTIVE" ? "Suspend" : "Activate"}
+      />
+      <ConfirmDialog
+        open={Boolean(deleting)}
+        title="Delete user permanently"
+        message={deleting ? `Are you sure you want to PERMANENTLY DELETE "${deleting.name}" (${deleting.phone})? This will remove ALL their data including orders, enrollments, progress, and reviews. This action CANNOT be undone!` : ""}
+        onCancel={() => setDeleting(null)}
+        onConfirm={async () => {
+          if (!deleting) return;
+          setBusy(true);
+          try {
+            await api.deleteUser(deleting.id);
+            toast.success(`${deleting.name} permanently deleted`);
+            setDeleting(null);
+            load();
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Delete failed");
+          } finally {
+            setBusy(false);
+          }
+        }}
+        busy={busy}
+        confirmLabel="Delete permanently"
       />
     </div>
   );
