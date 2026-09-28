@@ -20,8 +20,7 @@
     "db:generate": "npm run db:generate --workspace @shohoz/api",
     "db:migrate": "npm run db:migrate --workspace @shohoz/api",
     "db:push": "npm run db:push --workspace @shohoz/api",
-    "db:seed": "npm run db:seed --workspace @shohoz/api",
-    "postinstall": "npm run db:generate"
+    "db:seed": "npm run db:seed --workspace @shohoz/api"
   },
   "engines": {
     "node": ">=20"
