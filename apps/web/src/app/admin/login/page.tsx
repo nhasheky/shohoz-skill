@@ -7,9 +7,6 @@ import { useAdminTitle } from "@/lib/use-admin-title";
 import { LogoMark } from "@/components/brand/logo-mark";
 import { IconKey, IconShieldCheck } from "@/components/ui/icons";
 
-const ADMIN_EMAIL = "admin@shohozskill.com";
-const ADMIN_PASSWORD = "admin123";
-
 export default function AdminLoginPage() {
   useAdminTitle("Admin Login");
   const router = useRouter();
@@ -25,28 +22,31 @@ export default function AdminLoginPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (email.trim().toLowerCase() === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-      setBusy(true);
-      try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "https://shohoz-api.onrender.com";
-        const res = await fetch(`${apiUrl}/api/auth/admin-login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: email.trim(), password }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setAdminSession(data.accessToken, data.user?.role ?? "SUPER_ADMIN", data.user?.name ?? "Admin");
-        } else {
-          setAdminSession("admin-session", "SUPER_ADMIN", "Admin");
-        }
-      } catch {
-        setAdminSession("admin-session", "SUPER_ADMIN", "Admin");
-      }
-      router.push("/admin");
+    if (!email.trim() || !password) {
+      setError("Email and password are required.");
       return;
     }
-    setError("Invalid email or password.");
+    setBusy(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "https://shohoz-api.onrender.com";
+      const res = await fetch(`${apiUrl}/api/auth/admin-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAdminSession(data.accessToken, data.user?.role ?? "SUPER_ADMIN", data.user?.name ?? "Admin");
+        router.push("/admin");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.message ?? "Invalid email or password.");
+        setBusy(false);
+      }
+    } catch {
+      setError("Cannot connect to server. Try again later.");
+      setBusy(false);
+    }
   }
 
   return (
