@@ -62,9 +62,9 @@ export async function POST(request: Request) {
     `.trim();
 
     await transporter.sendMail({
-      from: \`"Shohoz Skill" <\${process.env.SMTP_USER ?? "nazmulhasanasheky@gmail.com"}>\`,
+      from: `"Shohoz Skill" <${process.env.SMTP_USER ?? "nazmulhasanasheky@gmail.com"}>`,
       to,
-      subject: \`আপনার ভেরিফিকেশন কোড: \${code}\`,
+      subject: `আপনার ভেরিফিকেশন কোড: ${code}`,
       html: htmlContent,
     });
 
