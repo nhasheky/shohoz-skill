@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import {
+  IsArray,
   IsBoolean,
   IsInt,
   IsNotEmpty,
@@ -90,6 +91,11 @@ export class CreateBookDto {
   @IsOptional()
   @IsBoolean()
   published?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  allowedPaymentMethods?: string[];
 
   @IsOptional()
   seo?: Prisma.InputJsonValue;

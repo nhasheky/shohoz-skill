@@ -1,27 +1,63 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { formatBdt } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import { IconCheckCircle, IconLock, IconRefresh, IconShieldCheck, IconWallet, IconX } from "@/components/ui/icons";
+import { IconCheckCircle, IconLock, IconRefresh, IconShieldCheck, IconX } from "@/components/ui/icons";
 
 type Step = "form" | "processing" | "success" | "error";
-type Method = "bkash" | "nagad" | "rocket" | "card";
+type PaymentMethod = "COD" | "SSLCOMMERZ";
+type Region = "DHAKA" | "OUTSIDE";
 
-const METHODS: { id: Method; label: string }[] = [
-  { id: "bkash", label: "bKash" },
-  { id: "nagad", label: "Nagad" },
-  { id: "rocket", label: "Rocket" },
-  { id: "card", label: "Card" },
-];
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://shohoz-api.onrender.com";
+
+type Settings = {
+  deliveryChargeDhaka: number;
+  deliveryChargeOutside: number;
+  codEnabled: boolean;
+  sslcommerzEnabled: boolean;
+};
+
+const DEFAULT_SETTINGS: Settings = {
+  deliveryChargeDhaka: 60,
+  deliveryChargeOutside: 120,
+  codEnabled: true,
+  sslcommerzEnabled: true,
+};
+
+const inputCls =
+  "w-full rounded-xl border border-border bg-card px-4 py-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-accent";
+
+function readStoredUser(): { name?: string; phone?: string; email?: string } | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("shohoz_user");
+    return raw ? (JSON.parse(raw) as { name?: string; phone?: string; email?: string }) : null;
+  } catch {
+    return null;
+  }
+}
+
+function hasStoredToken(): boolean {
+  if (typeof window === "undefined") return false;
+  return Boolean(localStorage.getItem("shohoz_token"));
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export function PurchaseDialog({
   open,
   onClose,
   kind = "Course",
   title,
+  productId,
+  productType,
+  allowedPaymentMethods,
+  planId,
   planLabel,
   price,
   originalPrice = 0,
@@ -31,66 +67,178 @@ export function PurchaseDialog({
   onClose: () => void;
   kind?: "Course" | "Book" | "Exam";
   title: string;
+  productId: string;
+  productType: "course" | "book" | "exam";
+  allowedPaymentMethods?: string[];
+  planId: string;
   planLabel: string;
   price: number;
   originalPrice?: number;
   note: string;
 }) {
+  const router = useRouter();
   const [step, setStep] = useState<Step>("form");
-  const [method, setMethod] = useState<Method>("bkash");
-  const [phone, setPhone] = useState("");
+  const [method, setMethod] = useState<PaymentMethod>("SSLCOMMERZ");
+  const [name, setName] = useState(() => readStoredUser()?.name ?? "");
+  const [phone, setPhone] = useState(() => readStoredUser()?.phone?.replace(/^\+88/, "") ?? "");
+  const [email, setEmail] = useState(() => readStoredUser()?.email ?? "");
+  const [address, setAddress] = useState("");
+  const [region, setRegion] = useState<Region>("DHAKA");
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const router = useRouter();
+  const [loggedIn] = useState(() => hasStoredToken());
 
   const free = price === 0;
+  const physical = productType === "book" && planId === "hardcopy";
+
+  const deliveryCharge = physical
+    ? region === "DHAKA"
+      ? settings.deliveryChargeDhaka
+      : settings.deliveryChargeOutside
+    : 0;
+  const total = price + deliveryCharge;
+
+  const allowed = useMemo<PaymentMethod[]>(() => {
+    const defaults: PaymentMethod[] = physical ? ["COD", "SSLCOMMERZ"] : ["SSLCOMMERZ"];
+    const configured = allowedPaymentMethods?.length ? (allowedPaymentMethods as PaymentMethod[]) : defaults;
+    return configured.filter((m) =>
+      m === "COD" ? physical && settings.codEnabled : m === "SSLCOMMERZ" ? settings.sslcommerzEnabled : false,
+    );
+  }, [allowedPaymentMethods, physical, settings.codEnabled, settings.sslcommerzEnabled]);
+
+  const activeMethod: PaymentMethod = allowed.includes(method) ? method : (allowed[0] ?? "SSLCOMMERZ");
+
+  const discount = useMemo(
+    () => (originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0),
+    [price, originalPrice],
+  );
 
   useEffect(() => {
-    return () => {
-      if (timer.current) clearTimeout(timer.current);
-    };
-  }, []);
-
-  const discount = useMemo(() => (originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0), [price, originalPrice]);
-
-  if (!open) return null;
-
-  function startPoll() {
-    setStep("processing");
-    setErrorMsg("");
-    let tick = 0;
-    const run = () => {
-      tick += 1;
-      if (tick > 4) {
-        const success = Math.random() > 0.08;
-        if (success) {
-          setOrderId(`SS-${Math.random().toString(36).slice(2, 8).toUpperCase()}-${Date.now().toString().slice(-6)}`);
-          setStep("success");
-        } else {
-          setErrorMsg("The payment gateway timed out. No money was deducted — please retry.");
-          setStep("error");
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/site-settings`, { headers: { Accept: "application/json" } });
+        if (!res.ok) return;
+        const s = (await res.json()) as Partial<Settings>;
+        if (!cancelled) {
+          setSettings({
+            deliveryChargeDhaka: s.deliveryChargeDhaka ?? DEFAULT_SETTINGS.deliveryChargeDhaka,
+            deliveryChargeOutside: s.deliveryChargeOutside ?? DEFAULT_SETTINGS.deliveryChargeOutside,
+            codEnabled: s.codEnabled ?? true,
+            sslcommerzEnabled: s.sslcommerzEnabled ?? true,
+          });
         }
-        return;
+      } catch {
+        /* keep defaults */
       }
-      timer.current = setTimeout(run, 850);
+    })();
+    return () => {
+      cancelled = true;
     };
-    timer.current = setTimeout(run, 600);
+  }, [open]);
+
+  function authHeader(): Record<string, string> {
+    if (typeof window === "undefined") return {};
+    const token = localStorage.getItem("shohoz_token");
+    return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
-  function handlePay() {
-    if (!free && (method === "bkash" || method === "nagad" || method === "rocket") && phone.replace(/\D/g, "").length < 11) {
-      setErrorMsg("Enter a valid 11-digit Bangladeshi mobile number.");
+  function validate(): string {
+    if (!loggedIn) {
+      if (!name.trim()) return "Please enter your name.";
+      if (!/^01\d{9}$/.test(phone.replace(/\D/g, ""))) return "Enter a valid 11-digit Bangladeshi mobile number.";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return "Enter a valid email address.";
+    }
+    if (physical) {
+      if (!address.trim()) return "Enter your delivery address.";
+      if (!region) return "Select a delivery region.";
+    }
+    return "";
+  }
+
+  async function pay() {
+    const problem = validate();
+    if (problem) {
+      setErrorMsg(problem);
       setStep("error");
       return;
     }
-    if (free) {
-      setOrderId(`SS-FREE-${Math.random().toString(36).slice(2, 8).toUpperCase()}`);
-      setStep("success");
-      return;
+    setStep("processing");
+    setErrorMsg("");
+
+    const body: Record<string, unknown> = {
+      productType,
+      productId,
+      paymentMethod: free ? "SSLCOMMERZ" : activeMethod,
+    };
+    if (productType === "book") body.variant = planId;
+    if (productType === "course") body.duration = planId;
+    if (!loggedIn) {
+      body.guestName = name.trim();
+      body.guestPhone = phone.replace(/\D/g, "");
+      body.guestEmail = email.trim().toLowerCase();
     }
-    startPoll();
+    if (physical) {
+      body.address = address.trim();
+      body.region = region;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/api/orders/checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json", ...authHeader() },
+        body: JSON.stringify(body),
+      });
+      const data = (await res.json()) as { orderId: string; status: string; paymentUrl?: string | null; message?: string };
+      if (!res.ok) throw new Error((data as { message?: string }).message || `Checkout failed (${res.status})`);
+
+      setOrderId(data.orderId);
+
+      if (data.status === "PAID") {
+        goToSuccess(data.orderId, "PAID");
+        return;
+      }
+      if (activeMethod === "COD") {
+        goToSuccess(data.orderId, "PENDING");
+        return;
+      }
+
+      // SSLCOMMERZ (mock): briefly poll the gateway, then land on the success page.
+      for (let i = 0; i < 3; i++) {
+        await delay(900);
+        try {
+          const pr = await fetch(`${API_URL}/api/orders/${data.orderId}/poll`, { method: "POST" });
+          const pd = (await pr.json()) as { status?: string };
+          if (pd.status === "PAID") {
+            goToSuccess(data.orderId, "PAID");
+            return;
+          }
+        } catch {
+          /* keep polling */
+        }
+      }
+      goToSuccess(data.orderId, "PENDING");
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Checkout failed. Please try again.");
+      setStep("error");
+    }
   }
+
+  function goToSuccess(id: string, status: string) {
+    setStep("success");
+    const q = new URLSearchParams({
+      orderId: id,
+      method: free ? "FREE" : method,
+      status,
+      digital: physical ? "0" : "1",
+    });
+    onClose();
+    router.push(`/checkout/success?${q.toString()}`);
+  }
+
+  if (!open) return null;
 
   return (
     <div
@@ -101,13 +249,13 @@ export function PurchaseDialog({
       onClick={step === "processing" ? undefined : onClose}
     >
       <div
-        className="w-full max-w-md rounded-t-3xl border border-border bg-card shadow-pop p-6 sm:rounded-3xl"
+        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-border bg-card p-6 shadow-pop sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-accent">{kind} · Checkout</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-accent">{kind} - Checkout</p>
             <h2 className="mt-1 font-display text-lg font-bold leading-snug text-foreground">{title}</h2>
             {planLabel !== "Full access" && <p className="mt-0.5 text-sm text-muted-foreground">Plan: {planLabel}</p>}
           </div>
@@ -123,64 +271,116 @@ export function PurchaseDialog({
 
         {step === "form" && (
           <>
-            <div className="mt-5 flex items-center justify-between rounded-2xl border border-border bg-muted/60 px-4 py-3">
-              <span className="text-sm text-muted-foreground">Amount</span>
-              <span className="font-display text-xl font-extrabold text-foreground">
-                {formatBdt(price)}
-                {discount > 0 && (
-                  <span className="ml-2 align-middle rounded-full bg-accent/15 px-2 py-0.5 text-xs font-bold text-accent">{discount}% off</span>
-                )}
-              </span>
+            <div className="mt-5 space-y-1.5 rounded-2xl border border-border bg-muted/60 px-4 py-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Item</span>
+                <span className="font-semibold text-foreground">
+                  {formatBdt(price)}
+                  {discount > 0 && (
+                    <span className="ml-2 rounded-full bg-accent/15 px-2 py-0.5 text-xs font-bold text-accent">{discount}% off</span>
+                  )}
+                </span>
+              </div>
+              {physical && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Delivery ({region === "DHAKA" ? "inside Dhaka" : "outside Dhaka"})</span>
+                  <span className="font-semibold text-foreground">{formatBdt(deliveryCharge)}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between border-t border-border pt-1.5">
+                <span className="font-semibold text-foreground">Total</span>
+                <span className="font-display text-xl font-extrabold text-foreground">{formatBdt(total)}</span>
+              </div>
             </div>
 
-            {!free && (
-              <>
-                <div className="mt-4">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Payment method</p>
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {METHODS.map((m) => (
+            {loggedIn ? (
+              <p className="mt-4 rounded-xl border border-border bg-muted/40 px-4 py-2.5 text-xs text-muted-foreground">
+                Signed in — your purchase will be linked to your account automatically.
+              </p>
+            ) : (
+              <div className="mt-4 space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  Checkout as guest — or{" "}
+                  <a href="/login" className="font-bold text-accent hover:underline">login</a> to link it to your account.
+                </p>
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Full name *</span>
+                  <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Rahim Uddin" className={inputCls} />
+                </label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mobile *</span>
+                    <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="01XXXXXXXXX" className={inputCls} />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Email *</span>
+                    <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@example.com" className={inputCls} />
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {physical && (
+              <div className="mt-4 space-y-3">
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Delivery address *</span>
+                  <textarea value={address} onChange={(e) => setAddress(e.target.value)} rows={2} placeholder="House, road, area, district" className={cn(inputCls, "resize-y")} />
+                </label>
+                <div>
+                  <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Region *</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["DHAKA", "OUTSIDE"] as const).map((r) => (
                       <button
-                        key={m.id}
+                        key={r}
                         type="button"
-                        onClick={() => setMethod(m.id)}
+                        onClick={() => setRegion(r)}
                         className={cn(
-                          "rounded-xl border px-2 py-2.5 text-xs font-bold transition-colors",
-                          method === m.id ? "border-accent bg-accent/10 text-accent" : "border-border bg-card text-muted-foreground hover:text-foreground",
+                          "rounded-xl border px-3 py-2.5 text-xs font-bold transition-colors",
+                          region === r ? "border-accent bg-accent/10 text-accent" : "border-border bg-card text-muted-foreground hover:text-foreground",
                         )}
                       >
-                        {m.label}
+                        {r === "DHAKA" ? `Inside Dhaka (${formatBdt(settings.deliveryChargeDhaka)})` : `Outside Dhaka (${formatBdt(settings.deliveryChargeOutside)})`}
                       </button>
                     ))}
                   </div>
                 </div>
-                <label className="mt-4 block">
-                  <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {method === "card" ? "Card number" : `Your ${METHODS.find((m) => m.id === method)?.label} number`}
-                  </span>
-                  <input
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    inputMode={method === "card" ? "numeric" : "tel"}
-                    placeholder={method === "card" ? "XXXX XXXX XXXX XXXX" : "01XXXXXXXXX"}
-                    className="w-full rounded-xl border border-border bg-card px-4 py-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-accent"
-                  />
-                </label>
-                {method !== "card" && (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    You will receive a {METHODS.find((m) => m.id === method)?.label} payment request on this number.
-                  </p>
-                )}
-              </>
+              </div>
             )}
 
-            <Button className="mt-5 w-full" variant="accent" size="lg" onClick={handlePay}>
-              <IconWallet width={17} height={17} className="mr-2" />
-              {free ? "Enroll Free" : `Pay ${formatBdt(price)}`}
+            {!free && (
+              <div className="mt-4">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Payment method</p>
+                <div className={cn("grid gap-2", allowed.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
+                  {allowed.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setMethod(m)}
+                      className={cn(
+                        "rounded-xl border px-3 py-2.5 text-xs font-bold transition-colors",
+                        activeMethod === m ? "border-accent bg-accent/10 text-accent" : "border-border bg-card text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {m === "COD" ? "Cash on Delivery" : "Pay with SSLCOMMERZ"}
+                    </button>
+                  ))}
+                </div>
+                {!physical && (
+                  <p className="mt-2 text-xs text-muted-foreground">Digital products are delivered instantly — card, bKash &amp; mobile banking via SSLCOMMERZ.</p>
+                )}
+                {physical && activeMethod === "COD" && (
+                  <p className="mt-2 text-xs text-muted-foreground">Pay the courier in cash when your book arrives.</p>
+                )}
+              </div>
+            )}
+
+            <Button className="mt-5 w-full" variant="accent" size="lg" onClick={pay}>
+              {free ? "Enroll Free" : activeMethod === "COD" ? `Place order - ${formatBdt(total)}` : `Pay ${formatBdt(total)}`}
             </Button>
 
             <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
               <IconShieldCheck width={14} height={14} className="text-success" />
-              Secure mock checkout — no real money moves during preview.
+              Secure checkout — SSLCOMMERZ &amp; Cash on Delivery
             </p>
             <p className="mt-1 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
               <IconLock width={13} height={13} /> {note}
@@ -194,9 +394,9 @@ export function PurchaseDialog({
               <div className="absolute inset-0 rounded-full border-4 border-border" />
               <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-accent" />
             </div>
-            <p className="mt-5 font-display font-bold text-foreground">Verifying payment…</p>
+            <p className="mt-5 font-display font-bold text-foreground">Processing…</p>
             <p className="mt-1 max-w-[26ch] text-sm text-muted-foreground">
-              Polling the gateway in the background. This usually takes a few seconds.
+              {activeMethod === "COD" ? "Placing your order." : "Contacting the payment gateway. This takes a few seconds."}
             </p>
           </div>
         )}
@@ -204,14 +404,14 @@ export function PurchaseDialog({
         {step === "error" && (
           <div className="py-6 text-center">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-danger/10 text-2xl text-danger">!</div>
-            <p className="mt-4 font-display font-bold text-foreground">Payment was not completed</p>
+            <p className="mt-4 font-display font-bold text-foreground">We couldn&apos;t complete this</p>
             <p className="mx-auto mt-1 max-w-[30ch] text-sm text-danger">{errorMsg}</p>
             <button
               type="button"
-              onClick={startPoll}
+              onClick={() => setStep("form")}
               className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-accent hover:underline"
             >
-              <IconRefresh width={15} height={15} /> Retry payment
+              <IconRefresh width={15} height={15} /> Try again
             </button>
           </div>
         )}
@@ -221,24 +421,8 @@ export function PurchaseDialog({
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-success/10 text-success">
               <IconCheckCircle width={30} height={30} />
             </div>
-            <p className="mt-4 font-display text-xl font-extrabold text-foreground">Payment successful!</p>
+            <p className="mt-4 font-display text-xl font-extrabold text-foreground">Order placed!</p>
             <p className="mt-1 text-sm text-muted-foreground">Order ID: <span className="font-mono text-foreground">{orderId}</span></p>
-            <p className="mt-3 text-xs text-muted-foreground">Access unlocks instantly on this device. Full device-limit + account sync arrives with the API.</p>
-            <div className="mt-6 flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={onClose}>
-                Keep browsing
-              </Button>
-              <Button
-                variant="accent"
-                className="flex-1"
-                onClick={() => {
-                  onClose();
-                  router.push("/dashboard");
-                }}
-              >
-                Go to dashboard
-              </Button>
-            </div>
           </div>
         )}
       </div>

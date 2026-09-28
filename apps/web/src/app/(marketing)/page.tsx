@@ -6,7 +6,7 @@ import { TestimonialCarousel } from "@/components/marketing/testimonials";
 import { CtaBanner } from "@/components/marketing/cta-banner";
 import { FaqAccordion } from "@/components/marketing/faq";
 import { CourseCard, BookCard, ExamCard, BlogCard } from "@/components/ui/product-card";
-import { getFeaturedCourses, getFeaturedBooks, getFeaturedExams, getFeaturedBlogs } from "@/lib/api";
+import { getFeaturedCourses, getFeaturedBooks, getFeaturedExams, getFeaturedBlogs, getPageContent, type HomePageData } from "@/lib/api";
 import { categories, homeFaq } from "@/lib/data/site-content";
 import {
   IconBookOpen,
@@ -32,16 +32,20 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const [courses, books, exams, blogPosts] = await Promise.all([
+  const [courses, books, exams, blogPosts, home] = await Promise.all([
     getFeaturedCourses(4),
     getFeaturedBooks(4),
     getFeaturedExams(3),
     getFeaturedBlogs(3),
+    getPageContent<HomePageData>("home"),
   ]);
+
+  const cats = home.categories?.length ? home.categories : categories;
+  const faqItems = home.faq?.length ? home.faq : homeFaq;
 
   return (
     <main>
-      <Hero />
+      <Hero eyebrow={home.heroEyebrow || undefined} title={home.heroTitle || undefined} description={home.heroDescription || undefined} />
       <DeviceLimitStrip />
       <StatsBand />
 
@@ -52,7 +56,7 @@ export default async function HomePage() {
           description="Focused preparation tracks for every government job of Bangladesh."
         />
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-          {categories.map((c) => (
+          {cats.map((c) => (
             <a
               key={c.slug}
               href={`/courses?category=${c.slug}`}
@@ -178,7 +182,7 @@ export default async function HomePage() {
               description="Still stuck? Write to support@shohozskill.com — average reply time under 2 hours."
             />
           </div>
-          <FaqAccordion items={homeFaq} />
+          <FaqAccordion items={faqItems} />
         </div>
       </section>
 

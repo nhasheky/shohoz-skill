@@ -15,6 +15,7 @@ import {
   ExamSubjectsEditor,
   FaqEditor,
   ListEditor,
+  PaymentMethodsEditor,
   PriceListEditor,
   SeoEditor,
   type BlogBlockRow,
@@ -30,7 +31,7 @@ import { allExams as seedExams } from "@/lib/data/exams";
 import { blogs as seedBlogs } from "@/lib/data/blogs";
 import { adminUsers as seedUsers, adminOrders, adminStats, revenueSeries } from "@/lib/data/admin";
 import { getAdminStats, getAdminRevenue } from "@/lib/admin-api";
-import type { AppUser, Order } from "@/lib/types";
+import type { AppUser, Order, ContactMessage } from "@/lib/types";
 
 type Row = { id: string } & Record<string, unknown>;
 
@@ -253,6 +254,7 @@ export function CourseFormPage({ id }: { id?: string }) {
             <EditorSection title="FAQ">
               <FaqEditor value={form.faq as { question: string; answer: string }[] | undefined} onChange={(v) => set("faq", v)} />
             </EditorSection>
+            <PaymentMethodsEditor value={listOf(form.allowedPaymentMethods)} onChange={(v) => set("allowedPaymentMethods", v)} />
             <SeoEditor value={form.seo as Record<string, unknown> | undefined} onChange={(v) => set("seo", v)} />
           </>
         )}
@@ -307,7 +309,12 @@ export function BookFormPage({ id }: { id?: string }) {
           router.push("/admin/books");
         }}
       >
-        {(form, set) => <SeoEditor value={form.seo as Record<string, unknown> | undefined} onChange={(v) => set("seo", v)} />}
+        {(form, set) => (
+          <>
+            <PaymentMethodsEditor value={listOf(form.allowedPaymentMethods)} onChange={(v) => set("allowedPaymentMethods", v)} />
+            <SeoEditor value={form.seo as Record<string, unknown> | undefined} onChange={(v) => set("seo", v)} />
+          </>
+        )}
       </AdminForm>
     </PageSkeleton>
   );
@@ -362,6 +369,7 @@ export function ExamFormPage({ id }: { id?: string }) {
         {(form, set) => (
           <>
             <ExamSubjectsEditor value={form.subjects as SubjectRow[] | undefined} onChange={(v) => set("subjects", v)} />
+            <PaymentMethodsEditor value={listOf(form.allowedPaymentMethods)} onChange={(v) => set("allowedPaymentMethods", v)} />
             <SeoEditor value={form.seo as Record<string, unknown> | undefined} onChange={(v) => set("seo", v)} />
           </>
         )}
@@ -498,14 +506,15 @@ function normalizeInitial(row: Record<string, unknown>): Record<string, unknown>
       requirements: listOf(row.requirements),
       whoIsFor: listOf(row.whoIsFor),
       faq: Array.isArray(row.faq) ? row.faq : [],
+      allowedPaymentMethods: listOf(row.allowedPaymentMethods),
       seo: (row.seo as Record<string, unknown>) ?? {},
     };
   }
   if ("subjects" in row) {
-    return { ...toForm(examFields, row), priceAmount: num(row.priceAmount), subjects: normSubjects(row), seo: (row.seo as Record<string, unknown>) ?? {} };
+    return { ...toForm(examFields, row), priceAmount: num(row.priceAmount), subjects: normSubjects(row), allowedPaymentMethods: listOf(row.allowedPaymentMethods), seo: (row.seo as Record<string, unknown>) ?? {} };
   }
   if ("pdfPrice" in row) {
-    return { ...toForm(bookFields, row), pdfPrice: num(row.pdfPrice), hardcopyPrice: num(row.hardcopyPrice), seo: (row.seo as Record<string, unknown>) ?? {} };
+    return { ...toForm(bookFields, row), pdfPrice: num(row.pdfPrice), hardcopyPrice: num(row.hardcopyPrice), allowedPaymentMethods: listOf(row.allowedPaymentMethods), seo: (row.seo as Record<string, unknown>) ?? {} };
   }
   return { ...toForm(blogFields, row), content: normBlocks(row.content), seo: (row.seo as Record<string, unknown>) ?? {} };
 }
@@ -809,6 +818,11 @@ export function OrdersPage() {
 
   const statusTone = (s: string): "success" | "accent" | "danger" | "muted" => (s === "PAID" ? "success" : s === "REFUNDED" ? "accent" : s === "FAILED" ? "danger" : "muted");
 
+  const customerName = (o: Order) => o.user?.name ?? o.guestName ?? "Guest";
+  const customerPhone = (o: Order) => o.user?.phone ?? o.guestPhone ?? "—";
+  const customerEmail = (o: Order) => o.user?.email ?? o.guestEmail ?? "—";
+  const isGuest = (o: Order) => !o.userId && !o.user;
+
   return (
     <div>
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -838,26 +852,37 @@ export function OrdersPage() {
 
       <div className="mt-4 overflow-hidden rounded-3xl border border-border bg-card shadow-card">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[820px] text-left text-sm">
+          <table className="w-full min-w-[1100px] text-left text-sm">
             <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th className="px-5 py-3 font-bold">Order</th>
-                <th className="px-5 py-3 font-bold">Item</th>
-                <th className="px-5 py-3 font-bold">Method</th>
-                <th className="px-5 py-3 font-bold">Status</th>
-                <th className="px-5 py-3 font-bold">Date</th>
-                <th className="px-5 py-3 text-right font-bold">Amount</th>
+                <th className="px-4 py-3 font-bold">Order ID</th>
+                <th className="px-4 py-3 font-bold">Customer</th>
+                <th className="px-4 py-3 font-bold">Product</th>
+                <th className="px-4 py-3 font-bold">Phone</th>
+                <th className="px-4 py-3 font-bold">Email</th>
+                <th className="px-4 py-3 font-bold">Qty</th>
+                <th className="px-4 py-3 font-bold">Payment</th>
+                <th className="px-4 py-3 font-bold">Status</th>
+                <th className="px-4 py-3 text-right font-bold">Total</th>
+                <th className="px-4 py-3 font-bold">Date</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {rows.map((o) => (
                 <tr key={o.id} className="cursor-pointer transition-colors hover:bg-muted/40" onClick={() => setDetails(o)}>
-                  <td className="px-5 py-3 font-mono text-xs font-bold text-foreground">{o.id}</td>
-                  <td className="max-w-[28ch] truncate px-5 py-3 text-muted-foreground">{o.productTitle}</td>
-                  <td className="px-5 py-3 text-xs text-muted-foreground">{o.method}</td>
-                  <td className="px-5 py-3"><Badge tone={statusTone(o.status)}>{o.status}</Badge></td>
-                  <td className="px-5 py-3 text-muted-foreground">{new Date(o.createdAt).toLocaleDateString("en-BD")}</td>
-                  <td className="px-5 py-3 text-right font-bold text-foreground">{formatBdt(o.amount)}</td>
+                  <td className="px-4 py-3 font-mono text-xs font-bold text-foreground">{o.id.slice(-10)}</td>
+                  <td className="px-4 py-3">
+                    <p className="font-bold text-foreground">{customerName(o)}</p>
+                    <p className="text-[11px] text-muted-foreground">{isGuest(o) ? "Guest" : "Registered"}</p>
+                  </td>
+                  <td className="max-w-[24ch] truncate px-4 py-3 text-muted-foreground">{o.productTitle}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">{customerPhone(o)}</td>
+                  <td className="max-w-[20ch] truncate px-4 py-3 text-xs text-muted-foreground">{customerEmail(o)}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{o.productType === "book" ? o.quantity ?? 1 : "—"}</td>
+                  <td className="px-4 py-3 text-xs font-semibold text-muted-foreground">{o.paymentMethod ?? o.method}</td>
+                  <td className="px-4 py-3"><Badge tone={statusTone(o.status)}>{o.status}</Badge></td>
+                  <td className="px-4 py-3 text-right font-bold text-foreground">{formatBdt(o.total ?? o.amount)}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{new Date(o.createdAt).toLocaleDateString("en-BD")}</td>
                 </tr>
               ))}
             </tbody>
@@ -867,19 +892,26 @@ export function OrdersPage() {
       </div>
 
       {details && (
-        <AdminModal open onClose={() => setDetails(null)} title={`Order ${details.id}`}>
+        <AdminModal open onClose={() => setDetails(null)} title={`Order ${details.id}`} wide>
           <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
             {[
+              ["Customer", customerName(details)],
+              ["Customer type", isGuest(details) ? "Guest checkout" : "Registered"],
+              ["Phone", customerPhone(details)],
+              ["Email", customerEmail(details)],
               ["Item", details.productTitle],
-              ["Type", details.productType],
-              ["Product ID", details.productId],
+              ["Type", `${details.productType}${details.variant ? ` · ${details.variant}` : ""}`],
+              ["Quantity", String(details.productType === "book" ? details.quantity ?? 1 : 1)],
               ["Amount", formatBdt(details.amount)],
-              ["Method", details.method],
+              ["Delivery", details.isPhysical ? `${formatBdt(details.deliveryCharge ?? 0)} (${details.region ?? "—"})` : "—"],
+              ["Total bill", formatBdt(details.total ?? details.amount)],
+              ["Payment method", details.paymentMethod ?? details.method],
               ["Transaction", details.txId || "—"],
+              ["Address", details.address || "—"],
               ["Date", new Date(details.createdAt).toLocaleString("en-BD")],
               ["Status", details.status],
             ].map(([k, v]) => (
-              <div key={k} className={cn(k === "Item" && "col-span-2")}>
+              <div key={k} className={cn(k === "Item" || k === "Address" ? "col-span-2" : "")}>
                 <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{k}</dt>
                 <dd className="mt-0.5 font-semibold text-foreground">{v}</dd>
               </div>
@@ -1008,47 +1040,440 @@ export function ReviewsPage() {
 }
 
 // ─── Settings ──────────────────────────────────────────────────────────────
+const SETTINGS_DEFAULTS = {
+  siteTitle: "Shohoz Skill",
+  siteTitleBn: "সহজ স্কিল",
+  logoUrl: "",
+  faviconUrl: "",
+  metaDescription:
+    "Bangladesh's fastest learning platform for government-job preparation — courses, MCQ exams, and books. Learn to Earn.",
+  ogImageUrl: "",
+  keywords: "",
+  supportEmail: "support@shohozskill.com",
+  supportPhone: "+880 1700-000000",
+  address: "Level 4, Dhanmondi, Dhaka 1209, Bangladesh",
+  deliveryChargeDhaka: "60",
+  deliveryChargeOutside: "120",
+  codEnabled: true,
+  sslcommerzEnabled: true,
+};
+
+type SettingsForm = typeof SETTINGS_DEFAULTS;
+
 export function SettingsPage() {
-  useAdminTitle("Settings");
+  useAdminTitle("Site Settings");
   const toast = useToast();
-  const [form, setForm] = useState({
-    siteName: "Shohoz Skill",
-    tagline: "Learn to Earn",
-    supportEmail: "support@shohozskill.com",
-    phone: "+880 1700-000000",
-    address: "Level 4, Dhanmondi, Dhaka 1209, Bangladesh",
-    maxDevices: "2",
-  });
+  const [form, setForm] = useState<SettingsForm>(SETTINGS_DEFAULTS);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState<"live" | "demo">("demo");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const s = await api.getSiteSettings();
+        if (cancelled) return;
+        setForm({
+          siteTitle: s.siteTitle ?? SETTINGS_DEFAULTS.siteTitle,
+          siteTitleBn: s.siteTitleBn ?? SETTINGS_DEFAULTS.siteTitleBn,
+          logoUrl: s.logoUrl ?? "",
+          faviconUrl: s.faviconUrl ?? "",
+          metaDescription: s.metaDescription ?? SETTINGS_DEFAULTS.metaDescription,
+          ogImageUrl: s.ogImageUrl ?? "",
+          keywords: (s.keywords ?? []).join(", "),
+          supportEmail: s.supportEmail ?? SETTINGS_DEFAULTS.supportEmail,
+          supportPhone: s.supportPhone ?? SETTINGS_DEFAULTS.supportPhone,
+          address: s.address ?? SETTINGS_DEFAULTS.address,
+          deliveryChargeDhaka: String(s.deliveryChargeDhaka ?? 60),
+          deliveryChargeOutside: String(s.deliveryChargeOutside ?? 120),
+          codEnabled: s.codEnabled ?? true,
+          sslcommerzEnabled: s.sslcommerzEnabled ?? true,
+        });
+        setMode("live");
+      } catch {
+        setMode("demo");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const set = (k: keyof SettingsForm, v: string | boolean) => setForm((s) => ({ ...s, [k]: v }));
+
+  async function save() {
+    setBusy(true);
+    const payload = {
+      siteTitle: form.siteTitle,
+      siteTitleBn: form.siteTitleBn,
+      logoUrl: form.logoUrl,
+      faviconUrl: form.faviconUrl,
+      metaDescription: form.metaDescription,
+      ogImageUrl: form.ogImageUrl,
+      keywords: form.keywords.split(",").map((k) => k.trim()).filter(Boolean),
+      supportEmail: form.supportEmail,
+      supportPhone: form.supportPhone,
+      address: form.address,
+      deliveryChargeDhaka: Number(form.deliveryChargeDhaka) || 0,
+      deliveryChargeOutside: Number(form.deliveryChargeOutside) || 0,
+      codEnabled: form.codEnabled,
+      sslcommerzEnabled: form.sslcommerzEnabled,
+    };
+    try {
+      await api.updateSiteSettings(payload);
+      toast.success("Site settings saved");
+      setMode("live");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed — is the API running?");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const inputCls = "w-full rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-accent";
-  const fields: { key: keyof typeof form; label: string; span2?: boolean }[] = [
-    { key: "siteName", label: "Site name", span2: true },
-    { key: "tagline", label: "Tagline", span2: true },
+  const textFields: { key: keyof SettingsForm; label: string; span2?: boolean }[] = [
+    { key: "siteTitle", label: "Site title" },
+    { key: "siteTitleBn", label: "Site title (Bangla)" },
+    { key: "logoUrl", label: "Logo URL", span2: true },
+    { key: "faviconUrl", label: "Favicon URL", span2: true },
+    { key: "ogImageUrl", label: "OpenGraph image URL", span2: true },
+    { key: "keywords", label: "Keywords (comma separated)", span2: true },
     { key: "supportEmail", label: "Support email" },
-    { key: "phone", label: "Phone" },
-    { key: "address", label: "Address", span2: true },
-    { key: "maxDevices", label: "Max devices" },
+    { key: "supportPhone", label: "Support phone" },
+    { key: "deliveryChargeDhaka", label: "Delivery charge — inside Dhaka (৳)" },
+    { key: "deliveryChargeOutside", label: "Delivery charge — outside Dhaka (৳)" },
   ];
+
   return (
-    <div className="max-w-2xl">
-      <h1 className="font-display text-2xl font-extrabold text-foreground">Settings</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Platform-wide configuration.</p>
-      <div className="mt-5 rounded-3xl border border-border bg-card p-6 shadow-card">
-        <div className="grid gap-4 sm:grid-cols-2">
-          {fields.map((f) => (
-            <label key={f.key} className={cn("block", f.span2 && "sm:col-span-2")}>
-              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">{f.label}</span>
-              <input value={form[f.key]} onChange={(e) => setForm((s) => ({ ...s, [f.key]: e.target.value }))} className={inputCls} />
+    <div className="max-w-3xl">
+      <h1 className="font-display text-2xl font-extrabold text-foreground">Site Settings</h1>
+      <p className="mt-1 text-sm text-muted-foreground">Branding, SEO metadata and delivery charges.</p>
+      {mode === "demo" && <p className="mt-2 text-xs text-muted-foreground">API unreachable — showing defaults.</p>}
+
+      {loading ? (
+        <div className="mt-8 py-10 text-center text-sm text-muted-foreground">Loading settings…</div>
+      ) : (
+        <div className="mt-5 rounded-3xl border border-border bg-card p-6 shadow-card">
+          <div className="grid gap-4 sm:grid-cols-2">
+            {textFields.map((f) => (
+              <label key={f.key} className={cn("block", f.span2 && "sm:col-span-2")}>
+                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">{f.label}</span>
+                <input value={String(form[f.key])} onChange={(e) => set(f.key, e.target.value)} className={inputCls} />
+              </label>
+            ))}
+            <label className="block sm:col-span-2">
+              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Meta description</span>
+              <textarea rows={3} value={form.metaDescription} onChange={(e) => set("metaDescription", e.target.value)} className={cn(inputCls, "resize-y")} />
             </label>
-          ))}
+            <label className="block sm:col-span-2">
+              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Address</span>
+              <input value={form.address} onChange={(e) => set("address", e.target.value)} className={inputCls} />
+            </label>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-5 border-t border-border pt-5">
+            <label className="flex items-center gap-2.5 text-sm text-foreground">
+              <input type="checkbox" checked={form.codEnabled} onChange={(e) => set("codEnabled", e.target.checked)} className="h-4 w-4 accent-[#F2A93B]" />
+              Cash on Delivery enabled
+            </label>
+            <label className="flex items-center gap-2.5 text-sm text-foreground">
+              <input type="checkbox" checked={form.sslcommerzEnabled} onChange={(e) => set("sslcommerzEnabled", e.target.checked)} className="h-4 w-4 accent-[#F2A93B]" />
+              SSLCOMMERZ enabled
+            </label>
+          </div>
+
+          <button
+            type="button"
+            onClick={save}
+            disabled={busy}
+            className="mt-6 rounded-xl bg-accent px-6 py-2.5 text-sm font-bold text-accent-foreground transition-colors hover:bg-accent-hover disabled:opacity-50"
+          >
+            {busy ? "Saving…" : "Save settings"}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => toast.success("Settings saved (demo — server persistence with API)")}
-          className="mt-6 rounded-xl bg-accent px-6 py-2.5 text-sm font-bold text-accent-foreground transition-colors hover:bg-accent-hover"
-        >
-          Save settings
-        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── Pages (CMS content) ─────────────────────────────────────────────────────
+const PAGE_META: Record<string, { label: string; hint: string; template: unknown }> = {
+  home: {
+    label: "Home",
+    hint: "Overrides for the homepage. Any key you omit keeps its built-in default.",
+    template: { heroTitle: "", heroSubtitle: "", heroDescription: "", faq: [{ question: "", answer: "" }] },
+  },
+  about: {
+    label: "About Us",
+    hint: "Story paragraphs, values and milestones.",
+    template: { story: [""], values: [{ title: "", description: "" }], milestones: [{ year: "", title: "", description: "" }] },
+  },
+  contact: {
+    label: "Contact Us",
+    hint: "Contact details and intro copy.",
+    template: { title: "", description: "", email: "", phone: "", address: "", supportHours: "" },
+  },
+};
+
+export function PagesAdminPage() {
+  useAdminTitle("Pages");
+  const toast = useToast();
+  const [active, setActive] = useState("home");
+  const [docs, setDocs] = useState<Record<string, string>>({ home: "{}", about: "{}", contact: "{}" });
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const pages = await api.listPages();
+        if (cancelled) return;
+        const next: Record<string, string> = {};
+        for (const p of pages) next[p.page] = JSON.stringify(p.data ?? {}, null, 2);
+        setDocs((d) => ({ ...d, ...next }));
+      } catch {
+        // keep defaults
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function setDoc(page: string, value: string) {
+    setDocs((d) => ({ ...d, [page]: value }));
+  }
+
+  async function save() {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(docs[active] || "{}");
+    } catch {
+      toast.error("Content is not valid JSON.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.updatePage(active, parsed as Record<string, unknown>);
+      toast.success(`${PAGE_META[active].label} content saved`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed — is the API running?");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="max-w-4xl">
+      <h1 className="font-display text-2xl font-extrabold text-foreground">Pages</h1>
+      <p className="mt-1 text-sm text-muted-foreground">Edit the dynamic content of the Home, About and Contact pages.</p>
+
+      <div className="mt-5 flex flex-wrap gap-2">
+        {Object.entries(PAGE_META).map(([key, meta]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setActive(key)}
+            className={cn(
+              "rounded-full px-4 py-1.5 text-sm font-bold transition-colors",
+              active === key ? "bg-accent text-accent-foreground" : "border border-border text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {meta.label}
+          </button>
+        ))}
       </div>
+
+      <div className="mt-4 rounded-3xl border border-border bg-card p-6 shadow-card">
+        <p className="text-xs text-muted-foreground">{PAGE_META[active].hint}</p>
+        {loading ? (
+          <div className="py-10 text-center text-sm text-muted-foreground">Loading…</div>
+        ) : (
+          <>
+            <textarea
+              rows={18}
+              value={docs[active]}
+              onChange={(e) => setDoc(active, e.target.value)}
+              spellCheck={false}
+              className="mt-3 w-full rounded-xl border border-border bg-surface px-4 py-3 font-mono text-xs text-foreground outline-none focus:border-accent dark:bg-background"
+            />
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={save}
+                disabled={busy}
+                className="rounded-xl bg-accent px-6 py-2.5 text-sm font-bold text-accent-foreground transition-colors hover:bg-accent-hover disabled:opacity-50"
+              >
+                {busy ? "Saving…" : "Save content"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDoc(active, JSON.stringify(PAGE_META[active].template, null, 2))}
+                className="rounded-xl border border-border px-5 py-2.5 text-sm font-bold text-foreground transition-colors hover:bg-muted"
+              >
+                Load template
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Contact Messages ────────────────────────────────────────────────────────
+export function ContactMessagesPage() {
+  useAdminTitle("Contact Messages");
+  const toast = useToast();
+  const perPage = 10;
+  const [rows, setRows] = useState<ContactMessage[]>([]);
+  const [total, setTotal] = useState(0);
+  const [status, setStatus] = useState("");
+  const [page, setPage] = useState(1);
+  const [mode, setMode] = useState<"live" | "demo">("demo");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<ContactMessage | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await api.listContactMessages(status || undefined, page, perPage);
+      setRows(res.items);
+      setTotal(res.total);
+      setMode("live");
+    } catch {
+      setRows([]);
+      setTotal(0);
+      setMode("demo");
+    }
+  }, [status, page]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    load();
+  }, [load]);
+
+  async function changeStatus(msg: ContactMessage, next: ContactMessage["status"]) {
+    setBusyId(msg.id);
+    try {
+      await api.setContactMessageStatus(msg.id, next);
+      toast.success(`Marked ${next}`);
+      setViewing((v) => (v && v.id === msg.id ? { ...v, status: next } : v));
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Update failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function remove(msg: ContactMessage) {
+    setBusyId(msg.id);
+    try {
+      await api.deleteContactMessage(msg.id);
+      toast.success("Message deleted");
+      setViewing(null);
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Delete failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const tone = (s: string): "success" | "accent" | "muted" | "danger" =>
+    s === "NEW" ? "accent" : s === "READ" ? "success" : s === "REPLIED" ? "success" : "muted";
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-extrabold text-foreground">Contact Messages</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Submissions from the public contact form</p>
+        </div>
+        <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground outline-none focus:border-accent">
+          <option value="">All statuses</option>
+          <option value="NEW">New</option>
+          <option value="READ">Read</option>
+          <option value="REPLIED">Replied</option>
+          <option value="ARCHIVED">Archived</option>
+        </select>
+      </div>
+      {mode === "demo" && <p className="mt-2 text-xs text-muted-foreground">API unreachable — no contact messages to show.</p>}
+
+      <div className="mt-4 overflow-hidden rounded-3xl border border-border bg-card shadow-card">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] text-left text-sm">
+            <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
+              <tr>
+                <th className="px-5 py-3 font-bold">From</th>
+                <th className="px-5 py-3 font-bold">Subject</th>
+                <th className="px-5 py-3 font-bold">Message</th>
+                <th className="px-5 py-3 font-bold">Status</th>
+                <th className="px-5 py-3 font-bold">Date</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {rows.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-5 py-10 text-center text-sm text-muted-foreground">No messages.</td>
+                </tr>
+              ) : (
+                rows.map((m) => (
+                  <tr key={m.id} className="cursor-pointer transition-colors hover:bg-muted/40" onClick={() => setViewing(m)}>
+                    <td className="px-5 py-3">
+                      <p className="font-bold text-foreground">{m.name}</p>
+                      <p className="text-xs text-muted-foreground">{m.email}{m.phone ? ` · ${m.phone}` : ""}</p>
+                    </td>
+                    <td className="px-5 py-3 text-muted-foreground">{m.subject ?? "—"}</td>
+                    <td className="max-w-[34ch] truncate px-5 py-3 text-muted-foreground">{m.message}</td>
+                    <td className="px-5 py-3"><Badge tone={tone(m.status)}>{m.status}</Badge></td>
+                    <td className="px-5 py-3 text-muted-foreground">{new Date(m.createdAt).toLocaleDateString("en-BD")}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        <Pagination page={page} total={total} perPage={perPage} onChange={setPage} />
+      </div>
+
+      {viewing && (
+        <AdminModal open onClose={() => setViewing(null)} title={`Message from ${viewing.name}`}>
+          <div className="space-y-3 text-sm">
+            <div className="grid grid-cols-2 gap-3">
+              <div><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Email</p><p className="mt-0.5 font-semibold text-foreground">{viewing.email}</p></div>
+              <div><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Phone</p><p className="mt-0.5 font-semibold text-foreground">{viewing.phone ?? "—"}</p></div>
+              <div><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Subject</p><p className="mt-0.5 font-semibold text-foreground">{viewing.subject ?? "—"}</p></div>
+              <div><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date</p><p className="mt-0.5 font-semibold text-foreground">{new Date(viewing.createdAt).toLocaleString("en-BD")}</p></div>
+            </div>
+            <div><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Message</p><p className="mt-1 whitespace-pre-wrap rounded-xl bg-muted/60 p-4 text-foreground">{viewing.message}</p></div>
+          </div>
+          <div className="mt-6 flex flex-wrap gap-2 border-t border-border pt-4">
+            {(["NEW", "READ", "REPLIED", "ARCHIVED"] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                disabled={busyId === viewing.id || viewing.status === s}
+                onClick={() => changeStatus(viewing, s)}
+                className={cn(
+                  "rounded-lg border px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-40",
+                  viewing.status === s ? "border-accent bg-accent/10 text-accent" : "border-border text-muted-foreground hover:border-accent hover:text-accent",
+                )}
+              >
+                {s}
+              </button>
+            ))}
+            <a href={`mailto:${viewing.email}?subject=Re: ${encodeURIComponent(viewing.subject ?? "Your message")}`} className="rounded-lg border border-accent px-3 py-1.5 text-xs font-bold text-accent hover:bg-accent/10">Reply by email</a>
+            <button type="button" disabled={busyId === viewing.id} onClick={() => remove(viewing)} className="ml-auto rounded-lg border border-danger/40 px-3 py-1.5 text-xs font-bold text-danger hover:bg-danger/10 disabled:opacity-40">Delete</button>
+          </div>
+        </AdminModal>
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Hind_Siliguri, Inter, Poppins } from "next/font/google";
 import "./globals.css";
 import { SITE } from "@/lib/site";
+import { getSiteSettings } from "@/lib/api";
 import { ThemeProvider } from "@/providers/theme";
 import { ThemeScript } from "@/components/layout/theme-toggle";
 
@@ -25,39 +26,51 @@ const hindSiliguri = Hind_Siliguri({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE.url),
-  title: {
-    default: `${SITE.name} — ${SITE.tagline}`,
-    template: `%s — ${SITE.name}`,
-  },
-  description: SITE.description,
-  keywords: [
-    "BCS preparation",
-    "Bangladesh govt job",
-    "NTRCA",
-    "MCQ exam",
-    "bank job course",
-    "সহজ স্কিল",
-    "বিসিএস কোর্স",
-  ],
-  openGraph: {
-    type: "website",
-    siteName: SITE.name,
-    locale: "bn_BD",
-    title: `${SITE.name} — ${SITE.tagline}`,
-    description: SITE.description,
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: `${SITE.name} — ${SITE.tagline}`,
-    description: SITE.description,
-  },
-  icons: {
-    icon: "/icon.svg",
-  },
-  manifest: "/manifest.webmanifest",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getSiteSettings();
+  const siteName = settings.siteTitle || SITE.name;
+  const description = settings.metaDescription || SITE.description;
+  const keywords = settings.keywords?.length
+    ? settings.keywords
+    : [
+        "BCS preparation",
+        "Bangladesh govt job",
+        "NTRCA",
+        "MCQ exam",
+        "bank job course",
+        "সহজ স্কিল",
+        "বিসিএস কোর্স",
+      ];
+  const ogImage = settings.ogImageUrl || undefined;
+
+  return {
+    metadataBase: new URL(SITE.url),
+    title: {
+      default: `${siteName} — ${SITE.tagline}`,
+      template: `%s — ${siteName}`,
+    },
+    description,
+    keywords,
+    openGraph: {
+      type: "website",
+      siteName,
+      locale: "bn_BD",
+      title: `${siteName} — ${SITE.tagline}`,
+      description,
+      images: ogImage ? [ogImage] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${siteName} — ${SITE.tagline}`,
+      description,
+      images: ogImage ? [ogImage] : undefined,
+    },
+    icons: {
+      icon: settings.faviconUrl || "/icon.svg",
+    },
+    manifest: "/manifest.webmanifest",
+  };
+}
 
 export const viewport = {
   themeColor: [

@@ -4,13 +4,39 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { IconCheckCircle, IconSend } from "@/components/ui/icons";
 
-export function ContactForm() {
-  const [state, setState] = useState<"idle" | "sending" | "sent">("idle");
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://shohoz-api.onrender.com";
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+export function ContactForm() {
+  const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const form = e.currentTarget;
+    const data = new FormData(form);
+    const payload = {
+      name: String(data.get("name") ?? "").trim(),
+      email: String(data.get("email") ?? "").trim(),
+      phone: String(data.get("phone") ?? "").trim() || undefined,
+      subject: String(data.get("topic") ?? "").trim() || undefined,
+      message: String(data.get("message") ?? "").trim(),
+    };
+
     setState("sending");
-    setTimeout(() => setState("sent"), 900);
+    setError("");
+    try {
+      const res = await fetch(`${API_URL}/api/contact-messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
+      setState("sent");
+      form.reset();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      setState("error");
+    }
   }
 
   const inputCls =
@@ -24,7 +50,7 @@ export function ContactForm() {
         </span>
         <h2 className="mt-5 font-display text-2xl font-extrabold text-foreground">Message received!</h2>
         <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-          We&rsquo;ll get back to you at the email you provided — usually within 24 hours. (Demo form: the API will deliver this for real.)
+          We&rsquo;ll get back to you at the email you provided — usually within 24 hours.
         </p>
       </div>
     );
@@ -46,21 +72,29 @@ export function ContactForm() {
         </label>
       </div>
 
-      <label className="mt-4 block">
-        <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Topic</span>
-        <select name="topic" className={inputCls} defaultValue="support">
-          <option value="support">Support / help</option>
-          <option value="refund">Refund request</option>
-          <option value="bulk">Bulk order (school / coaching)</option>
-          <option value="partnership">Partnership</option>
-          <option value="other">Something else</option>
-        </select>
-      </label>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Phone</span>
+          <input name="phone" inputMode="tel" className={inputCls} placeholder="01XXXXXXXXX" />
+        </label>
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Topic</span>
+          <select name="topic" className={inputCls} defaultValue="support">
+            <option value="support">Support / help</option>
+            <option value="refund">Refund request</option>
+            <option value="bulk">Bulk order (school / coaching)</option>
+            <option value="partnership">Partnership</option>
+            <option value="other">Something else</option>
+          </select>
+        </label>
+      </div>
 
       <label className="mt-4 block">
         <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Message *</span>
         <textarea required name="message" rows={5} className={inputCls} placeholder="How can we help?" />
       </label>
+
+      {state === "error" && <p className="mt-4 rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{error}</p>}
 
       <Button type="submit" variant="accent" size="lg" className="mt-6 w-full" disabled={state === "sending"}>
         <IconSend width={16} height={16} className="mr-2" />

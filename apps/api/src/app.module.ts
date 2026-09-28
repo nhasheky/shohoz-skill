@@ -8,6 +8,7 @@ import { OrdersModule } from './orders/orders.module.js';
 import { ReviewsModule } from './reviews/reviews.module.js';
 import { BlogsModule } from './blogs/blogs.module.js';
 import { AdminModule } from './admin/admin.module.js';
+import { CmsModule } from './cms/cms.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 
@@ -22,6 +23,7 @@ import { AppService } from './app.service.js';
     ReviewsModule,
     BlogsModule,
     AdminModule,
+    CmsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

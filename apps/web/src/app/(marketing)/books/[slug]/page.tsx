@@ -124,7 +124,7 @@ export default async function BookDetailPage(props: PageProps<"/books/[slug]">) 
 
             <aside className="mt-8 lg:mt-0">
               <div className="lg:sticky lg:top-24">
-                <PurchasePanel kind="Book" title={book.title} plans={plans} planNote="Choose your format" features={features} />
+                <PurchasePanel kind="Book" title={book.title} productId={book.id} productType="book" allowedPaymentMethods={book.allowedPaymentMethods} plans={plans} planNote="Choose your format" features={features} />
               </div>
             </aside>
           </div>

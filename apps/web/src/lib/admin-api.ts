@@ -5,7 +5,7 @@
  * localStorage (issued by the OTP login flow). Throws on failure so the
  * admin UI can fall back to demo mode.
  */
-import type { Order, AppUser } from "@/lib/types";
+import type { Order, AppUser, SiteSetting, PageContent, ContactMessage } from "@/lib/types";
 
 export const TOKEN_KEY = "shohoz_token";
 export const ROLE_KEY = "shohoz_role";
@@ -144,3 +144,22 @@ export const listReviews = (status = "PENDING", page = 1, perPage = 20) =>
   request<PageResult<Record<string, unknown>>>(`/reviews${qs({ status, page, perPage })}`);
 export const approveReview = (id: string) => request(`/reviews/${id}/approve`, { method: "PUT" });
 export const rejectReview = (id: string) => request(`/reviews/${id}/reject`, { method: "PUT" });
+
+// ─── CMS: site settings ───────────────────────────────────────────────────
+export const getSiteSettings = () => request<SiteSetting>("/admin/site-settings");
+export const updateSiteSettings = (dto: Partial<SiteSetting>) =>
+  request<SiteSetting>("/admin/site-settings", { method: "PUT", body: JSON.stringify(dto) });
+
+// ─── CMS: editable pages ──────────────────────────────────────────────────
+export const listPages = () => request<PageContent[]>("/admin/pages");
+export const getPage = (page: string) => request<PageContent>(`/admin/pages/${page}`);
+export const updatePage = (page: string, data: Record<string, unknown>) =>
+  request<PageContent>(`/admin/pages/${page}`, { method: "PUT", body: JSON.stringify({ data }) });
+
+// ─── CMS: contact messages ────────────────────────────────────────────────
+export const listContactMessages = (status?: string, page = 1, perPage = 20) =>
+  request<PageResult<ContactMessage>>(`/admin/contact-messages${qs({ status, page, perPage })}`);
+export const setContactMessageStatus = (id: string, status: ContactMessage["status"]) =>
+  request(`/admin/contact-messages/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) });
+export const deleteContactMessage = (id: string) =>
+  request(`/admin/contact-messages/${id}`, { method: "DELETE" });

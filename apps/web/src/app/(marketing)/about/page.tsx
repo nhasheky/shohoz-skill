@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { aboutContent } from "@/lib/data/site-content";
+import { getPageContent, type AboutPageData } from "@/lib/api";
 import { BackgroundOrbs } from "@/components/layout/background";
 import { SectionHeader } from "@/components/marketing/section-header";
 import { StatsBand } from "@/components/marketing/stats";
@@ -14,7 +15,12 @@ export const metadata: Metadata = {
 
 const VALUE_ICONS = [IconSparkles, IconTarget, IconWallet, IconGlobe];
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const about = await getPageContent<AboutPageData>("about");
+  const story = about.story?.length ? about.story : aboutContent.story;
+  const values = about.values?.length ? about.values : aboutContent.values;
+  const milestones = about.milestones?.length ? about.milestones : aboutContent.milestones;
+
   return (
     <main>
       <section className="relative overflow-hidden border-b border-border">
@@ -22,8 +28,8 @@ export default function AboutPage() {
         <div className="relative mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
           <SectionHeader
             eyebrow="About Us"
-            title="Job preparation, rebuilt as a product"
-            description="We are a small team of ex-BCS and ex-bank officers who got tired of how slow and expensive government-job preparation had become."
+            title={about.title || "Job preparation, rebuilt as a product"}
+            description={about.description || "We are a small team of ex-BCS and ex-bank officers who got tired of how slow and expensive government-job preparation had become."}
             center
           />
         </div>
@@ -31,7 +37,7 @@ export default function AboutPage() {
 
       <section className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="space-y-5">
-          {aboutContent.story.map((p, i) => (
+          {story.map((p, i) => (
             <p key={i} className="text-base leading-relaxed text-muted-foreground">
               {i === 0 ? <span className="float-left pr-3 font-display text-6xl font-extrabold leading-[0.8] text-accent">{p.charAt(0)}</span> : null}
               {p}
@@ -47,7 +53,7 @@ export default function AboutPage() {
       <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
         <SectionHeader eyebrow="Our values" title="What we refuse to compromise on" center />
         <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {aboutContent.values.map((v, i) => {
+          {values.map((v, i) => {
             const Icon = VALUE_ICONS[i % VALUE_ICONS.length];
             return (
               <div key={v.title} className="rounded-3xl border border-border bg-card p-6 shadow-card">
@@ -66,7 +72,7 @@ export default function AboutPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionHeader eyebrow="The journey" title="Milestones" center />
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {aboutContent.milestones.map((m) => (
+            {milestones.map((m) => (
               <div key={m.year} className="rounded-3xl border border-border bg-card p-6 shadow-card">
                 <p className="font-display text-3xl font-extrabold text-accent">{m.year}</p>
                 <p className="mt-2 font-display text-base font-extrabold text-foreground">{m.title}</p>

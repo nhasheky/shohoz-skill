@@ -12,6 +12,9 @@ export type PurchasePlan = { id: string; label: string; price: number; originalP
 export function PurchasePanel({
   kind = "Course",
   title,
+  productId,
+  productType,
+  allowedPaymentMethods,
   plans,
   planNote,
   features,
@@ -19,6 +22,9 @@ export function PurchasePanel({
 }: {
   kind?: "Course" | "Book" | "Exam";
   title: string;
+  productId: string;
+  productType: "course" | "book" | "exam";
+  allowedPaymentMethods?: string[];
   plans: PurchasePlan[];
   planNote?: string;
   features: string[];
@@ -125,6 +131,10 @@ export function PurchasePanel({
         onClose={() => setOpen(false)}
         kind={kind}
         title={title}
+        productId={productId}
+        productType={productType}
+        allowedPaymentMethods={allowedPaymentMethods}
+        planId={plan.id}
         planLabel={plan.label}
         price={plan.price}
         originalPrice={plan.originalPrice ?? 0}

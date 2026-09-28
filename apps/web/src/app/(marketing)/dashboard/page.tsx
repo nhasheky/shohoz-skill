@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
-import { getMe, getMyEnrollments, getMyOrders, getMyAttempts } from "@/lib/api";
+import { getMe, getMyEnrollments, getMyOrders, getMyAttempts, hasSession } from "@/lib/api";
 import { BackgroundOrbs } from "@/components/layout/background";
 
 export const metadata: Metadata = {
@@ -12,7 +13,9 @@ export const metadata: Metadata = {
 export const revalidate = 60;
 
 export default async function DashboardPage() {
-  // Falls back to demo data when the API is unreachable or the user is not authenticated.
+  // Digital content is gated: no authenticated session → sign in first.
+  if (!(await hasSession())) redirect("/login");
+
   const [user, enrollments, orders, results] = await Promise.all([
     getMe(),
     getMyEnrollments(),

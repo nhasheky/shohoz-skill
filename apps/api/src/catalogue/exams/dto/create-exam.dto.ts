@@ -191,6 +191,11 @@ export class CreateExamDto {
   published?: boolean;
 
   @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  allowedPaymentMethods?: string[];
+
+  @IsOptional()
   seo?: Prisma.InputJsonValue;
 
   @IsOptional()

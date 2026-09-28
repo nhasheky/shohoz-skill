@@ -27,8 +27,8 @@ export class AdminController {
   }
 
   @Get('orders')
-  orders(@Query('page') page?: string, @Query('perPage') perPage?: string) {
-    return this.admin.orders(Number(page) || 1, Number(perPage) || 20);
+  orders(@Query('page') page?: string, @Query('perPage') perPage?: string, @Query('status') status?: string) {
+    return this.admin.orders(Number(page) || 1, Number(perPage) || 20, status);
   }
 
   @Patch('reviews/:id/moderate')

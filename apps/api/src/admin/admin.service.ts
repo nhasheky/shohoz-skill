@@ -56,10 +56,17 @@ export class AdminService {
     return { id: userId, status };
   }
 
-  async orders(page = 1, perPage = 20) {
+  async orders(page = 1, perPage = 20, status?: string) {
+    const where = status ? { status } : {};
     const [total, items] = await Promise.all([
-      this.prisma.order.count(),
-      this.prisma.order.findMany({ skip: (page - 1) * perPage, take: perPage, orderBy: { createdAt: 'desc' } }),
+      this.prisma.order.count({ where }),
+      this.prisma.order.findMany({
+        where,
+        include: { user: { select: { id: true, name: true, nameBn: true, phone: true, email: true } } },
+        skip: (page - 1) * perPage,
+        take: perPage,
+        orderBy: { createdAt: 'desc' },
+      }),
     ]);
     return { total, page, perPage, items };
   }

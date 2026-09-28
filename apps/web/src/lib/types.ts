@@ -64,6 +64,7 @@ export type Course = {
   faq: FaqItem[];
   videos: { youtube?: string; direct?: string };
   enrolled?: boolean;
+  allowedPaymentMethods?: string[];
   published: boolean;
   featured?: boolean;
   isNew?: boolean;
@@ -88,6 +89,7 @@ export type Book = {
   publisher: string;
   pdfPrice: Price;
   hardcopyPrice: Price;
+  allowedPaymentMethods?: string[];
   tableOfContents: { title: string; pages: string }[];
   samplePages: number;
   students: number;
@@ -163,6 +165,7 @@ export type Exam = {
   avgScore: number;
   subjects: ExamSubject[];
   accessDuration: AccessDuration;
+  allowedPaymentMethods?: string[];
   featured?: boolean;
   isNew?: boolean;
   published: boolean;
@@ -254,19 +257,40 @@ export type AppUser = {
 };
 
 export type OrderStatus = "PENDING" | "PAID" | "FAILED" | "REFUNDED";
-export type PaymentMethod = "BKASH" | "NAGAD" | "SSC" | "ROCKET";
+export type PaymentMethod = "BKASH" | "NAGAD" | "SSC" | "ROCKET" | "COD" | "SSLCOMMERZ";
+export type DeliveryRegion = "DHAKA" | "OUTSIDE";
+
+export type OrderCustomer = {
+  id?: string;
+  name?: string | null;
+  nameBn?: string | null;
+  phone?: string | null;
+  email?: string | null;
+};
 
 export type Order = {
   id: string;
-  userId: string;
+  userId?: string | null;
+  guestName?: string | null;
+  guestPhone?: string | null;
+  guestEmail?: string | null;
+  user?: OrderCustomer | null;
   productType: ProductType;
   productId: string;
   productTitle: string;
+  variant?: string | null;
+  isPhysical?: boolean;
+  quantity?: number;
   amount: number;
+  deliveryCharge?: number;
+  total?: number;
   method: PaymentMethod;
+  paymentMethod?: string | null;
   status: OrderStatus;
+  address?: string | null;
+  region?: DeliveryRegion | string | null;
   createdAt: string;
-  txId: string;
+  txId?: string | null;
 };
 
 export type Category = {
@@ -275,4 +299,42 @@ export type Category = {
   labelBn: string;
   description: string;
   count: number;
+};
+
+export type SiteSetting = {
+  id?: string;
+  logoUrl?: string | null;
+  siteTitle: string;
+  siteTitleBn?: string | null;
+  faviconUrl?: string | null;
+  metaDescription?: string | null;
+  ogImageUrl?: string | null;
+  keywords?: string[];
+  supportEmail?: string | null;
+  supportPhone?: string | null;
+  address?: string | null;
+  socials?: Record<string, string> | null;
+  deliveryChargeDhaka: number;
+  deliveryChargeOutside: number;
+  codEnabled?: boolean;
+  sslcommerzEnabled?: boolean;
+};
+
+export type PageContent = {
+  id?: string | null;
+  page: string;
+  data: Record<string, unknown>;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+export type ContactMessage = {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string | null;
+  subject?: string | null;
+  message: string;
+  status: "NEW" | "READ" | "REPLIED" | "ARCHIVED";
+  createdAt: string;
 };

@@ -11,13 +11,17 @@ import type {
   AppUser,
   BlogPost,
   Book,
+  Category,
   Course,
   Exam,
+  FaqItem,
   Order,
+  SiteSetting,
   VideoSource,
 } from "@/lib/types";
 import { cookies } from "next/headers";
 import type { DemoEnrollment } from "@/lib/data/users";
+import { SITE } from "@/lib/site";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://shohoz-api.onrender.com";
 
@@ -61,12 +65,14 @@ type ApiCourse = {
   students: number; rating: number; reviewCount: number; certificate: boolean; featured: boolean | null;
   published: boolean; createdAt: string; instructor?: ApiInstructor | null;
   prices: ApiPrice[]; curriculum: ApiSection[];
+  allowedPaymentMethods?: string[];
 };
 type ApiBook = {
   id: string; slug: string; title: string; titleBn?: string | null; subtitle?: string | null; description: string;
   category: string; author: string; pages: number; edition: string; language: string; publisher: string;
   pdfPrice: number; hardcopyPrice?: number | null; samplePages: number; students: number; rating: number;
   reviewCount: number; featured: boolean | null; published: boolean; createdAt: string;
+  allowedPaymentMethods?: string[];
 };
 type ApiQuestion = { id: string; text: string; options: string[] | string; answerIndex: number; explanation?: string | null; sortOrder?: number | null };
 type ApiTopic = { id: string; title: string; slug: string; questionsCount: number; durationMinutes: number; marksPerQuestion: number; negativeMarks: number; sortOrder: number; questions: ApiQuestion[] };
@@ -77,6 +83,7 @@ type ApiExam = {
   durationMinutes: number; questionsCount: number; totalMarks: number; negativeMarking: boolean;
   defaultNegativeMarks: number; marksPerQuestion: number; attemptCount: number; passRate: number; avgScore: number;
   rating: number; featured: boolean | null; published: boolean; createdAt: string; subjects: ApiSubject[];
+  allowedPaymentMethods?: string[];
 };
 type ApiBlog = {
   id: string; slug: string; title: string; excerpt: string; category: string; categoryBn?: string | null;
@@ -167,6 +174,7 @@ function mapCourse(raw: ApiCourse): Course {
     whoIsFor: [],
     faq: [],
     videos: firstYt ? { youtube: firstYt.sourceId } : firstDir ? { direct: firstDir.sourceId } : {},
+    allowedPaymentMethods: raw.allowedPaymentMethods ?? [],
     published: raw.published,
     featured: raw.featured ?? false,
     createdAt: raw.createdAt,
@@ -200,6 +208,7 @@ function mapBook(raw: ApiBook): Book {
     students: raw.students,
     rating: raw.rating,
     reviewCount: raw.reviewCount,
+    allowedPaymentMethods: raw.allowedPaymentMethods ?? [],
     published: raw.published,
     featured: raw.featured ?? false,
     createdAt: raw.createdAt,
@@ -231,6 +240,7 @@ function mapExam(raw: ApiExam): Exam {
     avgScore: raw.avgScore,
     rating: raw.rating,
     accessDuration: "LIFETIME",
+    allowedPaymentMethods: raw.allowedPaymentMethods ?? [],
     subjects: raw.subjects.map((s) => ({
       id: s.id,
       title: s.title,
@@ -488,5 +498,96 @@ export async function getMyAttempts(): Promise<{ id: string; examTitle: string; 
     "/users/me/attempts",
     (raw) => (raw as ApiAttempt[]).map(mapAttempt),
     async () => (await import("@/lib/data/users")).demoResults,
+  );
+}
+
+// ─── Auth session (cookie set by the login/OTP flows) ─────────────────────
+export async function hasSession(): Promise<boolean> {
+  const cookieStore = await cookies();
+  return Boolean(cookieStore.get("shohoz_token")?.value);
+}
+
+// ─── CMS: site settings & editable pages ──────────────────────────────────
+export const FALLBACK_SITE_SETTINGS: SiteSetting = {
+  id: "default",
+  logoUrl: null,
+  siteTitle: SITE.name,
+  siteTitleBn: SITE.nameBn,
+  faviconUrl: null,
+  metaDescription: SITE.description,
+  ogImageUrl: null,
+  keywords: [],
+  supportEmail: SITE.supportEmail,
+  supportPhone: SITE.phone,
+  address: SITE.address,
+  socials: null,
+  deliveryChargeDhaka: 60,
+  deliveryChargeOutside: 120,
+  codEnabled: true,
+  sslcommerzEnabled: true,
+};
+
+function mapSiteSetting(raw: Record<string, unknown>): SiteSetting {
+  const str = (v: unknown, fallback: string) => (typeof v === "string" && v.length ? v : fallback);
+  return {
+    id: typeof raw.id === "string" ? raw.id : "default",
+    logoUrl: (raw.logoUrl as string | null) ?? null,
+    siteTitle: str(raw.siteTitle, SITE.name),
+    siteTitleBn: (raw.siteTitleBn as string | null) ?? SITE.nameBn,
+    faviconUrl: (raw.faviconUrl as string | null) ?? null,
+    metaDescription: str(raw.metaDescription, SITE.description),
+    ogImageUrl: (raw.ogImageUrl as string | null) ?? null,
+    keywords: Array.isArray(raw.keywords) ? (raw.keywords as string[]) : [],
+    supportEmail: str(raw.supportEmail, SITE.supportEmail),
+    supportPhone: str(raw.supportPhone, SITE.phone),
+    address: str(raw.address, SITE.address),
+    socials: (raw.socials as Record<string, string> | null) ?? null,
+    deliveryChargeDhaka: typeof raw.deliveryChargeDhaka === "number" ? raw.deliveryChargeDhaka : 60,
+    deliveryChargeOutside: typeof raw.deliveryChargeOutside === "number" ? raw.deliveryChargeOutside : 120,
+    codEnabled: typeof raw.codEnabled === "boolean" ? raw.codEnabled : true,
+    sslcommerzEnabled: typeof raw.sslcommerzEnabled === "boolean" ? raw.sslcommerzEnabled : true,
+  };
+}
+
+/** Public site settings (branding, SEO, delivery charges). */
+export async function getSiteSettings(): Promise<SiteSetting> {
+  return withFallback(
+    "/site-settings",
+    (raw) => mapSiteSetting(raw as Record<string, unknown>),
+    async () => FALLBACK_SITE_SETTINGS,
+  );
+}
+
+export type HomePageData = {
+  heroEyebrow?: string;
+  heroTitle?: string;
+  heroDescription?: string;
+  categories?: Category[];
+  faq?: FaqItem[];
+};
+
+export type AboutPageData = {
+  title?: string;
+  description?: string;
+  story?: string[];
+  values?: { title: string; description: string }[];
+  milestones?: { year: string; title: string; description: string }[];
+};
+
+export type ContactPageData = {
+  title?: string;
+  description?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  supportHours?: string;
+};
+
+/** Dynamic content block for a CMS-managed page (returns {} when not set). */
+export async function getPageContent<T = Record<string, unknown>>(page: string): Promise<Partial<T>> {
+  return withFallback(
+    `/pages/${page}`,
+    (raw) => (((raw as { data?: unknown }).data ?? {}) as Partial<T>),
+    async () => ({}),
   );
 }

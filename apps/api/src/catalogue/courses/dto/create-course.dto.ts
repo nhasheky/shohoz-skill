@@ -188,6 +188,11 @@ export class CreateCourseDto {
 
   @IsOptional()
   @IsArray()
+  @IsString({ each: true })
+  allowedPaymentMethods?: string[];
+
+  @IsOptional()
+  @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CoursePriceDto)
   prices?: CoursePriceDto[];

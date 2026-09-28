@@ -2,7 +2,15 @@ import { BackgroundOrbs, ParticleField } from "@/components/layout/background";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { IconPlay, IconSearch, IconSparkles } from "@/components/ui/icons";
 
-export function Hero() {
+export function Hero({
+  eyebrow = "Bangladesh's fastest learning platform",
+  title,
+  description = "BCS, NTRCA, bank & every government job — through fast video courses, real negative-marking MCQ exams, and books you can read instantly. Start learning in seconds, not weeks.",
+}: {
+  eyebrow?: string;
+  title?: string;
+  description?: string;
+}) {
   return (
     <section className="relative overflow-hidden">
       <BackgroundOrbs />
@@ -12,22 +20,27 @@ export function Hero() {
       <div className="relative mx-auto max-w-7xl px-4 pb-16 pt-14 sm:px-6 sm:pt-20 lg:px-8 lg:pt-24">
         <div className="mx-auto max-w-3xl text-center">
           <span className="inline-flex items-center gap-2 rounded-full border border-accent/40 bg-accent/10 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-accent animate-fade-up">
-            <IconSparkles width={14} height={14} /> Bangladesh&apos;s fastest learning platform
+            <IconSparkles width={14} height={14} /> {eyebrow}
           </span>
 
-          <h1 className="mt-6 font-display text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl lg:text-6xl text-balance animate-fade-up" style={{ animationDelay: "80ms" }}>
-            Prepare for <span className="text-primary">Govt. Jobs</span> with{" "}
-            <span className="relative whitespace-nowrap">
-              <span className="relative z-10 text-accent">Learn to Earn</span>
-              <svg className="absolute -bottom-1.5 left-0 z-0 h-3 w-full text-accent/70" viewBox="0 0 200 9" preserveAspectRatio="none" aria-hidden>
-                <path d="M2 7C60 2 140 2 198 6" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-              </svg>
-            </span>
-          </h1>
+          {title ? (
+            <h1 className="mt-6 font-display text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl lg:text-6xl text-balance animate-fade-up" style={{ animationDelay: "80ms" }}>
+              {title}
+            </h1>
+          ) : (
+            <h1 className="mt-6 font-display text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl lg:text-6xl text-balance animate-fade-up" style={{ animationDelay: "80ms" }}>
+              Prepare for <span className="text-primary">Govt. Jobs</span> with{" "}
+              <span className="relative whitespace-nowrap">
+                <span className="relative z-10 text-accent">Learn to Earn</span>
+                <svg className="absolute -bottom-1.5 left-0 z-0 h-3 w-full text-accent/70" viewBox="0 0 200 9" preserveAspectRatio="none" aria-hidden>
+                  <path d="M2 7C60 2 140 2 198 6" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                </svg>
+              </span>
+            </h1>
+          )}
 
           <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg animate-fade-up" style={{ animationDelay: "160ms" }}>
-            BCS, NTRCA, bank &amp; every government job — through fast video courses, real negative-marking MCQ exams,
-            and books you can read instantly. Start learning in seconds, not weeks.
+            {description}
           </p>
 
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row animate-fade-up" style={{ animationDelay: "240ms" }}>

@@ -17,6 +17,7 @@ import {
   IconHome,
   IconLayers,
   IconLogout,
+  IconMail,
   IconMenu,
   IconMessageCircle,
   IconSettings,
@@ -35,7 +36,9 @@ const NAV = [
   { href: "/admin/users", label: "Users", icon: IconUsers },
   { href: "/admin/orders", label: "Orders", icon: IconWallet },
   { href: "/admin/reviews", label: "Reviews", icon: IconMessageCircle },
-  { href: "/admin/settings", label: "Settings", icon: IconSettings },
+  { href: "/admin/messages", label: "Contact Messages", icon: IconMail },
+  { href: "/admin/pages", label: "Pages", icon: IconGlobe },
+  { href: "/admin/settings", label: "Site Settings", icon: IconSettings },
 ];
 
 function SidebarContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {

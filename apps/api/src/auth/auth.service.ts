@@ -124,6 +124,8 @@ export class AuthService {
       throw new UnauthorizedException('আপনার একাউন্ট সাসপেন্ড করা হয়েছে।');
     }
 
+    await this.mergeGuestOrders(user);
+
     const payload = { sub: user.id, phone: user.phone, role: user.role };
     return {
       accessToken: this.jwt.sign(payload),
@@ -162,6 +164,9 @@ export class AuthService {
 
     // Mark user as verified
     await this.prisma.user.update({ where: { id: userId }, data: { verified: true } });
+
+    // Attach any guest orders placed with this phone/email.
+    await this.mergeGuestOrders(user);
 
     // Issue JWT
     const payload = { sub: user.id, phone: user.phone, role: user.role };
@@ -267,6 +272,8 @@ export class AuthService {
 
     if (user.status !== 'ACTIVE') throw new UnauthorizedException('Account is not active.');
 
+    await this.mergeGuestOrders(user);
+
     if (dto.deviceName) {
       const jti = this.jwt.sign({ sub: user.id }, { expiresIn: '10m' }).split('.')[2];
       const active = await this.prisma.deviceSession.count({ where: { userId: user.id } });
@@ -312,6 +319,50 @@ export class AuthService {
     if (session.current) throw new BadRequestException('Cannot revoke the current session here.');
     await this.prisma.deviceSession.delete({ where: { id: sessionId } });
     return { revoked: sessionId };
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+   *  Account merging: attach guest orders once a user verifies.
+   * ═══════════════════════════════════════════════════════════════════ */
+  private async mergeGuestOrders(user: { id: string; phone: string; email?: string | null }) {
+    const localPhone = user.phone.replace(/^\+88/, '');
+    const or: { guestPhone?: string; guestEmail?: string }[] = [{ guestPhone: user.phone }];
+    if (localPhone !== user.phone) or.push({ guestPhone: localPhone });
+    if (user.email) or.push({ guestEmail: user.email.toLowerCase().trim() });
+
+    const orders = await this.prisma.order.findMany({
+      where: { userId: null, OR: or },
+      select: { id: true, status: true, isPhysical: true, productType: true, productId: true },
+    });
+    if (!orders.length) return { merged: 0 };
+
+    await this.prisma.order.updateMany({
+      where: { id: { in: orders.map((o) => o.id) } },
+      data: { userId: user.id },
+    });
+
+    // Unlock access for guest purchases that were already paid.
+    for (const order of orders) {
+      if (order.status === 'PAID' && !order.isPhysical) {
+        await this.prisma.enrollment.upsert({
+          where: {
+            userId_productType_productId: {
+              userId: user.id,
+              productType: order.productType,
+              productId: order.productId,
+            },
+          },
+          create: {
+            userId: user.id,
+            productType: order.productType,
+            productId: order.productId,
+            accessFrom: new Date(),
+          },
+          update: {},
+        });
+      }
+    }
+    return { merged: orders.length };
   }
 
   async adminLogin(email: string, password?: string) {

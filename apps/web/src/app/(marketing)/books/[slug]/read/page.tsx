@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { getBook } from "@/lib/api";
+import { notFound, redirect } from "next/navigation";
+import { getBook, hasSession } from "@/lib/api";
 import { PdfReader } from "@/components/product/pdf-reader";
 
 export const revalidate = 60;
@@ -26,6 +26,9 @@ export default async function BookReadPage(props: PageProps<"/books/[slug]/read"
   // Preview = no `mode=full` query, OR user owns it (mock: always preview for now)
   const mode = typeof searchParams.mode === "string" ? searchParams.mode : "preview";
   const preview = mode !== "full";
+
+  // Full digital content requires an authenticated session.
+  if (!preview && !(await hasSession())) redirect(`/login`);
 
   const ownerName = "Demo Student (Rafi Ahmed)";
 

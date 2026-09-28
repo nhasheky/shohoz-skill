@@ -147,6 +147,32 @@ export function FaqEditor({ value, onChange }: { value: { question: string; answ
   );
 }
 
+// ─── Payment methods (per-product override) ────────────────────────────────
+const PAYMENT_METHODS = [
+  { id: "SSLCOMMERZ", label: "SSLCOMMERZ", hint: "Cards, mobile banking & net banking (all products)" },
+  { id: "COD", label: "Cash on Delivery", hint: "Physical hardcopy books only" },
+];
+
+export function PaymentMethodsEditor({ value, onChange }: { value: string[] | undefined; onChange: (v: string[]) => void }) {
+  const selected = value ?? [];
+  const toggle = (id: string) => (selected.includes(id) ? onChange(selected.filter((x) => x !== id)) : onChange([...selected, id]));
+  return (
+    <SectionCard title="Allowed payment methods" hint="Leave all unchecked to use the platform default">
+      <div className="space-y-2">
+        {PAYMENT_METHODS.map((m) => (
+          <label key={m.id} className="flex items-start gap-2.5 rounded-xl border border-border bg-card p-3 text-sm">
+            <input type="checkbox" checked={selected.includes(m.id)} onChange={() => toggle(m.id)} className="mt-0.5 h-4 w-4 accent-[#F2A93B]" />
+            <span>
+              <span className="block font-bold text-foreground">{m.label}</span>
+              <span className="block text-xs text-muted-foreground">{m.hint}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+    </SectionCard>
+  );
+}
+
 // ─── SEO ───────────────────────────────────────────────────────────────────
 export function SeoEditor({ value, onChange }: { value: Record<string, unknown> | undefined; onChange: (v: Record<string, unknown>) => void }) {
   const seo = value ?? {};

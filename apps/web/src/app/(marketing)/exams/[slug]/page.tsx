@@ -142,6 +142,9 @@ export default async function ExamDetailPage(props: PageProps<"/exams/[slug]">) 
                 <PurchasePanel
                   kind="Exam"
                   title={exam.title}
+                  productId={exam.id}
+                  productType="exam"
+                  allowedPaymentMethods={exam.allowedPaymentMethods}
                   plans={plans}
                   planNote={exam.isFree ? "No payment required" : "One-time payment · lifetime access"}
                   features={features}
