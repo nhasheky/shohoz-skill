@@ -1,68 +1,28 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { createTransport, type Transporter } from 'nodemailer';
 
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  private transporter: Transporter;
-
-  constructor() {
-    this.transporter = createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.SMTP_USER ?? 'nazmulhasanasheky@gmail.com',
-        pass: process.env.SMTP_PASS ?? '',
-      },
-    });
-  }
 
   async sendOtp(to: string, code: string, userName?: string): Promise<boolean> {
     try {
-      await this.transporter.sendMail({
-        from: `"Shohoz Skill" <${process.env.SMTP_USER ?? 'nazmulhasanasheky@gmail.com'}>`,
-        to,
-        subject: `আপনার ভেরিফিকেশন কোড: ${code}`,
-        html: `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"></head>
-<body style="margin:0;padding:0;background:#0a0e1a;font-family:Arial,sans-serif;">
-  <div style="max-width:480px;margin:40px auto;background:#111827;border-radius:16px;overflow:hidden;border:1px solid #1e293b;">
-    <div style="padding:32px 28px 20px;text-align:center;background:linear-gradient(135deg,#f59e0b,#d97706);">
-      <h1 style="margin:0;color:#0a0e1a;font-size:22px;font-weight:800;">Shohoz Skill</h1>
-      <p style="margin:6px 0 0;color:#1a1a2e;font-size:13px;">Learn to Earn</p>
-    </div>
-    <div style="padding:32px 28px;">
-      <p style="color:#e2e8f0;font-size:15px;margin:0 0 8px;">
-        ${userName ? `প্রিয় <strong>${userName}</strong>,` : 'হ্যালো,'}
-      </p>
-      <p style="color:#94a3b8;font-size:14px;margin:0 0 24px;">
-        আপনার Shohoz Skill একাউন্ট ভেরিফাই করতে নিচের কোডটি ব্যবহার করুন:
-      </p>
-      <div style="text-align:center;margin:20px 0;">
-        <div style="display:inline-block;background:#1e293b;border:2px solid #f59e0b;border-radius:12px;padding:16px 40px;">
-          <span style="font-size:32px;font-weight:900;letter-spacing:12px;color:#f59e0b;">${code}</span>
-        </div>
-      </div>
-      <p style="color:#64748b;font-size:12px;text-align:center;margin:20px 0 0;">
-        এই কোডটি ৫ মিনিটের মধ্যে মেয়াদ শেষ হবে।<br/>
-        আপনি এই রিকোয়েস্ট না করলে এই ইমেইল উপেক্ষা করুন।
-      </p>
-    </div>
-    <div style="padding:16px 28px;border-top:1px solid #1e293b;text-align:center;">
-      <p style="margin:0;color:#475569;font-size:11px;">
-        © ${new Date().getFullYear()} Shohoz Skill — shohozskill.com.bd
-      </p>
-    </div>
-  </div>
-</body>
-</html>
-        `.trim(),
+      const emailApiUrl = 'https://shohozskill.com.bd/api/send-email';
+      const res = await fetch(emailApiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to,
+          code,
+          userName,
+          secret: 'shohoz_email_secret_2026',
+        }),
       });
 
-      this.logger.log(`OTP email sent to ${to}`);
+      if (!res.ok) {
+        throw new Error(`Email API returned ${res.status}`);
+      }
+
+      this.logger.log(`OTP email sent to ${to} via Vercel API`);
       return true;
     } catch (err) {
       this.logger.error(`Failed to send OTP email to ${to}:`, err);
