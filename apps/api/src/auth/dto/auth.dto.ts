@@ -4,7 +4,7 @@ import { IsEmail, IsOptional, IsString, Matches, MinLength } from 'class-validat
 
 export class RequestOtpDto {
   @IsString()
-  @Matches(/^01\d{9}$/, { message: 'Phone must be 11 digits starting with 01.' })
+  @Matches(/^(\+88)?01\d{9}$/, { message: 'Phone must be a valid Bangladeshi number.' })
   phone: string;
 
   @IsOptional()
@@ -19,7 +19,7 @@ export class RequestOtpDto {
 
 export class VerifyOtpDto {
   @IsString()
-  @Matches(/^01\d{9}$/)
+  @Matches(/^(\+88)?01\d{9}$/)
   phone: string;
 
   @IsString()
@@ -51,7 +51,7 @@ export class RegisterDto {
   name: string;
 
   @IsString()
-  @Matches(/^01\d{9}$/, { message: 'Phone must be 11 digits starting with 01.' })
+  @Matches(/^(\+88)?01\d{9}$/, { message: 'Phone must be a valid Bangladeshi number.' })
   phone: string;
 
   @IsEmail({}, { message: 'Please provide a valid email address.' })

@@ -102,15 +102,7 @@ export default function AdminLoginPage() {
             {busy ? "Signing in…" : "Sign in"}
           </button>
 
-          <p className="mt-5 flex items-start gap-2 rounded-xl bg-muted/60 p-3 text-xs text-muted-foreground">
-            <IconShieldCheck width={14} height={14} className="mt-0.5 shrink-0 text-success" />
-            <span>
-              Demo credentials: <span className="font-mono font-bold text-foreground">admin@shohozskill.com</span> /{" "}
-              <span className="font-mono font-bold text-foreground">admin123</span>. Only ADMIN / SUPER_ADMIN roles can access the panel.
-            </span>
-          </p>
-
-          <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
+          <p className="mt-6 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
             <IconKey width={13} height={13} /> Session is stored in your browser (localStorage).
           </p>
         </form>

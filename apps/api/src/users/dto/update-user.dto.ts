@@ -25,7 +25,7 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^01\d{9}$/, { message: 'Phone must be 11 digits starting with 01.' })
+  @Matches(/^(\+88)?01\d{9}$/, { message: 'Phone must be a valid Bangladeshi number.' })
   phone?: string;
 
   @IsOptional()
