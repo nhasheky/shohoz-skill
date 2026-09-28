@@ -13,6 +13,7 @@ import type {
   Book,
   Course,
   Exam,
+  Order,
   VideoSource,
 } from "@/lib/types";
 import { cookies } from "next/headers";
@@ -27,7 +28,7 @@ async function withFallback<T>(
   mock: () => Promise<T>,
 ): Promise<T> {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const token = cookieStore.get("shohoz_token")?.value;
     const headers: Record<string, string> = { Accept: "application/json" };
     if (token) {
