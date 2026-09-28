@@ -27,6 +27,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   /* shared state */
   const [step, setStep] = useState<"form" | "otp">("form");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [busy, setBusy] = useState(false);
 
   /* register fields */
@@ -43,7 +44,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const [otp, setOtp] = useState("");
   const [showOtp, setShowOtp] = useState(false);
   const [userId, setUserId] = useState("");
-  const [devOtp, setDevOtp] = useState(""); // shown in demo mode
+  const [resending, setResending] = useState(false);
 
   /* masking helpers */
   const maskedPhone =
@@ -90,7 +91,6 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       }
 
       setUserId(data.userId);
-      if (data._devOtp) setDevOtp(data._devOtp);
       setStep("otp");
     } catch {
       setError("সার্ভারে সংযোগ হচ্ছে না। পরে আবার চেষ্টা করুন।");
@@ -144,7 +144,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     e.preventDefault();
     const code = otp.replace(/\D/g, "");
     if (code.length < 4) {
-      setError("৪-৬ সংখ্যার ভেরিফিকেশন কোড দিন।");
+      setError("৪ সংখ্যার ভেরিফিকেশন কোড দিন।");
       return;
     }
 
@@ -176,6 +176,33 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     setBusy(false);
   }
 
+  /* ──────── Resend OTP ──────── */
+  async function handleResend() {
+    setResending(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const res = await fetch(`${API_URL}/api/auth/resend-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || "কোড পাঠাতে সমস্যা হয়েছে।");
+      } else {
+        setSuccess("নতুন কোড আপনার ইমেইলে পাঠানো হয়েছে!");
+        setTimeout(() => setSuccess(""), 5000);
+      }
+    } catch {
+      setError("সার্ভারে সংযোগ হচ্ছে না।");
+    }
+    setResending(false);
+  }
+
   /* ────────────────────── OTP STEP (after register) ───────── */
   if (step === "otp") {
     return (
@@ -186,22 +213,15 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           </span>
           <div>
             <h2 className="font-display text-xl font-extrabold text-foreground">ভেরিফিকেশন</h2>
-            <p className="text-xs text-muted-foreground">আপনার ইমেইল ও মোবাইলে কোড পাঠানো হয়েছে</p>
+            <p className="text-xs text-muted-foreground">আপনার ইমেইলে ভেরিফিকেশন কোড পাঠানো হয়েছে</p>
           </div>
         </div>
 
         <div className="mt-4 rounded-xl bg-accent/5 p-3 text-xs text-muted-foreground space-y-1">
-          <p>📱 SMS পাঠানো হয়েছে: <span className="font-bold text-foreground">{maskedPhone}</span></p>
           <p>📧 ইমেইল পাঠানো হয়েছে: <span className="font-bold text-foreground">{maskedEmail}</span></p>
-          <p className="text-accent font-semibold">যেকোনো একটি থেকে কোড দিলেই হবে!</p>
+          <p>📱 মোবাইল: <span className="font-bold text-foreground">{maskedPhone}</span></p>
+          <p className="text-accent font-semibold">ইমেইলের Inbox (বা Spam ফোল্ডার) চেক করুন!</p>
         </div>
-
-        {devOtp && (
-          <div className="mt-3 flex items-start gap-2 rounded-xl bg-warning/10 p-3 text-xs text-muted-foreground">
-            <IconCheckCircle width={14} height={14} className="mt-0.5 shrink-0 text-warning" />
-            ডেমো মোড: আপনার ভেরিফিকেশন কোড হলো <span className="font-bold text-foreground ml-1">{devOtp}</span>
-          </div>
-        )}
 
         <form onSubmit={handleVerify} className="mt-5">
           <label className="block">
@@ -214,6 +234,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
                 inputMode="numeric"
                 placeholder="••••"
                 type={showOtp ? "text" : "password"}
+                maxLength={6}
                 className={`${inputCls} pl-11 pr-11`}
               />
               <button
@@ -234,14 +255,33 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             </div>
           )}
 
+          {success && (
+            <div className="mt-3 flex items-start gap-2 text-sm text-success">
+              <IconCheckCircle width={16} height={16} className="mt-0.5 shrink-0" />
+              {success}
+            </div>
+          )}
+
           <Button type="submit" variant="accent" size="lg" className="mt-5 w-full" disabled={busy}>
             {busy ? "ভেরিফাই হচ্ছে…" : "ভেরিফাই করুন ও লগইন হন"}
           </Button>
 
+          <p className="mt-3 text-center text-xs text-muted-foreground">
+            কোড আসেনি?{" "}
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={resending}
+              className="font-bold text-accent hover:underline disabled:opacity-50"
+            >
+              {resending ? "পাঠানো হচ্ছে…" : "আবার পাঠান"}
+            </button>
+          </p>
+
           <button
             type="button"
-            onClick={() => { setStep("form"); setOtp(""); setError(""); setDevOtp(""); }}
-            className="mt-3 w-full text-center text-xs font-bold text-accent hover:underline"
+            onClick={() => { setStep("form"); setOtp(""); setError(""); setSuccess(""); }}
+            className="mt-2 w-full text-center text-xs font-bold text-accent hover:underline"
           >
             ← তথ্য পরিবর্তন করুন
           </button>

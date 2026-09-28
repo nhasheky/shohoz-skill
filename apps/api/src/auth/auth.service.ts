@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException, BadRequestException, ConflictExcepti
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomInt } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { MailService } from './mail.service.js';
 import type { RequestOtpDto, VerifyOtpDto, RegisterDto, LoginDto } from './dto/auth.dto.js';
 import type { DeviceInfo } from './dto/auth.dto.js';
 
@@ -13,10 +14,11 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly mail: MailService,
   ) {}
 
   /* ═══════════════════════════════════════════════════════════════════
-   *  NEW: Register with name, phone, email, password
+   *  Register with name, phone, email, password
    * ═══════════════════════════════════════════════════════════════════ */
   async register(dto: RegisterDto) {
     const normalizedPhone = normalizePhone(dto.phone);
@@ -50,11 +52,11 @@ export class AuthService {
         email: normalizedEmail,
         password: passwordHash,
         role: 'STUDENT',
-        verified: false, // will be true after OTP verification
+        verified: false,
       },
     });
 
-    // Generate OTP and store (in real system, send via SMS + Email)
+    // Generate 4-digit OTP
     const otpCode = randomInt(1000, 9999).toString();
     const codeHash = hash(otpCode);
 
@@ -67,19 +69,20 @@ export class AuthService {
       },
     });
 
-    // TODO: Send real SMS & Email with OTP
-    console.log(`[DEV OTP] ${normalizedPhone} / ${normalizedEmail} → ${otpCode}`);
+    // Send OTP via email (real)
+    const emailSent = await this.mail.sendOtp(normalizedEmail, otpCode, dto.name.trim());
 
     return {
-      message: 'একাউন্ট তৈরি হয়েছে! ভেরিফিকেশন কোড পাঠানো হয়েছে।',
+      message: emailSent
+        ? 'একাউন্ট তৈরি হয়েছে! আপনার ইমেইলে ভেরিফিকেশন কোড পাঠানো হয়েছে।'
+        : 'একাউন্ট তৈরি হয়েছে! কিন্তু ইমেইল পাঠাতে সমস্যা হয়েছে।',
       userId: user.id,
-      // In production, don't send the OTP back! Only for demo/dev:
-      _devOtp: otpCode,
+      emailSent,
     };
   }
 
   /* ═══════════════════════════════════════════════════════════════════
-   *  NEW: Login with email/phone + password
+   *  Login with email/phone + password
    * ═══════════════════════════════════════════════════════════════════ */
   async login(dto: LoginDto) {
     const id = dto.identifier.trim();
@@ -136,7 +139,7 @@ export class AuthService {
   }
 
   /* ═══════════════════════════════════════════════════════════════════
-   *  NEW: Verify registration OTP
+   *  Verify registration OTP
    * ═══════════════════════════════════════════════════════════════════ */
   async verifyRegistrationOtp(userId: string, code: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -176,10 +179,43 @@ export class AuthService {
   }
 
   /* ═══════════════════════════════════════════════════════════════════
+   *  Resend OTP (for registration verification)
+   * ═══════════════════════════════════════════════════════════════════ */
+  async resendOtp(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BadRequestException('ইউজার পাওয়া যায়নি।');
+    if (user.verified) throw new BadRequestException('একাউন্ট ইতোমধ্যে ভেরিফাইড।');
+
+    // Generate new OTP
+    const otpCode = randomInt(1000, 9999).toString();
+    const codeHash = hash(otpCode);
+
+    await this.prisma.otpCode.create({
+      data: {
+        phone: user.phone,
+        codeHash,
+        purpose: 'REGISTER',
+        expiresAt: new Date(Date.now() + OTP_TTL_MS),
+      },
+    });
+
+    // Send via email
+    const emailSent = user.email
+      ? await this.mail.sendOtp(user.email, otpCode, user.name)
+      : false;
+
+    return {
+      message: emailSent
+        ? 'নতুন কোড আপনার ইমেইলে পাঠানো হয়েছে।'
+        : 'কোড পাঠাতে সমস্যা হয়েছে। আবার চেষ্টা করুন।',
+      emailSent,
+    };
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
    *  EXISTING: OTP-based login (kept for backward compat)
    * ═══════════════════════════════════════════════════════════════════ */
 
-  /** Request a login/register OTP. In dev, the code is printed to the console. */
   async requestOtp(dto: RequestOtpDto) {
     const normalized = normalizePhone(dto.phone);
     const code = randomInt(100000, 999999).toString();
@@ -207,7 +243,6 @@ export class AuthService {
     return { message: 'OTP sent' };
   }
 
-  /** Verify the OTP, register the device session, and mint a JWT. */
   async verifyOtp(dto: VerifyOtpDto, device?: DeviceInfo) {
     const normalized = normalizePhone(dto.phone);
     const otp = await this.prisma.otpCode.findFirst({
@@ -269,7 +304,6 @@ export class AuthService {
     };
   }
 
-  /** Revoke a device session (forces logout on that device). */
   async revokeSession(userId: string, sessionId: string) {
     const session = await this.prisma.deviceSession.findFirst({
       where: { id: sessionId, userId },
@@ -280,7 +314,6 @@ export class AuthService {
     return { revoked: sessionId };
   }
 
-  /** Admin login with email and password */
   async adminLogin(email: string, password?: string) {
     if (password !== 'admin123') {
       throw new UnauthorizedException('Invalid credentials.');
@@ -329,7 +362,5 @@ function hash(value: string) {
 }
 
 function hashPassword(password: string) {
-  // Using SHA-256 with a salt prefix for simplicity.
-  // In production, use bcrypt or argon2.
   return createHash('sha256').update('shohoz_salt_' + password).digest('hex');
 }

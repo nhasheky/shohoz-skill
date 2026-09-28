@@ -6,6 +6,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
+import { MailService } from './mail.service.js';
 
 /**
  * Global module. Re-exports PassportModule so that JwtAuthGuard / RolesGuard
@@ -27,7 +28,7 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService, PassportModule],
+  providers: [AuthService, JwtStrategy, MailService],
+  exports: [AuthService, MailService, PassportModule],
 })
 export class AuthModule {}

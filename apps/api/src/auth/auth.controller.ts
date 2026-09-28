@@ -41,6 +41,15 @@ export class AuthController {
     return this.auth.verifyRegistrationOtp(body.userId, body.code);
   }
 
+  /* ══════ NEW: Resend OTP ══════ */
+  @Post('resend-otp')
+  resendOtp(@Body() body: { userId: string }) {
+    if (!body.userId) {
+      throw new BadRequestException('userId is required.');
+    }
+    return this.auth.resendOtp(body.userId);
+  }
+
   /* ══════ EXISTING endpoints (kept) ══════ */
 
   @Post('otp/request')
