@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { formatBdt, formatDate, timeAgo } from "@/lib/format";
 import { ProductCover } from "@/components/ui/product-cover";
@@ -64,6 +65,15 @@ export function DashboardShell({
     setRevoked((r) => [...r, id]);
   }
 
+  const router = useRouter();
+
+  function handleLogout() {
+    localStorage.removeItem("shohoz_token");
+    localStorage.removeItem("shohoz_user");
+    document.cookie = "shohoz_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    router.push("/");
+  }
+
   const deviceText = `${devices.length} / ${2} active`;
 
   return (
@@ -88,7 +98,7 @@ export function DashboardShell({
           <span className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground">
             <IconDevice width={14} height={14} className="text-accent" /> {deviceText} devices
           </span>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleLogout}>
             <IconLogout width={15} height={15} className="mr-2" /> Logout
           </Button>
         </div>

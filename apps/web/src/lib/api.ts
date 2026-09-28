@@ -13,9 +13,9 @@ import type {
   Book,
   Course,
   Exam,
-  Order,
   VideoSource,
 } from "@/lib/types";
+import { cookies } from "next/headers";
 import type { DemoEnrollment } from "@/lib/data/users";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://shohoz-api.onrender.com";
@@ -27,8 +27,15 @@ async function withFallback<T>(
   mock: () => Promise<T>,
 ): Promise<T> {
   try {
+    const cookieStore = cookies();
+    const token = cookieStore.get("shohoz_token")?.value;
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
     const res = await fetch(`${API_URL}/api${path}`, {
-      headers: { Accept: "application/json" },
+      headers,
       next: { revalidate: 60 },
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);

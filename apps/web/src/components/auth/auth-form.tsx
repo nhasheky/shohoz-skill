@@ -132,6 +132,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       // Save token and user info
       localStorage.setItem("shohoz_token", data.accessToken);
       localStorage.setItem("shohoz_user", JSON.stringify(data.user));
+      document.cookie = `shohoz_token=${data.accessToken}; path=/; max-age=604800; samesite=lax`;
       router.push("/dashboard");
     } catch {
       setError("সার্ভারে সংযোগ হচ্ছে না। পরে আবার চেষ্টা করুন।");
@@ -169,6 +170,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       // Save token and user info
       localStorage.setItem("shohoz_token", data.accessToken);
       localStorage.setItem("shohoz_user", JSON.stringify(data.user));
+      document.cookie = `shohoz_token=${data.accessToken}; path=/; max-age=604800; samesite=lax`;
       router.push("/dashboard");
     } catch {
       setError("সার্ভারে সংযোগ হচ্ছে না। পরে আবার চেষ্টা করুন।");
