@@ -10,7 +10,7 @@ export class ExamsService {
   async findAll() {
     return this.prisma.exam.findMany({
       where: { published: true },
-      include: { subjects: { include: { topics: true } } },
+      include: { subjects: { include: { topics: { include: { questions: true } } } } },
       orderBy: { createdAt: 'desc' },
     });
   }

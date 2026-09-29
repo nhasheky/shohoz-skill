@@ -41,7 +41,7 @@ async function withFallback<T>(
 
     const res = await fetch(`${API_URL}/api${path}`, {
       headers,
-      next: { revalidate: 60 },
+      next: { revalidate: 10 },
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return map(await res.json());
@@ -55,39 +55,46 @@ async function withFallback<T>(
 
 // ─── API (Prisma) raw shapes ──────────────────────────────────────────────
 type ApiPrice = { id: string; duration: string; amount: number; originalAmount?: number | null };
-type ApiLesson = { id: string; title: string; durationMinutes: number; sourceKind: string; sourceId: string; preview: boolean | null };
-type ApiSection = { id: string; title: string; sortOrder: number; lessons: ApiLesson[] };
-type ApiInstructor = { id: string; name: string; nameBn?: string | null; title: string; bio: string; rating: number; students: number; courses: number; verified: boolean | null };
+type ApiLesson = { id: string; title: string; durationMinutes?: number; sourceKind?: string; sourceId?: string; preview?: boolean | null };
+type ApiSection = { id: string; title: string; sortOrder?: number; lessons?: ApiLesson[] };
+type ApiInstructor = { id: string; name: string; nameBn?: string | null; title: string; bio: string; rating: number; students: number; courses: number; verified?: boolean | null };
 type ApiCourse = {
-  id: string; slug: string; title: string; titleBn?: string | null; tagline: string; description: string;
-  category: string; categoryBn?: string | null; level: string; durationLabel: string;
-  totalHours: number; lectures: number; quizzes: number; articles: number; resources: number;
-  students: number; rating: number; reviewCount: number; certificate: boolean; featured: boolean | null;
+  id: string; slug: string; title: string; titleBn?: string | null; tagline?: string | null; description?: string | null;
+  category?: string | null; categoryBn?: string | null; level?: string | null; durationLabel?: string | null;
+  totalHours?: number | null; lectures?: number | null; quizzes?: number | null; articles?: number | null; resources?: number | null;
+  students?: number | null; rating?: number | null; reviewCount?: number | null; certificate?: boolean | null; featured?: boolean | null;
   published: boolean; createdAt: string; instructor?: ApiInstructor | null;
-  prices: ApiPrice[]; curriculum: ApiSection[];
+  prices?: ApiPrice[]; curriculum?: ApiSection[];
+  thumbnailUrl?: string | null;
   allowedPaymentMethods?: string[];
+  learningOutcomes?: string[];
+  requirements?: string[];
+  whoIsFor?: string[];
+  faq?: FaqItem[];
 };
 type ApiBook = {
-  id: string; slug: string; title: string; titleBn?: string | null; subtitle?: string | null; description: string;
-  category: string; author: string; pages: number; edition: string; language: string; publisher: string;
-  pdfPrice: number; hardcopyPrice?: number | null; samplePages: number; students: number; rating: number;
-  reviewCount: number; featured: boolean | null; published: boolean; createdAt: string;
+  id: string; slug: string; title: string; titleBn?: string | null; subtitle?: string | null; description?: string | null;
+  category?: string | null; author?: string | null; pages?: number | null; edition?: string | null; language?: string | null; publisher?: string | null;
+  pdfPrice?: number | null; hardcopyPrice?: number | null; samplePages?: number | null; students?: number | null; rating?: number | null;
+  reviewCount?: number | null; featured?: boolean | null; published: boolean; createdAt: string;
+  thumbnailUrl?: string | null; demoPdfUrl?: string | null;
   allowedPaymentMethods?: string[];
 };
 type ApiQuestion = { id: string; text: string; options: string[] | string; answerIndex: number; explanation?: string | null; sortOrder?: number | null };
-type ApiTopic = { id: string; title: string; slug: string; questionsCount: number; durationMinutes: number; marksPerQuestion: number; negativeMarks: number; sortOrder: number; questions: ApiQuestion[] };
-type ApiSubject = { id: string; title: string; sortOrder: number; topics: ApiTopic[] };
+type ApiTopic = { id: string; title: string; slug: string; questionsCount?: number | null; durationMinutes?: number | null; marksPerQuestion?: number | null; negativeMarks?: number | null; sortOrder?: number | null; questions?: ApiQuestion[] };
+type ApiSubject = { id: string; title: string; sortOrder?: number | null; topics?: ApiTopic[] };
 type ApiExam = {
-  id: string; slug: string; title: string; titleBn?: string | null; tagline: string; description: string;
-  examType: string; difficulty: string; isFree: boolean; priceAmount: number; priceOriginalAmount?: number | null;
-  durationMinutes: number; questionsCount: number; totalMarks: number; negativeMarking: boolean;
-  defaultNegativeMarks: number; marksPerQuestion: number; attemptCount: number; passRate: number; avgScore: number;
-  rating: number; featured: boolean | null; published: boolean; createdAt: string; subjects: ApiSubject[];
+  id: string; slug: string; title: string; titleBn?: string | null; tagline?: string | null; description?: string | null;
+  examType?: string | null; difficulty?: string | null; isFree?: boolean | null; priceAmount?: number | null; priceOriginalAmount?: number | null;
+  durationMinutes?: number | null; questionsCount?: number | null; totalMarks?: number | null; negativeMarking?: boolean | null;
+  defaultNegativeMarks?: number | null; marksPerQuestion?: number | null; attemptCount?: number | null; passRate?: number | null; avgScore?: number | null;
+  rating?: number | null; featured?: boolean | null; published: boolean; createdAt: string; subjects?: ApiSubject[];
+  thumbnailUrl?: string | null;
   allowedPaymentMethods?: string[];
 };
 type ApiBlog = {
-  id: string; slug: string; title: string; excerpt: string; category: string; categoryBn?: string | null;
-  tags: string[]; author: string; readMinutes: number; content: unknown; featured: boolean | null;
+  id: string; slug: string; title: string; excerpt?: string | null; category?: string | null; categoryBn?: string | null;
+  tags?: string[]; author?: string | null; readMinutes?: number | null; content?: unknown; featured?: boolean | null;
   scheduledFor?: string | null; published: boolean; createdAt: string; updatedAt?: string | null;
 };
 type ApiDevice = { id: string; deviceName: string; browser?: string | null; os?: string | null; ip?: string | null; lastActive: string; current: boolean | null };
@@ -115,70 +122,74 @@ function seo(title: string, description: string) {
 }
 
 function mapLessonSource(l: ApiLesson): VideoSource {
-  return l.sourceKind === "youtube" ? { type: "youtube", youtubeId: l.sourceId } : { type: "direct", hlsUrl: l.sourceId };
+  return l.sourceKind === "direct"
+    ? { type: "direct", hlsUrl: l.sourceId ?? "" }
+    : { type: "youtube", youtubeId: l.sourceId ?? "" };
 }
 
 function mapCourse(raw: ApiCourse): Course {
-  const lessons = raw.curriculum.flatMap((s) => s.lessons);
-  const firstYt = lessons.find((l) => l.sourceKind === "youtube");
+  const curriculum = raw.curriculum ?? [];
+  const lessons = curriculum.flatMap((s) => s.lessons ?? []);
+  const firstYt = lessons.find((l) => (l.sourceKind ?? "youtube") === "youtube");
   const firstDir = lessons.find((l) => l.sourceKind === "direct");
   return {
     id: raw.id,
     slug: raw.slug,
     title: raw.title,
     titleBn: raw.titleBn ?? undefined,
-    tagline: raw.tagline,
-    description: raw.description,
-    category: raw.category,
+    tagline: raw.tagline ?? "",
+    description: raw.description ?? "",
+    category: raw.category ?? "",
     categoryBn: raw.categoryBn ?? undefined,
+    thumbnailUrl: raw.thumbnailUrl ?? undefined,
     level: (raw.level as Course["level"]) ?? "All Levels",
     priceMap: Object.fromEntries(
-      raw.prices.map((p) => [p.duration, { amount: p.amount, originalAmount: p.originalAmount ?? undefined }]),
+      (raw.prices ?? []).map((p) => [p.duration, { amount: p.amount, originalAmount: p.originalAmount ?? undefined }]),
     ),
-    durationLabel: raw.durationLabel,
-    totalHours: raw.totalHours,
-    lectures: raw.lectures,
-    quizzes: raw.quizzes,
-    articles: raw.articles,
-    resources: raw.resources,
-    students: raw.students,
-    rating: raw.rating,
-    reviewCount: raw.reviewCount,
-    certificate: raw.certificate,
+    durationLabel: raw.durationLabel ?? "self-paced",
+    totalHours: raw.totalHours ?? 0,
+    lectures: raw.lectures ?? 0,
+    quizzes: raw.quizzes ?? 0,
+    articles: raw.articles ?? 0,
+    resources: raw.resources ?? 0,
+    students: raw.students ?? 0,
+    rating: raw.rating ?? 0,
+    reviewCount: raw.reviewCount ?? 0,
+    certificate: raw.certificate ?? false,
     instructor: raw.instructor
       ? {
           id: raw.instructor.id,
           name: raw.instructor.name,
           nameBn: raw.instructor.nameBn ?? undefined,
-          title: raw.instructor.title,
-          bio: raw.instructor.bio,
-          rating: raw.instructor.rating,
-          students: raw.instructor.students,
-          courses: raw.instructor.courses,
+          title: raw.instructor.title ?? "Faculty",
+          bio: raw.instructor.bio ?? "",
+          rating: raw.instructor.rating ?? 0,
+          students: raw.instructor.students ?? 0,
+          courses: raw.instructor.courses ?? 0,
           verified: raw.instructor.verified ?? false,
         }
       : { id: "unknown", name: "Shohoz Skill Faculty", title: "Faculty", bio: "", rating: 0, students: 0, courses: 0 },
-    curriculum: raw.curriculum.map((s) => ({
+    curriculum: curriculum.map((s) => ({
       id: s.id,
       title: s.title,
-      lessons: s.lessons.map((l) => ({
+      lessons: (s.lessons ?? []).map((l) => ({
         id: l.id,
         title: l.title,
-        durationMinutes: l.durationMinutes,
+        durationMinutes: l.durationMinutes ?? 0,
         source: mapLessonSource(l),
         preview: l.preview ?? false,
       })),
     })),
-    learningOutcomes: [],
-    requirements: [],
-    whoIsFor: [],
-    faq: [],
-    videos: firstYt ? { youtube: firstYt.sourceId } : firstDir ? { direct: firstDir.sourceId } : {},
+    learningOutcomes: (raw.learningOutcomes as string[]) ?? [],
+    requirements: (raw.requirements as string[]) ?? [],
+    whoIsFor: (raw.whoIsFor as string[]) ?? [],
+    faq: (raw.faq as FaqItem[]) ?? [],
+    videos: firstYt ? { youtube: firstYt.sourceId ?? "" } : firstDir ? { direct: firstDir.sourceId ?? "" } : {},
     allowedPaymentMethods: raw.allowedPaymentMethods ?? [],
-    published: raw.published,
+    published: raw.published ?? false,
     featured: raw.featured ?? false,
     createdAt: raw.createdAt,
-    seo: seo(raw.title, raw.tagline),
+    seo: seo(raw.title, raw.tagline ?? ""),
   };
 }
 
@@ -189,30 +200,32 @@ function mapBook(raw: ApiBook): Book {
     title: raw.title,
     titleBn: raw.titleBn ?? undefined,
     subtitle: raw.subtitle ?? "",
-    description: raw.description,
-    category: raw.category,
+    description: raw.description ?? "",
+    category: raw.category ?? "",
+    thumbnailUrl: raw.thumbnailUrl ?? undefined,
+    demoPdfUrl: raw.demoPdfUrl ?? undefined,
     author: {
       id: `author-${raw.slug}`,
-      name: raw.author,
+      name: raw.author ?? "Shohoz Skill",
       title: "Author",
       bio: "",
     },
-    pages: raw.pages,
-    edition: raw.edition,
-    language: raw.language as Book["language"],
-    publisher: raw.publisher,
-    pdfPrice: { amount: raw.pdfPrice },
-    hardcopyPrice: raw.hardcopyPrice ? { amount: raw.hardcopyPrice } : { amount: raw.pdfPrice },
-    tableOfContents: [{ title: "Full contents", pages: `1–${raw.pages}` }],
-    samplePages: raw.samplePages,
-    students: raw.students,
-    rating: raw.rating,
-    reviewCount: raw.reviewCount,
+    pages: raw.pages ?? 0,
+    edition: raw.edition ?? "",
+    language: (raw.language as Book["language"]) ?? "Bengali",
+    publisher: raw.publisher ?? "Shohoz Skill",
+    pdfPrice: { amount: raw.pdfPrice ?? 0 },
+    hardcopyPrice: raw.hardcopyPrice ? { amount: raw.hardcopyPrice } : { amount: raw.pdfPrice ?? 0 },
+    tableOfContents: [{ title: "Full contents", pages: `1–${raw.pages ?? 0}` }],
+    samplePages: raw.samplePages ?? 0,
+    students: raw.students ?? 0,
+    rating: raw.rating ?? 0,
+    reviewCount: raw.reviewCount ?? 0,
     allowedPaymentMethods: raw.allowedPaymentMethods ?? [],
-    published: raw.published,
+    published: raw.published ?? false,
     featured: raw.featured ?? false,
     createdAt: raw.createdAt,
-    seo: seo(raw.title, raw.subtitle ?? raw.description.slice(0, 120)),
+    seo: seo(raw.title, raw.subtitle ?? (raw.description ?? "").slice(0, 120)),
   };
 }
 
@@ -222,49 +235,50 @@ function mapExam(raw: ApiExam): Exam {
     slug: raw.slug,
     title: raw.title,
     titleBn: raw.titleBn ?? undefined,
-    tagline: raw.tagline,
-    description: raw.description,
+    tagline: raw.tagline ?? "",
+    description: raw.description ?? "",
+    thumbnailUrl: raw.thumbnailUrl ?? undefined,
     category: undefined,
-    difficulty: raw.difficulty as Exam["difficulty"],
-    examType: raw.examType as Exam["examType"],
-    isFree: raw.isFree,
-    price: { amount: raw.priceAmount, originalAmount: raw.priceOriginalAmount ?? undefined },
-    durationMinutes: raw.durationMinutes,
-    questionsCount: raw.questionsCount,
-    totalMarks: raw.totalMarks,
-    negativeMarking: raw.negativeMarking,
-    defaultNegativeMarks: raw.defaultNegativeMarks,
-    marksPerQuestion: raw.marksPerQuestion,
-    attemptCount: raw.attemptCount,
-    passRate: raw.passRate,
-    avgScore: raw.avgScore,
-    rating: raw.rating,
+    difficulty: (raw.difficulty as Exam["difficulty"]) ?? "Medium",
+    examType: (raw.examType as Exam["examType"]) ?? "model-test",
+    isFree: raw.isFree ?? false,
+    price: { amount: raw.priceAmount ?? 0, originalAmount: raw.priceOriginalAmount ?? undefined },
+    durationMinutes: raw.durationMinutes ?? 0,
+    questionsCount: raw.questionsCount ?? 0,
+    totalMarks: raw.totalMarks ?? 0,
+    negativeMarking: raw.negativeMarking ?? false,
+    defaultNegativeMarks: raw.defaultNegativeMarks ?? 0.25,
+    marksPerQuestion: raw.marksPerQuestion ?? 1,
+    attemptCount: raw.attemptCount ?? 0,
+    passRate: raw.passRate ?? 0,
+    avgScore: raw.avgScore ?? 0,
+    rating: raw.rating ?? 0,
     accessDuration: "LIFETIME",
     allowedPaymentMethods: raw.allowedPaymentMethods ?? [],
-    subjects: raw.subjects.map((s) => ({
+    subjects: (raw.subjects ?? []).map((s) => ({
       id: s.id,
       title: s.title,
-      topics: s.topics.map((t) => ({
+      topics: (s.topics ?? []).map((t) => ({
         id: t.id,
         title: t.title,
         slug: t.slug,
-        questionsCount: t.questionsCount,
-        durationMinutes: t.durationMinutes,
-        marksPerQuestion: t.marksPerQuestion,
-        negativeMarks: t.negativeMarks,
-        questions: t.questions.map((q) => ({
+        questionsCount: t.questionsCount ?? 0,
+        durationMinutes: t.durationMinutes ?? 0,
+        marksPerQuestion: t.marksPerQuestion ?? 1,
+        negativeMarks: t.negativeMarks ?? 0.25,
+        questions: (t.questions ?? []).map((q) => ({
           id: q.id,
           text: q.text,
-          options: typeof q.options === "string" ? JSON.parse(q.options) : q.options,
+          options: typeof q.options === "string" ? JSON.parse(q.options) : (q.options ?? []),
           answerIndex: q.answerIndex,
           explanation: q.explanation ?? undefined,
         })),
       })),
     })),
     featured: raw.featured ?? false,
-    published: raw.published,
+    published: raw.published ?? false,
     createdAt: raw.createdAt,
-    seo: seo(raw.title, raw.tagline),
+    seo: seo(raw.title, raw.tagline ?? ""),
   };
 }
 

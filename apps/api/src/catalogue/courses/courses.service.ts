@@ -11,7 +11,7 @@ export class CoursesService {
   async findAll() {
     return this.prisma.course.findMany({
       where: { published: true },
-      include: { prices: true, instructor: true },
+      include: { prices: true, instructor: true, curriculum: { include: { lessons: true } } },
       orderBy: { createdAt: 'desc' },
     });
   }
