@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { CmsService } from './cms.service.js';
-import { CreateContactMessageDto, UpdateSiteSettingDto } from './dto/cms.dto.js';
+import { CreateContactMessageDto, UpdateSiteSettingDto, UpdatePageContentDto } from './dto/cms.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
@@ -50,7 +50,7 @@ export class CmsController {
   @Put('admin/pages/:page')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
-  updatePage(@Param('page') page: string, @Body() dto: { data: Record<string, unknown> }) {
-    return this.cms.updatePage(page, dto.data);
+  updatePage(@Param('page') page: string, @Body() dto: UpdatePageContentDto) {
+    return this.cms.updatePage(page, dto);
   }
 }
