@@ -110,16 +110,7 @@ export class OrdersService {
         }
       }
 
-      const clean = (val: any) => (val ? String(val).replace(/['"`\s]/g, '') : '');
-      const rawEnvId = clean(this.config.get('SSLCOMMERZ_STORE_ID'));
-      const rawEnvPass = clean(this.config.get('SSLCOMMERZ_STORE_PASS'));
-      const storeId = (rawEnvId && rawEnvId !== 'null' && rawEnvId !== 'undefined' && rawEnvId !== 'testbox')
-        ? rawEnvId
-        : 'shohozskillcombd0live';
-      const storePass = (rawEnvPass && rawEnvPass !== 'null' && rawEnvPass !== 'undefined')
-        ? rawEnvPass
-        : '69F07E8E9B34A63050';
-      const isLive = storeId.includes('live') || this.config.get('SSLCOMMERZ_IS_LIVE') !== 'false';
+      const { storeId, storePass, isLive } = this.getCredentials();
       const apiUrl = this.config.get('API_URL') || 'https://shohoz-api.onrender.com';
       const frontendUrl = this.config.get('FRONTEND_URL') || 'https://shohozskill.com.bd';
       
@@ -353,17 +344,22 @@ export class OrdersService {
   }
 
   // --- SSLCOMMERZ HANDLERS ---
-  private getSslcz() {
+  private getCredentials() {
     const clean = (val: any) => (val ? String(val).replace(/['"`\s]/g, '') : '');
     const rawEnvId = clean(this.config.get('SSLCOMMERZ_STORE_ID'));
     const rawEnvPass = clean(this.config.get('SSLCOMMERZ_STORE_PASS'));
-    const storeId = (rawEnvId && rawEnvId !== 'null' && rawEnvId !== 'undefined' && rawEnvId !== 'testbox')
-      ? rawEnvId
-      : 'shohozskillcombd0live';
-    const storePass = (rawEnvPass && rawEnvPass !== 'null' && rawEnvPass !== 'undefined')
-      ? rawEnvPass
-      : '69F07E8E9B34A63050';
-    const isLive = storeId.includes('live') || this.config.get('SSLCOMMERZ_IS_LIVE') !== 'false';
+    
+    // Only use env credentials if they match real merchant pattern and have both ID and password
+    const hasValidEnvCreds = rawEnvId && rawEnvId.includes('shohoz') && rawEnvPass && rawEnvPass.length >= 8;
+    const storeId = hasValidEnvCreds ? rawEnvId : 'shohozskillcombd0live';
+    const storePass = hasValidEnvCreds ? rawEnvPass : '69F07E8E9B34A63050';
+    const isLive = true;
+
+    return { storeId, storePass, isLive };
+  }
+
+  private getSslcz() {
+    const { storeId, storePass, isLive } = this.getCredentials();
     return new SSLCommerzPayment(storeId, storePass, isLive);
   }
 
