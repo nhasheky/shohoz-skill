@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { BackgroundOrbs } from "@/components/layout/background";
 import { SectionHeader } from "@/components/marketing/section-header";
 import { SITE } from "@/lib/site";
-import { getPageContent, type ContactPageData } from "@/lib/api";
+import { getPageContent, getSiteSettings, type ContactPageData } from "@/lib/api";
 import { ContactForm } from "@/components/product/contact-form";
 import { IconMail, IconMapPin, IconPhone, IconClock } from "@/components/ui/icons";
 
@@ -13,9 +13,11 @@ export const metadata: Metadata = {
 
 export default async function ContactPage() {
   const contact = await getPageContent<ContactPageData>("contact");
-  const email = contact.email || SITE.supportEmail;
-  const phone = contact.phone || SITE.phone;
-  const address = contact.address || SITE.address;
+  const settings = await getSiteSettings().catch(() => null);
+  
+  const email = contact.email || settings?.supportEmail || SITE.supportEmail;
+  const phone = contact.phone || settings?.supportPhone || SITE.phone;
+  const address = contact.address || settings?.address || SITE.address;
 
   return (
     <main>

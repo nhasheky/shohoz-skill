@@ -4,9 +4,15 @@ type LogoMarkProps = {
   className?: string;
   markOnly?: boolean;
   showTagline?: boolean;
+  logoUrl?: string;
 };
 
-export function LogoMark({ className, markOnly = false }: LogoMarkProps) {
+export function LogoMark({ className, markOnly = false, logoUrl }: LogoMarkProps) {
+  if (logoUrl) {
+    return (
+      <img src={logoUrl} alt="Shohoz Skill Logo" className={cn("h-10 w-auto object-contain", className)} />
+    );
+  }
   return (
     <div className={cn("flex items-center gap-2.5", className)}>
       <svg viewBox="0 0 64 64" width="40" height="40" role="img" aria-label="Shohoz Skill" className="shrink-0">

@@ -2,9 +2,16 @@ import Link from "next/link";
 import { FOOTER_LINKS, SITE } from "@/lib/site";
 import { LogoMark } from "@/components/brand/logo-mark";
 import { IconFacebook, IconInstagram, IconMail, IconMapPin, IconPhone, IconTelegram, IconYoutube } from "@/components/ui/icons";
+import { getSiteSettings } from "@/lib/api";
 
-export function Footer() {
+export async function Footer() {
   const year = new Date().getFullYear();
+  const settings = await getSiteSettings().catch(() => null);
+  
+  const supportEmail = settings?.supportEmail || SITE.supportEmail;
+  const phone = settings?.supportPhone || SITE.phone;
+  const address = settings?.address || SITE.address;
+
   return (
     <footer className="border-t border-border bg-surface">
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
@@ -17,14 +24,14 @@ export function Footer() {
               <span className="text-accent"> Learn to Earn.</span>
             </p>
             <div className="mt-5 space-y-2 text-sm text-muted-foreground">
-              <a href={`mailto:${SITE.supportEmail}`} className="flex items-center gap-2 hover:text-foreground">
-                <IconMail width={16} height={16} className="text-sky-deep" /> {SITE.supportEmail}
+              <a href={`mailto:${supportEmail}`} className="flex items-center gap-2 hover:text-foreground">
+                <IconMail width={16} height={16} className="text-sky-deep" /> {supportEmail}
               </a>
               <span className="flex items-center gap-2">
-                <IconPhone width={16} height={16} className="text-sky-deep" /> {SITE.phone}
+                <IconPhone width={16} height={16} className="text-sky-deep" /> {phone}
               </span>
               <span className="flex items-center gap-2">
-                <IconMapPin width={16} height={16} className="text-sky-deep" /> {SITE.address}
+                <IconMapPin width={16} height={16} className="text-sky-deep" /> {address}
               </span>
             </div>
             <div className="mt-5 flex items-center gap-2">
