@@ -1229,16 +1229,16 @@ export function SettingsPage() {
 }
 
 // ─── Pages (CMS content) ─────────────────────────────────────────────────────
-const PAGE_META: Record<string, { label: string; hint: string; template: unknown }> = {
+const PAGE_META: Record<string, { label: string; hint: string; template: Record<string, any> }> = {
   home: {
     label: "Home",
-    hint: "Overrides for the homepage. Any key you omit keeps its built-in default.",
-    template: { heroTitle: "", heroSubtitle: "", heroDescription: "", faq: [{ question: "", answer: "" }] },
+    hint: "Overrides for the homepage.",
+    template: { heroTitle: "", heroSubtitle: "", heroDescription: "", faq: [] },
   },
   about: {
     label: "About Us",
     hint: "Story paragraphs, values and milestones.",
-    template: { story: [""], values: [{ title: "", description: "" }], milestones: [{ year: "", title: "", description: "" }] },
+    template: { story: [], values: [], milestones: [] },
   },
   contact: {
     label: "Contact Us",
@@ -1247,11 +1247,128 @@ const PAGE_META: Record<string, { label: string; hint: string; template: unknown
   },
 };
 
+const pageInputCls = "w-full rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-accent";
+
+function HomeForm({ data, onChange }: { data: any; onChange: (v: any) => void }) {
+  const d = { ...PAGE_META.home.template, ...(data || {}) };
+  const set = (k: string, v: any) => onChange({ ...d, [k]: v });
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <label className="block sm:col-span-2">
+        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hero Title</span>
+        <input value={d.heroTitle || ""} onChange={(e) => set("heroTitle", e.target.value)} className={pageInputCls} />
+      </label>
+      <label className="block sm:col-span-2">
+        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hero Subtitle</span>
+        <input value={d.heroSubtitle || ""} onChange={(e) => set("heroSubtitle", e.target.value)} className={pageInputCls} />
+      </label>
+      <label className="block sm:col-span-2">
+        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hero Description</span>
+        <textarea rows={3} value={d.heroDescription || ""} onChange={(e) => set("heroDescription", e.target.value)} className={cn(pageInputCls, "resize-y")} />
+      </label>
+      <div className="sm:col-span-2">
+        <FaqEditor value={d.faq} onChange={(v) => set("faq", v)} />
+      </div>
+    </div>
+  );
+}
+
+function AboutForm({ data, onChange }: { data: any; onChange: (v: any) => void }) {
+  const d = { ...PAGE_META.about.template, ...(data || {}) };
+  const set = (k: string, v: any) => onChange({ ...d, [k]: v });
+  
+  const addValue = () => set("values", [...(d.values || []), { title: "", description: "" }]);
+  const updValue = (i: number, next: any) => set("values", (d.values || []).map((x: any, j: number) => j === i ? next : x));
+  const remValue = (i: number) => set("values", (d.values || []).filter((_: any, j: number) => j !== i));
+
+  const addMilestone = () => set("milestones", [...(d.milestones || []), { year: "", title: "", description: "" }]);
+  const updMilestone = (i: number, next: any) => set("milestones", (d.milestones || []).map((x: any, j: number) => j === i ? next : x));
+  const remMilestone = (i: number) => set("milestones", (d.milestones || []).filter((_: any, j: number) => j !== i));
+
+  return (
+    <div className="space-y-6">
+      <ListEditor value={d.story} onChange={(v) => set("story", v)} />
+      
+      <div className="rounded-2xl border border-border bg-surface/60 p-4 dark:bg-background/60">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="font-display text-sm font-extrabold text-foreground">Core Values</p>
+          <button type="button" onClick={addValue} className="rounded bg-accent px-2 py-1 text-xs font-bold text-accent-foreground">Add Value</button>
+        </div>
+        <div className="space-y-3">
+          {(d.values || []).map((v: any, i: number) => (
+            <div key={i} className="flex items-start gap-2 rounded-xl border border-border bg-card p-3">
+              <div className="flex-1 space-y-2">
+                <input value={v.title} onChange={(e) => updValue(i, { ...v, title: e.target.value })} placeholder="Title" className={pageInputCls} />
+                <textarea rows={2} value={v.description} onChange={(e) => updValue(i, { ...v, description: e.target.value })} placeholder="Description" className={cn(pageInputCls, "resize-y")} />
+              </div>
+              <button type="button" onClick={() => remValue(i)} className="p-2 text-muted-foreground hover:text-danger">✕</button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-surface/60 p-4 dark:bg-background/60">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="font-display text-sm font-extrabold text-foreground">Milestones</p>
+          <button type="button" onClick={addMilestone} className="rounded bg-accent px-2 py-1 text-xs font-bold text-accent-foreground">Add Milestone</button>
+        </div>
+        <div className="space-y-3">
+          {(d.milestones || []).map((m: any, i: number) => (
+            <div key={i} className="flex items-start gap-2 rounded-xl border border-border bg-card p-3">
+              <div className="flex-1 space-y-2">
+                <div className="grid grid-cols-3 gap-2">
+                  <input value={m.year} onChange={(e) => updMilestone(i, { ...m, year: e.target.value })} placeholder="Year" className={pageInputCls} />
+                  <input value={m.title} onChange={(e) => updMilestone(i, { ...m, title: e.target.value })} placeholder="Title" className={cn(pageInputCls, "col-span-2")} />
+                </div>
+                <textarea rows={2} value={m.description} onChange={(e) => updMilestone(i, { ...m, description: e.target.value })} placeholder="Description" className={cn(pageInputCls, "resize-y")} />
+              </div>
+              <button type="button" onClick={() => remMilestone(i)} className="p-2 text-muted-foreground hover:text-danger">✕</button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ContactForm({ data, onChange }: { data: any; onChange: (v: any) => void }) {
+  const d = { ...PAGE_META.contact.template, ...(data || {}) };
+  const set = (k: string, v: any) => onChange({ ...d, [k]: v });
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <label className="block sm:col-span-2">
+        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Title</span>
+        <input value={d.title || ""} onChange={(e) => set("title", e.target.value)} className={pageInputCls} />
+      </label>
+      <label className="block sm:col-span-2">
+        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Description</span>
+        <textarea rows={2} value={d.description || ""} onChange={(e) => set("description", e.target.value)} className={cn(pageInputCls, "resize-y")} />
+      </label>
+      <label className="block">
+        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Email</span>
+        <input value={d.email || ""} onChange={(e) => set("email", e.target.value)} className={pageInputCls} />
+      </label>
+      <label className="block">
+        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Phone</span>
+        <input value={d.phone || ""} onChange={(e) => set("phone", e.target.value)} className={pageInputCls} />
+      </label>
+      <label className="block sm:col-span-2">
+        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Address</span>
+        <input value={d.address || ""} onChange={(e) => set("address", e.target.value)} className={pageInputCls} />
+      </label>
+      <label className="block sm:col-span-2">
+        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Support Hours</span>
+        <input value={d.supportHours || ""} onChange={(e) => set("supportHours", e.target.value)} className={pageInputCls} />
+      </label>
+    </div>
+  );
+}
+
 export function PagesAdminPage() {
   useAdminTitle("Pages");
   const toast = useToast();
   const [active, setActive] = useState("home");
-  const [docs, setDocs] = useState<Record<string, string>>({ home: "{}", about: "{}", contact: "{}" });
+  const [docs, setDocs] = useState<Record<string, any>>({ home: {}, about: {}, contact: {} });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
@@ -1261,8 +1378,8 @@ export function PagesAdminPage() {
       try {
         const pages = await api.listPages();
         if (cancelled) return;
-        const next: Record<string, string> = {};
-        for (const p of pages) next[p.page] = JSON.stringify(p.data ?? {}, null, 2);
+        const next: Record<string, any> = {};
+        for (const p of pages) next[p.page] = p.data ?? {};
         setDocs((d) => ({ ...d, ...next }));
       } catch {
         // keep defaults
@@ -1275,21 +1392,14 @@ export function PagesAdminPage() {
     };
   }, []);
 
-  function setDoc(page: string, value: string) {
+  function setDoc(page: string, value: any) {
     setDocs((d) => ({ ...d, [page]: value }));
   }
 
   async function save() {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(docs[active] || "{}");
-    } catch {
-      toast.error("Content is not valid JSON.");
-      return;
-    }
     setBusy(true);
     try {
-      await api.updatePage(active, parsed as Record<string, unknown>);
+      await api.updatePage(active, docs[active] || {});
       toast.success(`${PAGE_META[active].label} content saved`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Save failed — is the API running?");
@@ -1320,19 +1430,16 @@ export function PagesAdminPage() {
       </div>
 
       <div className="mt-4 rounded-3xl border border-border bg-card p-6 shadow-card">
-        <p className="text-xs text-muted-foreground">{PAGE_META[active].hint}</p>
+        <p className="mb-4 text-xs text-muted-foreground">{PAGE_META[active].hint}</p>
         {loading ? (
           <div className="py-10 text-center text-sm text-muted-foreground">Loading…</div>
         ) : (
           <>
-            <textarea
-              rows={18}
-              value={docs[active]}
-              onChange={(e) => setDoc(active, e.target.value)}
-              spellCheck={false}
-              className="mt-3 w-full rounded-xl border border-border bg-surface px-4 py-3 font-mono text-xs text-foreground outline-none focus:border-accent dark:bg-background"
-            />
-            <div className="mt-4 flex flex-wrap items-center gap-3">
+            {active === "home" && <HomeForm data={docs.home} onChange={(v) => setDoc("home", v)} />}
+            {active === "about" && <AboutForm data={docs.about} onChange={(v) => setDoc("about", v)} />}
+            {active === "contact" && <ContactForm data={docs.contact} onChange={(v) => setDoc("contact", v)} />}
+            
+            <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-border pt-6">
               <button
                 type="button"
                 onClick={save}
@@ -1341,13 +1448,6 @@ export function PagesAdminPage() {
               >
                 {busy ? "Saving…" : "Save content"}
               </button>
-              <button
-                type="button"
-                onClick={() => setDoc(active, JSON.stringify(PAGE_META[active].template, null, 2))}
-                className="rounded-xl border border-border px-5 py-2.5 text-sm font-bold text-foreground transition-colors hover:bg-muted"
-              >
-                Load template
-              </button>
             </div>
           </>
         )}
@@ -1355,6 +1455,7 @@ export function PagesAdminPage() {
     </div>
   );
 }
+
 
 // ─── Contact Messages ────────────────────────────────────────────────────────
 export function ContactMessagesPage() {
