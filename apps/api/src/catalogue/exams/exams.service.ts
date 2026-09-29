@@ -28,9 +28,17 @@ export class ExamsService {
 
   async create(dto: CreateExamDto) {
     const { subjects, ...scalars } = dto;
+    // Strip empty strings from optional fields
+    const cleanScalars = Object.fromEntries(
+      Object.entries(scalars).filter(([, v]) => v !== '' && v !== undefined && v !== null),
+    );
     return this.prisma.exam.create({
       data: {
-        ...scalars,
+        slug: dto.slug,
+        title: dto.title,
+        tagline: dto.tagline ?? '',
+        description: dto.description ?? '',
+        ...cleanScalars,
         ...(subjects?.length
           ? {
               subjects: {
@@ -65,10 +73,14 @@ export class ExamsService {
   async update(id: string, dto: UpdateExamDto) {
     await this.ensureExists(id);
     const { subjects, ...scalars } = dto;
+    // Strip empty strings from optional fields
+    const cleanScalars = Object.fromEntries(
+      Object.entries(scalars).filter(([, v]) => v !== '' && v !== undefined && v !== null),
+    );
     return this.prisma.exam.update({
       where: { id },
       data: {
-        ...scalars,
+        ...cleanScalars,
         ...(subjects
           ? {
               subjects: {

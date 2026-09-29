@@ -27,11 +27,21 @@ export class CoursesService {
 
   /** Admin: create a course (with optional nested prices + curriculum). */
   async create(dto: CreateCourseDto) {
-    const { prices, curriculum, ...scalars } = dto;
+    const { prices, curriculum, instructorId, ...scalars } = dto;
+    // Strip empty strings from optional fields to avoid FK constraint violations
+    const cleanScalars = Object.fromEntries(
+      Object.entries(scalars).filter(([, v]) => v !== '' && v !== undefined && v !== null),
+    );
     const data: Prisma.CourseUncheckedCreateInput = {
-      ...scalars,
-      level: scalars.level ?? 'All Levels',
-      durationLabel: scalars.durationLabel ?? 'self-paced',
+      slug: dto.slug,
+      title: dto.title,
+      tagline: dto.tagline ?? '',
+      description: dto.description ?? '',
+      category: dto.category ?? '',
+      ...cleanScalars,
+      level: cleanScalars.level ?? 'All Levels',
+      durationLabel: cleanScalars.durationLabel ?? 'self-paced',
+      ...(instructorId ? { instructorId } : {}),
       ...(prices?.length
         ? { prices: { create: prices.map((p) => ({ duration: p.duration, amount: p.amount, originalAmount: p.originalAmount })) } }
         : {}),
@@ -67,10 +77,15 @@ export class CoursesService {
   /** Admin: update a course. Nested relations are replaced when provided. */
   async update(id: string, dto: UpdateCourseDto) {
     await this.ensureExists(id);
-    const { prices, curriculum, ...scalars } = dto;
+    const { prices, curriculum, instructorId, ...scalars } = dto;
+    // Strip empty strings from optional fields
+    const cleanScalars = Object.fromEntries(
+      Object.entries(scalars).filter(([, v]) => v !== '' && v !== undefined && v !== null),
+    );
     const data: Prisma.CourseUncheckedUpdateInput = {
-      ...scalars,
-      ...(scalars.level ? { level: scalars.level } : {}),
+      ...cleanScalars,
+      ...(cleanScalars.level ? { level: cleanScalars.level } : {}),
+      ...(instructorId ? { instructorId } : instructorId === '' ? { instructorId: null } : {}),
       ...(prices ? { prices: { deleteMany: {}, create: prices.map((p) => ({ duration: p.duration, amount: p.amount, originalAmount: p.originalAmount })) } } : {}),
       ...(curriculum
         ? {

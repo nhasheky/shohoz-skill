@@ -41,6 +41,8 @@ export function buildDto(fields: FieldDef[], form: Record<string, unknown>): Rec
         v = undefined;
       }
     }
+    // Skip empty strings for optional fields to avoid backend issues
+    if (v === "" && !f.required) continue;
     if (v !== undefined) dto[f.name] = v;
   }
   // Editor-managed keys (arrays/objects) pass through.

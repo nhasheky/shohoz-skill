@@ -21,12 +21,19 @@ export class BooksService {
   }
 
   async create(dto: CreateBookDto) {
-    return this.prisma.book.create({ data: dto });
+    // Strip empty strings from optional fields
+    const clean = Object.fromEntries(
+      Object.entries(dto).filter(([, v]) => v !== '' && v !== undefined && v !== null),
+    ) as CreateBookDto;
+    return this.prisma.book.create({ data: clean });
   }
 
   async update(id: string, dto: UpdateBookDto) {
     await this.ensureExists(id);
-    return this.prisma.book.update({ where: { id }, data: dto });
+    const clean = Object.fromEntries(
+      Object.entries(dto).filter(([, v]) => v !== '' && v !== undefined && v !== null),
+    ) as UpdateBookDto;
+    return this.prisma.book.update({ where: { id }, data: clean });
   }
 
   async remove(id: string) {
