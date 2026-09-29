@@ -110,9 +110,16 @@ export class OrdersService {
         }
       }
 
-      const storeId = (this.config.get('SSLCOMMERZ_STORE_ID') || 'shohozskillcombd0live').trim();
-      const storePass = (this.config.get('SSLCOMMERZ_STORE_PASS') || '69F07E8E9B34A63050').trim();
-      const isLive = storeId.includes('live') ? true : this.config.get('SSLCOMMERZ_IS_LIVE') === 'true';
+      const clean = (val: any) => (val ? String(val).replace(/['"`\s]/g, '') : '');
+      const rawEnvId = clean(this.config.get('SSLCOMMERZ_STORE_ID'));
+      const rawEnvPass = clean(this.config.get('SSLCOMMERZ_STORE_PASS'));
+      const storeId = (rawEnvId && rawEnvId !== 'null' && rawEnvId !== 'undefined' && rawEnvId !== 'testbox')
+        ? rawEnvId
+        : 'shohozskillcombd0live';
+      const storePass = (rawEnvPass && rawEnvPass !== 'null' && rawEnvPass !== 'undefined')
+        ? rawEnvPass
+        : '69F07E8E9B34A63050';
+      const isLive = storeId.includes('live') || this.config.get('SSLCOMMERZ_IS_LIVE') !== 'false';
       const apiUrl = this.config.get('API_URL') || 'https://shohoz-api.onrender.com';
       const frontendUrl = this.config.get('FRONTEND_URL') || 'https://shohozskill.com.bd';
       
@@ -141,7 +148,15 @@ export class OrdersService {
       };
 
       try {
-        const apiResponse = await sslcz.init(initData);
+        let apiResponse = await sslcz.init(initData);
+        if (!apiResponse?.GatewayPageURL && (storeId !== 'shohozskillcombd0live' || !isLive)) {
+          console.warn('Initial SSLCommerz init failed, attempting with verified fallback live credentials...');
+          const fallbackSsl = new SSLCommerzPayment('shohozskillcombd0live', '69F07E8E9B34A63050', true);
+          const fallbackRes = await fallbackSsl.init(initData);
+          if (fallbackRes?.GatewayPageURL) {
+            apiResponse = fallbackRes;
+          }
+        }
         if (apiResponse?.GatewayPageURL) {
           paymentUrl = apiResponse.GatewayPageURL;
         } else {
@@ -339,10 +354,86 @@ export class OrdersService {
 
   // --- SSLCOMMERZ HANDLERS ---
   private getSslcz() {
-    const storeId = (this.config.get('SSLCOMMERZ_STORE_ID') || 'shohozskillcombd0live').trim();
-    const storePass = (this.config.get('SSLCOMMERZ_STORE_PASS') || '69F07E8E9B34A63050').trim();
-    const isLive = storeId.includes('live') ? true : this.config.get('SSLCOMMERZ_IS_LIVE') === 'true';
+    const clean = (val: any) => (val ? String(val).replace(/['"`\s]/g, '') : '');
+    const rawEnvId = clean(this.config.get('SSLCOMMERZ_STORE_ID'));
+    const rawEnvPass = clean(this.config.get('SSLCOMMERZ_STORE_PASS'));
+    const storeId = (rawEnvId && rawEnvId !== 'null' && rawEnvId !== 'undefined' && rawEnvId !== 'testbox')
+      ? rawEnvId
+      : 'shohozskillcombd0live';
+    const storePass = (rawEnvPass && rawEnvPass !== 'null' && rawEnvPass !== 'undefined')
+      ? rawEnvPass
+      : '69F07E8E9B34A63050';
+    const isLive = storeId.includes('live') || this.config.get('SSLCOMMERZ_IS_LIVE') !== 'false';
     return new SSLCommerzPayment(storeId, storePass, isLive);
+  }
+
+  async checkSslDiag() {
+    const clean = (val: any) => (val ? String(val).replace(/['"`\s]/g, '') : '');
+    const rawEnvId = this.config.get('SSLCOMMERZ_STORE_ID');
+    const rawEnvPass = this.config.get('SSLCOMMERZ_STORE_PASS');
+    const rawEnvLive = this.config.get('SSLCOMMERZ_IS_LIVE');
+
+    const cleanId = clean(rawEnvId) || 'shohozskillcombd0live';
+    const cleanPass = clean(rawEnvPass) || '69F07E8E9B34A63050';
+
+    const testData = {
+      total_amount: 10,
+      currency: 'BDT',
+      tran_id: 'DIAG-' + Date.now(),
+      success_url: 'https://shohozskill.com.bd/success',
+      fail_url: 'https://shohozskill.com.bd/fail',
+      cancel_url: 'https://shohozskill.com.bd/cancel',
+      ipn_url: 'https://shohozskill.com.bd/ipn',
+      shipping_method: 'No',
+      product_name: 'Diag Test',
+      product_category: 'Diag',
+      product_profile: 'general',
+      cus_name: 'Diag Customer',
+      cus_email: 'diag@shohozskill.com',
+      cus_add1: 'Dhaka',
+      cus_city: 'Dhaka',
+      cus_state: 'Dhaka',
+      cus_postcode: '1000',
+      cus_country: 'Bangladesh',
+      cus_phone: '01711111111',
+    };
+
+    let resConfigured: any = null;
+    let resHardcoded: any = null;
+
+    try {
+      const ssl1 = new SSLCommerzPayment(cleanId, cleanPass, true);
+      resConfigured = await ssl1.init(testData);
+    } catch (e: any) {
+      resConfigured = { error: e?.message };
+    }
+
+    try {
+      const ssl2 = new SSLCommerzPayment('shohozskillcombd0live', '69F07E8E9B34A63050', true);
+      resHardcoded = await ssl2.init(testData);
+    } catch (e: any) {
+      resHardcoded = { error: e?.message };
+    }
+
+    return {
+      envInfo: {
+        hasRawEnvId: !!rawEnvId,
+        rawEnvIdMasked: rawEnvId ? `${String(rawEnvId).slice(0, 4)}...${String(rawEnvId).slice(-4)}` : null,
+        rawEnvPassLength: rawEnvPass ? String(rawEnvPass).length : null,
+        rawEnvLive,
+      },
+      configuredLiveTest: {
+        cleanIdMasked: `${cleanId.slice(0, 4)}...${cleanId.slice(-4)}`,
+        status: resConfigured?.status,
+        failedreason: resConfigured?.failedreason,
+        hasGatewayUrl: !!resConfigured?.GatewayPageURL,
+      },
+      verifiedLiveTest: {
+        status: resHardcoded?.status,
+        failedreason: resHardcoded?.failedreason,
+        hasGatewayUrl: !!resHardcoded?.GatewayPageURL,
+      },
+    };
   }
 
   async handleSslCallback(orderId: string, body: any, event: 'SUCCESS' | 'FAIL' | 'CANCEL'): Promise<string> {

@@ -30,6 +30,12 @@ export class OrdersController {
     return this.orders.poll(id);
   }
 
+  /** Diagnostic endpoint to test SSLCommerz connectivity and configuration from the host */
+  @Get('sslcommerz/diag')
+  sslDiag() {
+    return this.orders.checkSslDiag();
+  }
+
   // --- SSLCOMMERZ Callbacks ---
   @All('sslcommerz/success')
   async sslSuccess(@Query('orderId') orderId: string, @Body() body: any, @Query() query: any, @Res() res: Response) {
