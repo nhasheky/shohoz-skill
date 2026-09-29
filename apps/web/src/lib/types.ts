@@ -44,6 +44,7 @@ export type Course = {
   description: string;
   category: string;
   categoryBn?: string;
+  thumbnailUrl?: string;
   level: "Beginner" | "Intermediate" | "Advanced" | "All Levels";
   priceMap: Partial<Record<AccessDuration, Price>>;
   durationLabel: string;
@@ -82,6 +83,8 @@ export type Book = {
   subtitle: string;
   description: string;
   category: string;
+  thumbnailUrl?: string;
+  demoPdfUrl?: string;
   author: BookAuthor;
   pages: number;
   edition: string;
@@ -146,6 +149,7 @@ export type Exam = {
   titleBn?: string;
   tagline: string;
   description: string;
+  thumbnailUrl?: string;
   difficulty: "Easy" | "Medium" | "Hard";
   examType: "subject" | "topic" | "package";
   packageId?: string;
