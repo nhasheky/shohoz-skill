@@ -559,10 +559,50 @@ export async function getSiteSettings(): Promise<SiteSetting> {
 }
 
 export type HomePageData = {
+  // Hero section
   heroEyebrow?: string;
   heroTitle?: string;
   heroDescription?: string;
+  heroMetrics?: Array<{ value: string; label: string }>;
+  
+  // Stats band
+  stats?: Array<{ value: number; suffix: string; label: string }>;
+
+  // Categories Section
+  categoriesEyebrow?: string;
+  categoriesTitle?: string;
+  categoriesDescription?: string;
   categories?: Category[];
+
+  // Courses Section
+  coursesEyebrow?: string;
+  coursesTitle?: string;
+  coursesDescription?: string;
+
+  // Exams Section
+  examsEyebrow?: string;
+  examsTitle?: string;
+  examsDescription?: string;
+  examsSteps?: Array<{ title: string; description: string }>;
+
+  // Books Section
+  booksEyebrow?: string;
+  booksTitle?: string;
+  booksDescription?: string;
+
+  // Reviews Section
+  reviewsEyebrow?: string;
+  reviewsTitle?: string;
+  reviewsDescription?: string;
+
+  // Blogs Section
+  blogsEyebrow?: string;
+  blogsTitle?: string;
+
+  // FAQ Section
+  faqEyebrow?: string;
+  faqTitle?: string;
+  faqDescription?: string;
   faq?: FaqItem[];
 };
 

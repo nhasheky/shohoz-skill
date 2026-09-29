@@ -6,11 +6,19 @@ export function Hero({
   eyebrow = "Bangladesh's fastest learning platform",
   title,
   description = "BCS, NTRCA, bank & every government job — through fast video courses, real negative-marking MCQ exams, and books you can read instantly. Start learning in seconds, not weeks.",
+  metrics,
 }: {
   eyebrow?: string;
   title?: string;
   description?: string;
+  metrics?: Array<{ value: string; label: string }>;
 }) {
+  const displayMetrics = metrics?.length ? metrics : [
+    { value: "62k+", label: "Learners" },
+    { value: "320+", label: "Courses & exams" },
+    { value: "1.2s", label: "Average page load" },
+  ];
+
   return (
     <section className="relative overflow-hidden">
       <BackgroundOrbs />
@@ -72,14 +80,10 @@ export function Hero({
           </form>
 
           <div className="mx-auto mt-10 grid max-w-2xl grid-cols-3 gap-4 text-center animate-fade-up" style={{ animationDelay: "400ms" }}>
-            {[
-              ["62k+", "Learners"],
-              ["320+", "Courses & exams"],
-              ["1.2s", "Average page load"],
-            ].map(([v, l]) => (
-              <div key={l} className="rounded-2xl border border-border bg-card/70 px-3 py-4">
-                <div className="font-display text-2xl font-extrabold text-primary sm:text-3xl">{v}</div>
-                <div className="mt-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground sm:text-xs">{l}</div>
+            {displayMetrics.map((m) => (
+              <div key={m.label} className="rounded-2xl border border-border bg-card/70 px-3 py-4">
+                <div className="font-display text-2xl font-extrabold text-primary sm:text-3xl">{m.value}</div>
+                <div className="mt-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground sm:text-xs">{m.label}</div>
               </div>
             ))}
           </div>

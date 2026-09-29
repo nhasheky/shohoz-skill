@@ -1233,7 +1233,7 @@ const PAGE_META: Record<string, { label: string; hint: string; template: Record<
   home: {
     label: "Home",
     hint: "Overrides for the homepage.",
-    template: { heroTitle: "", heroSubtitle: "", heroDescription: "", faq: [] },
+    template: { heroTitle: "", heroSubtitle: "", heroDescription: "", heroMetrics: [], stats: [], examsSteps: [], faq: [] },
   },
   about: {
     label: "About Us",
@@ -1252,21 +1252,136 @@ const pageInputCls = "w-full rounded-xl border border-border bg-card px-3.5 py-2
 function HomeForm({ data, onChange }: { data: any; onChange: (v: any) => void }) {
   const d = { ...PAGE_META.home.template, ...(data || {}) };
   const set = (k: string, v: any) => onChange({ ...d, [k]: v });
+
+  const addHeroMetric = () => set("heroMetrics", [...(d.heroMetrics || []), { value: "", label: "" }]);
+  const updHeroMetric = (i: number, next: any) => set("heroMetrics", (d.heroMetrics || []).map((x: any, j: number) => j === i ? next : x));
+  const remHeroMetric = (i: number) => set("heroMetrics", (d.heroMetrics || []).filter((_: any, j: number) => j !== i));
+
+  const addStat = () => set("stats", [...(d.stats || []), { value: 0, suffix: "", label: "" }]);
+  const updStat = (i: number, next: any) => set("stats", (d.stats || []).map((x: any, j: number) => j === i ? next : x));
+  const remStat = (i: number) => set("stats", (d.stats || []).filter((_: any, j: number) => j !== i));
+
+  const addExamStep = () => set("examsSteps", [...(d.examsSteps || []), { title: "", description: "" }]);
+  const updExamStep = (i: number, next: any) => set("examsSteps", (d.examsSteps || []).map((x: any, j: number) => j === i ? next : x));
+  const remExamStep = (i: number) => set("examsSteps", (d.examsSteps || []).filter((_: any, j: number) => j !== i));
+
+  const renderSectionMeta = (keyPrefix: string, label: string) => (
+    <div className="rounded-2xl border border-border bg-surface/60 p-4 dark:bg-background/60">
+      <p className="mb-3 font-display text-sm font-extrabold text-foreground">{label} Section</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block sm:col-span-2">
+          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Eyebrow (Small top text)</span>
+          <input value={d[`${keyPrefix}Eyebrow`] || ""} onChange={(e) => set(`${keyPrefix}Eyebrow`, e.target.value)} className={pageInputCls} />
+        </label>
+        <label className="block sm:col-span-2">
+          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Title</span>
+          <input value={d[`${keyPrefix}Title`] || ""} onChange={(e) => set(`${keyPrefix}Title`, e.target.value)} className={pageInputCls} />
+        </label>
+        {keyPrefix !== "blogs" && (
+          <label className="block sm:col-span-2">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Description</span>
+            <textarea rows={2} value={d[`${keyPrefix}Description`] || ""} onChange={(e) => set(`${keyPrefix}Description`, e.target.value)} className={cn(pageInputCls, "resize-y")} />
+          </label>
+        )}
+      </div>
+    </div>
+  );
+
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <label className="block sm:col-span-2">
-        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hero Title</span>
-        <input value={d.heroTitle || ""} onChange={(e) => set("heroTitle", e.target.value)} className={pageInputCls} />
-      </label>
-      <label className="block sm:col-span-2">
-        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hero Subtitle</span>
-        <input value={d.heroSubtitle || ""} onChange={(e) => set("heroSubtitle", e.target.value)} className={pageInputCls} />
-      </label>
-      <label className="block sm:col-span-2">
-        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hero Description</span>
-        <textarea rows={3} value={d.heroDescription || ""} onChange={(e) => set("heroDescription", e.target.value)} className={cn(pageInputCls, "resize-y")} />
-      </label>
-      <div className="sm:col-span-2">
+    <div className="space-y-6">
+      <div className="rounded-2xl border border-border bg-surface/60 p-4 dark:bg-background/60">
+        <p className="mb-3 font-display text-sm font-extrabold text-foreground">Hero Section</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block sm:col-span-2">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Eyebrow</span>
+            <input value={d.heroEyebrow || ""} onChange={(e) => set("heroEyebrow", e.target.value)} className={pageInputCls} />
+          </label>
+          <label className="block sm:col-span-2">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Title</span>
+            <input value={d.heroTitle || ""} onChange={(e) => set("heroTitle", e.target.value)} className={pageInputCls} />
+          </label>
+          <label className="block sm:col-span-2">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Description</span>
+            <textarea rows={3} value={d.heroDescription || ""} onChange={(e) => set("heroDescription", e.target.value)} className={cn(pageInputCls, "resize-y")} />
+          </label>
+        </div>
+
+        <div className="mt-4 border-t border-border/50 pt-4">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-xs font-bold uppercase tracking-wide text-foreground">Hero Metrics</p>
+            <button type="button" onClick={addHeroMetric} className="rounded bg-accent px-2 py-1 text-xs font-bold text-accent-foreground">Add Metric</button>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {(d.heroMetrics || []).map((m: any, i: number) => (
+              <div key={i} className="relative rounded-xl border border-border bg-card p-2">
+                <input value={m.value} onChange={(e) => updHeroMetric(i, { ...m, value: e.target.value })} placeholder="Value (e.g. 62k+)" className={cn(pageInputCls, "mb-1 p-1.5 text-xs")} />
+                <input value={m.label} onChange={(e) => updHeroMetric(i, { ...m, label: e.target.value })} placeholder="Label (e.g. Learners)" className={cn(pageInputCls, "p-1.5 text-xs")} />
+                <button type="button" onClick={() => remHeroMetric(i)} className="absolute right-1 top-1 text-muted-foreground hover:text-danger">✕</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-surface/60 p-4 dark:bg-background/60">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="font-display text-sm font-extrabold text-foreground">Stats Band</p>
+          <button type="button" onClick={addStat} className="rounded bg-accent px-2 py-1 text-xs font-bold text-accent-foreground">Add Stat</button>
+        </div>
+        <div className="space-y-2">
+          {(d.stats || []).map((s: any, i: number) => (
+            <div key={i} className="flex gap-2 rounded-xl border border-border bg-card p-2">
+              <input type="number" value={s.value} onChange={(e) => updStat(i, { ...s, value: Number(e.target.value) })} placeholder="Number" className={pageInputCls} />
+              <input value={s.suffix} onChange={(e) => updStat(i, { ...s, suffix: e.target.value })} placeholder="Suffix (e.g. +)" className={pageInputCls} />
+              <input value={s.label} onChange={(e) => updStat(i, { ...s, label: e.target.value })} placeholder="Label" className={cn(pageInputCls, "w-full flex-1")} />
+              <button type="button" onClick={() => remStat(i)} className="px-2 text-muted-foreground hover:text-danger">✕</button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {renderSectionMeta("categories", "Categories")}
+      {renderSectionMeta("courses", "Featured Courses")}
+      
+      <div className="rounded-2xl border border-border bg-surface/60 p-4 dark:bg-background/60">
+        <p className="mb-3 font-display text-sm font-extrabold text-foreground">Exams Section</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block sm:col-span-2">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Eyebrow</span>
+            <input value={d.examsEyebrow || ""} onChange={(e) => set("examsEyebrow", e.target.value)} className={pageInputCls} />
+          </label>
+          <label className="block sm:col-span-2">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Title</span>
+            <input value={d.examsTitle || ""} onChange={(e) => set("examsTitle", e.target.value)} className={pageInputCls} />
+          </label>
+          <label className="block sm:col-span-2">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Description</span>
+            <textarea rows={2} value={d.examsDescription || ""} onChange={(e) => set("examsDescription", e.target.value)} className={cn(pageInputCls, "resize-y")} />
+          </label>
+        </div>
+        <div className="mt-4 border-t border-border/50 pt-4">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-xs font-bold uppercase tracking-wide text-foreground">How the exam engine works</p>
+            <button type="button" onClick={addExamStep} className="rounded bg-accent px-2 py-1 text-xs font-bold text-accent-foreground">Add Step</button>
+          </div>
+          <div className="space-y-2">
+            {(d.examsSteps || []).map((s: any, i: number) => (
+              <div key={i} className="flex flex-col gap-2 rounded-xl border border-border bg-card p-2 relative">
+                <input value={s.title} onChange={(e) => updExamStep(i, { ...s, title: e.target.value })} placeholder="Title" className={pageInputCls} />
+                <textarea rows={2} value={s.description} onChange={(e) => updExamStep(i, { ...s, description: e.target.value })} placeholder="Description" className={cn(pageInputCls, "resize-y")} />
+                <button type="button" onClick={() => remExamStep(i)} className="absolute right-2 top-2 rounded bg-background p-1 text-muted-foreground hover:text-danger">✕</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {renderSectionMeta("books", "Featured Books")}
+      {renderSectionMeta("reviews", "Success Stories")}
+      {renderSectionMeta("blogs", "From the Blog")}
+      {renderSectionMeta("faq", "FAQ")}
+
+      <div>
         <FaqEditor value={d.faq} onChange={(v) => set("faq", v)} />
       </div>
     </div>

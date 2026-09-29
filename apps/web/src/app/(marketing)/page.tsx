@@ -45,15 +45,15 @@ export default async function HomePage() {
 
   return (
     <main>
-      <Hero eyebrow={home.heroEyebrow || undefined} title={home.heroTitle || undefined} description={home.heroDescription || undefined} />
+      <Hero eyebrow={home.heroEyebrow || undefined} title={home.heroTitle || undefined} description={home.heroDescription || undefined} metrics={home.heroMetrics} />
       <DeviceLimitStrip />
-      <StatsBand />
+      <StatsBand stats={home.stats} />
 
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
         <SectionHeader
-          eyebrow="Categories"
-          title="Pick your exam, we do the rest"
-          description="Focused preparation tracks for every government job of Bangladesh."
+          eyebrow={home.categoriesEyebrow || "Categories"}
+          title={home.categoriesTitle || "Pick your exam, we do the rest"}
+          description={home.categoriesDescription || "Focused preparation tracks for every government job of Bangladesh."}
         />
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
           {cats.map((c) => (
@@ -76,9 +76,9 @@ export default async function HomePage() {
       <section className="bg-surface py-16 sm:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionHeader
-            eyebrow="Featured Courses"
-            title="Courses that turn preparation into placement"
-            description="Short, exam-first video lessons with shortcuts, quizzes and a certificate on completion."
+            eyebrow={home.coursesEyebrow || "Featured Courses"}
+            title={home.coursesTitle || "Courses that turn preparation into placement"}
+            description={home.coursesDescription || "Short, exam-first video lessons with shortcuts, quizzes and a certificate on completion."}
             viewAllHref="/courses"
             viewAllLabel="All courses"
           />
@@ -95,9 +95,9 @@ export default async function HomePage() {
           <div>
             <SectionHeader
               center={false}
-              eyebrow="MCQ Exam Engine"
-              title="Practice under real exam pressure"
-              description="Topic-wise exams inside packages, negative marking simulators, and instant result analysis with explanations. Free till you're ready for the paid battlefield."
+              eyebrow={home.examsEyebrow || "MCQ Exam Engine"}
+              title={home.examsTitle || "Practice under real exam pressure"}
+              description={home.examsDescription || "Topic-wise exams inside packages, negative marking simulators, and instant result analysis with explanations. Free till you're ready for the paid battlefield."}
             />
             <div className="grid gap-4 sm:grid-cols-2">
               {exams.map((e) => (
@@ -108,20 +108,20 @@ export default async function HomePage() {
           <div className="rounded-3xl border border-border bg-card p-6 shadow-card sm:p-8">
             <h3 className="font-display text-xl font-bold text-foreground">How the exam engine works</h3>
             <ol className="mt-6 space-y-5">
-              {[
-                { icon: <IconPlayCircle width={20} height={20} />, t: "Pick a topic", d: "Subject → topic-wise exam, tuned to the real paper pattern." },
-                { icon: <IconBrain width={20} height={20} />, t: "Sit the test", d: "Per-question marks & negative marking exactly like the board." },
-                { icon: <IconGraduationCap width={20} height={20} />, t: "Get instant analysis", d: "Score, breakdown, and every answer explained in seconds." },
-              ].map((s, i) => (
-                <li key={s.t} className="flex gap-4">
+              {(home.examsSteps?.length ? home.examsSteps : [
+                { title: "Pick a topic", description: "Subject → topic-wise exam, tuned to the real paper pattern." },
+                { title: "Sit the test", description: "Per-question marks & negative marking exactly like the board." },
+                { title: "Get instant analysis", description: "Score, breakdown, and every answer explained in seconds." },
+              ]).map((s, i) => (
+                <li key={s.title} className="flex gap-4">
                   <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent">
-                    {s.icon}
+                    {i === 0 ? <IconPlayCircle width={20} height={20} /> : i === 1 ? <IconBrain width={20} height={20} /> : <IconGraduationCap width={20} height={20} />}
                   </span>
                   <div>
                     <span className="flex items-center gap-2 font-display text-sm font-bold text-foreground">
-                      <span className="text-xs text-muted-foreground">0{i + 1}</span> {s.t}
+                      <span className="text-xs text-muted-foreground">0{i + 1}</span> {s.title}
                     </span>
-                    <p className="mt-1 text-sm text-muted-foreground">{s.d}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{s.description}</p>
                   </div>
                 </li>
               ))}
@@ -133,9 +133,9 @@ export default async function HomePage() {
       <section className="bg-surface py-16 sm:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionHeader
-            eyebrow="Featured Books"
-            title="Read the book the moment you buy it"
-            description="Watermarked online reader — no downloads, no waiting. Or get hardcopy shipped to any upazila of Bangladesh."
+            eyebrow={home.booksEyebrow || "Featured Books"}
+            title={home.booksTitle || "Read the book the moment you buy it"}
+            description={home.booksDescription || "Watermarked online reader — no downloads, no waiting. Or get hardcopy shipped to any upazila of Bangladesh."}
             viewAllHref="/books"
             viewAllLabel="All books"
           />
@@ -149,9 +149,9 @@ export default async function HomePage() {
 
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
         <SectionHeader
-          eyebrow="Success Stories"
-          title="Reviews from our learners"
-          description="From first attempt to final selection — real words from real toppers."
+          eyebrow={home.reviewsEyebrow || "Success Stories"}
+          title={home.reviewsTitle || "Reviews from our learners"}
+          description={home.reviewsDescription || "From first attempt to final selection — real words from real toppers."}
         />
         <TestimonialCarousel />
       </section>
@@ -159,8 +159,8 @@ export default async function HomePage() {
       <section className="bg-surface py-16 sm:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionHeader
-            eyebrow="From the Blog"
-            title="Strategy notes, study plans, exam analysis"
+            eyebrow={home.blogsEyebrow || "From the Blog"}
+            title={home.blogsTitle || "Strategy notes, study plans, exam analysis"}
             viewAllHref="/blogs"
             viewAllLabel="All articles"
           />
@@ -177,9 +177,9 @@ export default async function HomePage() {
           <div>
             <SectionHeader
               center={false}
-              eyebrow="FAQ"
-              title="Questions? Answered."
-              description="Still stuck? Write to support@shohozskill.com — average reply time under 2 hours."
+              eyebrow={home.faqEyebrow || "FAQ"}
+              title={home.faqTitle || "Questions? Answered."}
+              description={home.faqDescription || "Still stuck? Write to support@shohozskill.com — average reply time under 2 hours."}
             />
           </div>
           <FaqAccordion items={faqItems} />
