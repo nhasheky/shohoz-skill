@@ -173,6 +173,7 @@ export function FieldInput({ field, value, onChange }: { field: FieldDef; value:
           onChange={(e) => onChange(e.target.value)}
           placeholder={field.placeholder}
           className={cn(cls, "resize-y", field.json && "font-mono text-xs")}
+        />
       ) : field.type === "number" ? (
         <input type="number" value={value === undefined || value === null || value === "" ? "" : String(value)} onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))} placeholder={field.placeholder} className={cls} />
       ) : field.type === "select" ? (
