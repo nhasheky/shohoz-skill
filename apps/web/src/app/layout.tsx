@@ -66,7 +66,9 @@ export async function generateMetadata(): Promise<Metadata> {
       images: ogImage ? [ogImage] : undefined,
     },
     icons: {
-      icon: settings.faviconUrl || "/icon.svg",
+      icon: "/favicon.ico",
+      shortcut: "/favicon.ico",
+      apple: "/favicon.ico",
     },
     manifest: "/manifest.webmanifest",
   };
