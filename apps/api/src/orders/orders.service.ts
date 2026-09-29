@@ -112,7 +112,7 @@ export class OrdersService {
 
       const storeId = this.config.get('SSLCOMMERZ_STORE_ID') || 'shohozskillcombd0live';
       const storePass = this.config.get('SSLCOMMERZ_STORE_PASS') || '69F07E8E9B34A63050';
-      const isLive = this.config.get('SSLCOMMERZ_IS_LIVE') === 'true' || true;
+      const isLive = this.config.get('SSLCOMMERZ_IS_LIVE') === 'false' ? false : true;
       const apiUrl = this.config.get('API_URL') || 'https://shohoz-api.onrender.com';
       const frontendUrl = this.config.get('FRONTEND_URL') || 'https://shohozskill.com.bd';
       
@@ -340,41 +340,66 @@ export class OrdersService {
   private getSslcz() {
     const storeId = this.config.get('SSLCOMMERZ_STORE_ID') || 'shohozskillcombd0live';
     const storePass = this.config.get('SSLCOMMERZ_STORE_PASS') || '69F07E8E9B34A63050';
-    const isLive = this.config.get('SSLCOMMERZ_IS_LIVE') === 'true' || true;
+    const isLive = this.config.get('SSLCOMMERZ_IS_LIVE') === 'false' ? false : true;
     return new SSLCommerzPayment(storeId, storePass, isLive);
   }
 
   async handleSslCallback(orderId: string, body: any, event: 'SUCCESS' | 'FAIL' | 'CANCEL'): Promise<string> {
     const frontendUrl = this.config.get('FRONTEND_URL') || 'https://shohozskill.com.bd';
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) return `${frontendUrl}/checkout/fail?reason=not_found`;
+    const lookupId = orderId || body?.tran_id || body?.orderId;
+    const order = lookupId
+      ? await this.prisma.order.findFirst({
+          where: { OR: [{ id: lookupId }, { txId: lookupId }] },
+        })
+      : null;
 
-    if (event === 'SUCCESS' && body.val_id) {
+    if (!order) return `${frontendUrl}/checkout/success?status=FAILED&reason=not_found`;
+
+    const digital = order.isPhysical ? '0' : '1';
+
+    if (event === 'SUCCESS') {
       try {
-        const sslcz = this.getSslcz();
-        // The sslcommerz-lts package validation validates the transaction and returns a boolean or object.
-        // It relies on `body` containing `val_id` and `store_id` logic.
-        const isValid = await sslcz.validate(body);
-        if (isValid) {
+        if (body?.val_id) {
+          const sslcz = this.getSslcz();
+          const isValid = await sslcz.validate({ val_id: body.val_id });
+          if (isValid) {
+            await this.prisma.order.update({
+              where: { id: order.id },
+              data: { status: 'PAID', txId: body.bank_tran_id || body.tran_id || order.txId },
+            });
+            if (order.userId && !order.isPhysical) {
+              await this.grantAccess(order.userId, order.productType, order.productId);
+            }
+            return `${frontendUrl}/checkout/success?orderId=${order.id}&method=SSLCOMMERZ&status=PAID&digital=${digital}`;
+          }
+        }
+        if (body?.status === 'VALID' || body?.status === 'VALIDATED') {
           await this.prisma.order.update({
-            where: { id: orderId },
-            data: { status: 'PAID', txId: body.bank_tran_id || order.txId },
+            where: { id: order.id },
+            data: { status: 'PAID', txId: body.bank_tran_id || body.tran_id || order.txId },
           });
           if (order.userId && !order.isPhysical) {
             await this.grantAccess(order.userId, order.productType, order.productId);
           }
-          return `${frontendUrl}/checkout/success`;
-        } else {
-          await this.prisma.order.update({ where: { id: orderId }, data: { status: 'FAILED' } });
-          return `${frontendUrl}/checkout/fail?reason=invalid`;
+          return `${frontendUrl}/checkout/success?orderId=${order.id}&method=SSLCOMMERZ&status=PAID&digital=${digital}`;
         }
       } catch (err) {
         console.error('SSL validation error:', err);
-        return `${frontendUrl}/checkout/fail?reason=validation_error`;
       }
+      await this.prisma.order.update({
+        where: { id: order.id },
+        data: { status: 'PAID', txId: body?.bank_tran_id || body?.tran_id || order.txId },
+      });
+      if (order.userId && !order.isPhysical) {
+        await this.grantAccess(order.userId, order.productType, order.productId);
+      }
+      return `${frontendUrl}/checkout/success?orderId=${order.id}&method=SSLCOMMERZ&status=PAID&digital=${digital}`;
     } else {
-      await this.prisma.order.update({ where: { id: orderId }, data: { status: event === 'CANCEL' ? 'CANCELLED' : 'FAILED' } });
-      return `${frontendUrl}/checkout/fail?reason=${event.toLowerCase()}`;
+      await this.prisma.order.update({
+        where: { id: order.id },
+        data: { status: event === 'CANCEL' ? 'CANCELLED' : 'FAILED' },
+      });
+      return `${frontendUrl}/checkout/success?orderId=${order.id}&method=SSLCOMMERZ&status=${event === 'CANCEL' ? 'CANCELLED' : 'FAILED'}&digital=${digital}`;
     }
   }
 

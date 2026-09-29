@@ -205,7 +205,12 @@ export function PurchaseDialog({
         return;
       }
 
-      // SSLCOMMERZ (mock): briefly poll the gateway, then land on the success page.
+      if (activeMethod === "SSLCOMMERZ" && data.paymentUrl) {
+        window.location.href = data.paymentUrl;
+        return;
+      }
+
+      // Fallback for simulation/testing if paymentUrl is not returned
       for (let i = 0; i < 3; i++) {
         await delay(900);
         try {
