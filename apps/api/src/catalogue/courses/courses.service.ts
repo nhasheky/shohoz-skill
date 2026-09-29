@@ -28,8 +28,7 @@ export class CoursesService {
   /** Admin: create a course (with optional nested prices + curriculum). */
   async create(dto: CreateCourseDto) {
     const { prices, curriculum, instructorId, ...scalars } = dto;
-    // Strip empty strings from optional fields to avoid FK constraint violations
-    const cleanScalars = Object.fromEntries(
+    const cleanScalars: any = Object.fromEntries(
       Object.entries(scalars).filter(([, v]) => v !== '' && v !== undefined && v !== null),
     );
     const data: Prisma.CourseUncheckedCreateInput = {
@@ -78,8 +77,7 @@ export class CoursesService {
   async update(id: string, dto: UpdateCourseDto) {
     await this.ensureExists(id);
     const { prices, curriculum, instructorId, ...scalars } = dto;
-    // Strip empty strings from optional fields
-    const cleanScalars = Object.fromEntries(
+    const cleanScalars: any = Object.fromEntries(
       Object.entries(scalars).filter(([, v]) => v !== '' && v !== undefined && v !== null),
     );
     const data: Prisma.CourseUncheckedUpdateInput = {
