@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { IconChevronLeft, IconChevronRight, IconSearch, IconX } from "@/components/ui/icons";
 import { RichTextEditor } from "./rich-text-editor";
+import { FileUploadField } from "./file-upload-field";
 
 export function AdminModal({
   open,
@@ -188,7 +189,13 @@ export function FieldInput({ field, value, onChange }: { field: FieldDef; value:
       ) : field.type === "richtext" ? (
         <RichTextEditor value={String(value ?? "")} onChange={onChange} placeholder={field.placeholder} />
       ) : field.type === "image" || field.type === "file" ? (
-        <input value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} placeholder={field.placeholder ?? "URL to image or file..."} className={cls} />
+        <FileUploadField 
+          value={String(value ?? "")} 
+          onChange={onChange} 
+          placeholder={field.placeholder ?? "URL to image or file..."} 
+          accept={field.type === "image" ? "image/*" : field.type === "file" ? "application/pdf" : undefined}
+          className="w-full"
+        />
       ) : (
         <input value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} placeholder={field.placeholder} className={cls} />
       )}
