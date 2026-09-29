@@ -1,6 +1,6 @@
-﻿"use client";
-import { CoursesListPage } from "@/components/admin/admin-pages";
+"use client";
+import { CourseFormPage } from "@/components/admin/admin-pages";
 
-export default function CoursesPage() {
-  return <CoursesListPage />;
+export default function NewCoursePage() {
+  return <CourseFormPage id="new" />;
 }

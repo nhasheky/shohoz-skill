@@ -1,6 +1,6 @@
-﻿"use client";
-import { BlogsListPage } from "@/components/admin/admin-pages";
+"use client";
+import { BlogFormPage } from "@/components/admin/admin-pages";
 
-export default function BlogsPage() {
-  return <BlogsListPage />;
+export default function NewBlogPage() {
+  return <BlogFormPage id="new" />;
 }

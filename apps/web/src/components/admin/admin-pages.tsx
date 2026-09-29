@@ -1039,6 +1039,33 @@ export function ReviewsPage() {
   );
 }
 
+function ImageUploadField({ label, value, onChange, className }: { label: string; value: string; onChange: (v: string) => void; className?: string }) {
+  const [method, setMethod] = useState<"link" | "upload">("link");
+  return (
+    <div className={className}>
+      <div className="mb-1.5 flex items-center justify-between">
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setMethod("link")} className={cn("text-xs transition-colors", method === "link" ? "font-bold text-accent" : "text-muted-foreground hover:text-foreground")}>Link</button>
+          <button type="button" onClick={() => setMethod("upload")} className={cn("text-xs transition-colors", method === "upload" ? "font-bold text-accent" : "text-muted-foreground hover:text-foreground")}>Upload</button>
+        </div>
+      </div>
+      {method === "link" ? (
+        <input value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-accent" placeholder="https://..." />
+      ) : (
+        <input type="file" accept="image/*" onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (ev) => onChange(ev.target?.result as string);
+          reader.readAsDataURL(file);
+        }} className="w-full rounded-xl border border-border bg-card px-3.5 py-2 text-sm text-foreground outline-none file:mr-4 file:rounded-xl file:border-0 file:bg-accent file:px-4 file:py-1 file:text-xs file:font-semibold file:text-accent-foreground hover:file:bg-accent-hover focus:border-accent" />
+      )}
+      {value && <img src={value} alt="" className="mt-3 h-14 w-auto max-w-full rounded border border-border object-contain bg-muted" />}
+    </div>
+  );
+}
+
 // ─── Settings ──────────────────────────────────────────────────────────────
 const SETTINGS_DEFAULTS = {
   siteTitle: "Shohoz Skill",
@@ -1137,9 +1164,6 @@ export function SettingsPage() {
   const textFields: { key: keyof SettingsForm; label: string; span2?: boolean }[] = [
     { key: "siteTitle", label: "Site title" },
     { key: "siteTitleBn", label: "Site title (Bangla)" },
-    { key: "logoUrl", label: "Logo URL", span2: true },
-    { key: "faviconUrl", label: "Favicon URL", span2: true },
-    { key: "ogImageUrl", label: "OpenGraph image URL", span2: true },
     { key: "keywords", label: "Keywords (comma separated)", span2: true },
     { key: "supportEmail", label: "Support email" },
     { key: "supportPhone", label: "Support phone" },
@@ -1164,6 +1188,11 @@ export function SettingsPage() {
                 <input value={String(form[f.key])} onChange={(e) => set(f.key, e.target.value)} className={inputCls} />
               </label>
             ))}
+            
+            <ImageUploadField label="Logo" value={form.logoUrl} onChange={(v) => set("logoUrl", v)} className="sm:col-span-2" />
+            <ImageUploadField label="Favicon" value={form.faviconUrl} onChange={(v) => set("faviconUrl", v)} className="sm:col-span-2" />
+            <ImageUploadField label="OpenGraph image" value={form.ogImageUrl} onChange={(v) => set("ogImageUrl", v)} className="sm:col-span-2" />
+
             <label className="block sm:col-span-2">
               <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Meta description</span>
               <textarea rows={3} value={form.metaDescription} onChange={(e) => set("metaDescription", e.target.value)} className={cn(inputCls, "resize-y")} />

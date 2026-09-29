@@ -1,6 +1,6 @@
-﻿"use client";
-import { ExamsListPage } from "@/components/admin/admin-pages";
+"use client";
+import { ExamFormPage } from "@/components/admin/admin-pages";
 
-export default function ExamsPage() {
-  return <ExamsListPage />;
+export default function NewExamPage() {
+  return <ExamFormPage id="new" />;
 }

@@ -1,6 +1,6 @@
-﻿"use client";
-import { BooksListPage } from "@/components/admin/admin-pages";
+"use client";
+import { BookFormPage } from "@/components/admin/admin-pages";
 
-export default function BooksPage() {
-  return <BooksListPage />;
+export default function NewBookPage() {
+  return <BookFormPage id="new" />;
 }
