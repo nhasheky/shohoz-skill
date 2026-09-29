@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { IconChevronLeft, IconChevronRight, IconSearch, IconX } from "@/components/ui/icons";
+import { RichTextEditor } from "./rich-text-editor";
 
 export function AdminModal({
   open,
@@ -140,7 +141,7 @@ export function Pagination({
 export type FieldDef = {
   name: string;
   label: string;
-  type?: "text" | "number" | "textarea" | "checkbox" | "select";
+  type?: "text" | "number" | "textarea" | "checkbox" | "select" | "richtext" | "image" | "file";
   options?: string[];
   placeholder?: string;
   help?: string;
@@ -172,7 +173,6 @@ export function FieldInput({ field, value, onChange }: { field: FieldDef; value:
           onChange={(e) => onChange(e.target.value)}
           placeholder={field.placeholder}
           className={cn(cls, "resize-y", field.json && "font-mono text-xs")}
-        />
       ) : field.type === "number" ? (
         <input type="number" value={value === undefined || value === null || value === "" ? "" : String(value)} onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))} placeholder={field.placeholder} className={cls} />
       ) : field.type === "select" ? (
@@ -184,6 +184,10 @@ export function FieldInput({ field, value, onChange }: { field: FieldDef; value:
             </option>
           ))}
         </select>
+      ) : field.type === "richtext" ? (
+        <RichTextEditor value={String(value ?? "")} onChange={onChange} placeholder={field.placeholder} />
+      ) : field.type === "image" || field.type === "file" ? (
+        <input value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} placeholder={field.placeholder ?? "URL to image or file..."} className={cls} />
       ) : (
         <input value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} placeholder={field.placeholder} className={cls} />
       )}

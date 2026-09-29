@@ -27,6 +27,7 @@ export function ProductCover({
   accentText,
   className,
   compact = false,
+  thumbnailUrl,
 }: {
   title: string;
   category?: string;
@@ -34,6 +35,7 @@ export function ProductCover({
   accentText?: string;
   className?: string;
   compact?: boolean;
+  thumbnailUrl?: string;
 }) {
   const [from, to] = hashGradient(kind + category + title);
   const shape =
@@ -43,6 +45,19 @@ export function ProductCover({
     : title.split(" ").slice(0, 6);
   const text = compact ? titleLines.join(" ") + (title.split(" ").length > 4 ? "…" : "") : titleLines.join(" ");
   const sub = category;
+
+  if (thumbnailUrl) {
+    return (
+      <div className={cn("relative overflow-hidden aspect-video w-full", className)}>
+        <img src={thumbnailUrl} alt={title} className="w-full h-full object-cover" />
+        {accentText && (
+          <div className="absolute top-4 right-4 rounded-md bg-accent px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent-foreground shadow">
+            {accentText}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div

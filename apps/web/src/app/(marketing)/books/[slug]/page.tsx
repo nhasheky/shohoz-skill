@@ -89,7 +89,7 @@ export default async function BookDetailPage(props: PageProps<"/books/[slug]">) 
                 {book.titleBn && <span className="mt-1 block text-xl text-muted-foreground sm:text-2xl">{book.titleBn}</span>}
               </h1>
               <p className="mt-2 font-display text-sm font-semibold text-accent">{book.subtitle}</p>
-              <p className="mt-3 max-w-2xl text-base text-muted-foreground">{book.description}</p>
+              <div className="mt-3 max-w-2xl text-base text-muted-foreground prose prose-sm" dangerouslySetInnerHTML={{ __html: book.description }} />
 
               <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
                 <span className="flex items-center gap-2">
@@ -108,8 +108,15 @@ export default async function BookDetailPage(props: PageProps<"/books/[slug]">) 
                 </span>
               </div>
 
-              <div className="mt-7 overflow-hidden rounded-3xl border border-border shadow-card">
-                <ProductCover title={book.title} category={book.category} kind="book" accentText={`${book.pages} pages`} />
+              <div className="mt-7 overflow-hidden rounded-3xl border border-border shadow-card relative group">
+                <ProductCover title={book.title} category={book.category} kind="book" accentText={`${book.pages} pages`} thumbnailUrl={book.thumbnailUrl} />
+                {book.demoPdfUrl && (
+                  <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 to-transparent flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ButtonLink href={book.demoPdfUrl} target="_blank" variant="accent" className="w-full justify-center">
+                      একটু পড়ে দেখুন (Look Inside)
+                    </ButtonLink>
+                  </div>
+                )}
               </div>
 
               <div className="mt-5 flex flex-wrap gap-3">
