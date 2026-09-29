@@ -196,6 +196,10 @@ export class CreateExamDto {
   allowedPaymentMethods?: string[];
 
   @IsOptional()
+  @IsString()
+  thumbnailUrl?: string;
+
+  @IsOptional()
   seo?: Prisma.InputJsonValue;
 
   @IsOptional()

@@ -166,6 +166,10 @@ export class CreateCourseDto {
   instructorId?: string;
 
   @IsOptional()
+  @IsString()
+  thumbnailUrl?: string;
+
+  @IsOptional()
   seo?: Prisma.InputJsonValue;
 
   @IsOptional()

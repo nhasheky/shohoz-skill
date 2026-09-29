@@ -98,5 +98,13 @@ export class CreateBookDto {
   allowedPaymentMethods?: string[];
 
   @IsOptional()
+  @IsString()
+  thumbnailUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  demoPdfUrl?: string;
+
+  @IsOptional()
   seo?: Prisma.InputJsonValue;
 }
