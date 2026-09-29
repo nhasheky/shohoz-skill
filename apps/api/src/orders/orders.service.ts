@@ -110,9 +110,9 @@ export class OrdersService {
         }
       }
 
-      const storeId = this.config.get('SSLCOMMERZ_STORE_ID') || 'shohozskillcombd0live';
-      const storePass = this.config.get('SSLCOMMERZ_STORE_PASS') || '69F07E8E9B34A63050';
-      const isLive = this.config.get('SSLCOMMERZ_IS_LIVE') === 'false' ? false : true;
+      const storeId = (this.config.get('SSLCOMMERZ_STORE_ID') || 'shohozskillcombd0live').trim();
+      const storePass = (this.config.get('SSLCOMMERZ_STORE_PASS') || '69F07E8E9B34A63050').trim();
+      const isLive = storeId.includes('live') ? true : this.config.get('SSLCOMMERZ_IS_LIVE') === 'true';
       const apiUrl = this.config.get('API_URL') || 'https://shohoz-api.onrender.com';
       const frontendUrl = this.config.get('FRONTEND_URL') || 'https://shohozskill.com.bd';
       
@@ -127,8 +127,8 @@ export class OrdersService {
         cancel_url: `${apiUrl}/api/orders/sslcommerz/cancel?orderId=${order.id}`,
         ipn_url: `${apiUrl}/api/orders/sslcommerz/ipn`,
         shipping_method: order.isPhysical ? 'Courier' : 'No',
-        product_name: order.productTitle,
-        product_category: order.productType,
+        product_name: order.productTitle || 'Shohoz Skill Order',
+        product_category: order.productType || 'General',
         product_profile: 'general',
         cus_name: customerName,
         cus_email: customerEmail,
@@ -145,11 +145,12 @@ export class OrdersService {
         if (apiResponse?.GatewayPageURL) {
           paymentUrl = apiResponse.GatewayPageURL;
         } else {
-          throw new BadRequestException('Failed to initiate SSLCOMMERZ session.');
+          console.error('SSLCommerz Init failed:', apiResponse);
+          throw new BadRequestException(apiResponse?.failedreason || 'Failed to initiate SSLCOMMERZ session.');
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('SSLCommerz Init Error:', err);
-        throw new BadRequestException('Payment gateway error. Try again.');
+        throw new BadRequestException(err?.message || 'Payment gateway error. Try again.');
       }
     }
 
@@ -338,9 +339,9 @@ export class OrdersService {
 
   // --- SSLCOMMERZ HANDLERS ---
   private getSslcz() {
-    const storeId = this.config.get('SSLCOMMERZ_STORE_ID') || 'shohozskillcombd0live';
-    const storePass = this.config.get('SSLCOMMERZ_STORE_PASS') || '69F07E8E9B34A63050';
-    const isLive = this.config.get('SSLCOMMERZ_IS_LIVE') === 'false' ? false : true;
+    const storeId = (this.config.get('SSLCOMMERZ_STORE_ID') || 'shohozskillcombd0live').trim();
+    const storePass = (this.config.get('SSLCOMMERZ_STORE_PASS') || '69F07E8E9B34A63050').trim();
+    const isLive = storeId.includes('live') ? true : this.config.get('SSLCOMMERZ_IS_LIVE') === 'true';
     return new SSLCommerzPayment(storeId, storePass, isLive);
   }
 
