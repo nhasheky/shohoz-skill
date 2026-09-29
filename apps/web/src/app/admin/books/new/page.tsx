@@ -2,5 +2,5 @@
 import { BookFormPage } from "@/components/admin/admin-pages";
 
 export default function NewBookPage() {
-  return <BookFormPage id="new" />;
+  return <BookFormPage />;
 }
