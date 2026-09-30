@@ -6,7 +6,8 @@ export async function POST(request: Request) {
     const { to, code, userName, secret } = await request.json();
 
     // Verify secret to prevent abuse
-    if (secret !== (process.env.EMAIL_API_SECRET || "shohoz_email_secret_2026")) {
+    const expectedSecret = process.env.EMAIL_API_SECRET;
+    if (!expectedSecret || secret !== expectedSecret) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
@@ -14,13 +15,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
     }
 
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    if (!smtpUser || !smtpPass) {
+      console.error("SMTP credentials are not configured.");
+      return NextResponse.json({ message: "Email service not configured" }, { status: 500 });
+    }
+
     const transporter = createTransport({
       host: "smtp.gmail.com",
       port: 465,
       secure: true,
       auth: {
-        user: process.env.SMTP_USER ?? "nazmulhasanasheky@gmail.com",
-        pass: process.env.SMTP_PASS ?? "hcht uiyv wvqo ypdu", // Added fallback to ensure it works
+        user: smtpUser,
+        pass: smtpPass,
       },
     });
 
@@ -62,7 +70,7 @@ export async function POST(request: Request) {
     `.trim();
 
     await transporter.sendMail({
-      from: `"Shohoz Skill" <${process.env.SMTP_USER ?? "nazmulhasanasheky@gmail.com"}>`,
+      from: `"Shohoz Skill" <${smtpUser}>`,
       to,
       subject: `আপনার ভেরিফিকেশন কোড: ${code}`,
       html: htmlContent,
