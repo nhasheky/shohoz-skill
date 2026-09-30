@@ -17,6 +17,7 @@ import type {
   FaqItem,
   Order,
   SiteSetting,
+  TestimonialReview,
   VideoSource,
 } from "@/lib/types";
 import { cookies } from "next/headers";
@@ -636,7 +637,15 @@ export type HomePageData = {
   heroTitle?: string;
   heroDescription?: string;
   heroMetrics?: Array<{ value: string; label: string }>;
-  
+  heroPrimaryLabel?: string;
+  heroPrimaryHref?: string;
+  heroSecondaryLabel?: string;
+  heroSecondaryHref?: string;
+  heroSearchPlaceholder?: string;
+
+  // Device strip
+  deviceStrip?: string[];
+
   // Stats band
   stats?: Array<{ value: number; suffix: string; label: string }>;
 
@@ -656,6 +665,7 @@ export type HomePageData = {
   examsTitle?: string;
   examsDescription?: string;
   examsSteps?: Array<{ title: string; description: string }>;
+  examEngineTitle?: string;
 
   // Books Section
   booksEyebrow?: string;
@@ -666,6 +676,7 @@ export type HomePageData = {
   reviewsEyebrow?: string;
   reviewsTitle?: string;
   reviewsDescription?: string;
+  testimonials?: TestimonialReview[];
 
   // Blogs Section
   blogsEyebrow?: string;
@@ -676,6 +687,16 @@ export type HomePageData = {
   faqTitle?: string;
   faqDescription?: string;
   faq?: FaqItem[];
+
+  // CTA banner
+  ctaBadge?: string;
+  ctaTitle?: string;
+  ctaDescription?: string;
+  ctaPrimaryLabel?: string;
+  ctaPrimaryHref?: string;
+  ctaSecondaryLabel?: string;
+  ctaSecondaryHref?: string;
+  ctaFootnote?: string;
 };
 
 export type AboutPageData = {
@@ -702,4 +723,12 @@ export async function getPageContent<T = Record<string, unknown>>(page: string):
     (raw) => (((raw as { data?: unknown }).data ?? {}) as Partial<T>),
     async () => ({}),
   );
+}
+
+/** Public: admin-managed course categories (stored in the "categories" page content). */
+export async function getCategories(): Promise<Category[]> {
+  const page = await getPageContent<{ items: Category[] }>("categories");
+  const items = page.items;
+  if (Array.isArray(items) && items.length) return items;
+  return (await import("@/lib/data/site-content")).categories;
 }

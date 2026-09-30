@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAdminTitle } from "@/lib/use-admin-title";
 import { useRouter } from "next/navigation";
 import { formatBdt } from "@/lib/format";
@@ -40,7 +40,7 @@ const courseFields: FieldDef[] = [
   { name: "slug", label: "Slug", required: true, span2: true },
   { name: "title", label: "Title", required: true, span2: true },
   { name: "titleBn", label: "Title (Bangla)" },
-  { name: "category", label: "Category", required: true },
+  { name: "category", label: "Category", required: true, type: "select", options: [] },
   { name: "categoryBn", label: "Category (Bangla)" },
   { name: "tagline", label: "Tagline", required: true, span2: true },
   { name: "description", label: "Description", type: "richtext", required: true, span2: true },
@@ -227,12 +227,33 @@ export function CourseFormPage({ id }: { id?: string }) {
   useAdminTitle(id ? "Edit Course" : "New Course");
   const router = useRouter();
   const { initial, loading, notFound } = useAdminRecord(id, api.getCourse, () => seedCourses as unknown as Row[]);
+  const [cats, setCats] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.getPage("categories")
+      .then((p) => {
+        if (cancelled) return;
+        const items = (p.data as { items?: { label?: string }[] })?.items ?? [];
+        setCats(items.map((c) => c.label ?? "").filter(Boolean));
+      })
+      .catch(() => { if (!cancelled) setCats([]); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const fields = useMemo(() => {
+    const current = typeof initial?.category === "string" ? (initial.category as string) : "";
+    const opts = Array.from(new Set([...(cats ?? []), current].filter(Boolean)));
+    return courseFields.map((f) => (f.name === "category" ? { ...f, type: "select" as const, options: opts } : f));
+  }, [cats, initial]);
+
+  const ready = !loading && cats !== null;
   return (
-    <PageSkeleton title="Course" loading={loading} notFound={notFound}>
+    <PageSkeleton title="Course" loading={!ready} notFound={notFound}>
       <AdminForm
         title={id ? "Edit Course" : "New Course"}
         subtitle="Courses power the entire learning experience."
-        fields={courseFields}
+        fields={fields}
         initial={initial}
         backHref="/admin/courses"
         submitLabel={id ? "Save changes" : "Create course"}
@@ -1236,8 +1257,12 @@ export function SettingsPage() {
 const PAGE_META: Record<string, { label: string; hint: string; template: Record<string, any> }> = {
   home: {
     label: "Home",
-    hint: "Overrides for the homepage.",
-    template: { heroTitle: "", heroSubtitle: "", heroDescription: "", heroMetrics: [], stats: [], examsSteps: [], faq: [] },
+    hint: "Overrides for the homepage. Leave a field blank to use the default.",
+    template: {
+      heroEyebrow: "", heroTitle: "", heroDescription: "", heroMetrics: [],
+      heroPrimaryLabel: "", heroPrimaryHref: "", heroSecondaryLabel: "", heroSecondaryHref: "", heroSearchPlaceholder: "",
+      deviceStrip: [], stats: [], examsSteps: [], testimonials: [], faq: [],
+    },
   },
   about: {
     label: "About Us",
@@ -1268,6 +1293,10 @@ function HomeForm({ data, onChange }: { data: any; onChange: (v: any) => void })
   const addExamStep = () => set("examsSteps", [...(d.examsSteps || []), { title: "", description: "" }]);
   const updExamStep = (i: number, next: any) => set("examsSteps", (d.examsSteps || []).map((x: any, j: number) => j === i ? next : x));
   const remExamStep = (i: number) => set("examsSteps", (d.examsSteps || []).filter((_: any, j: number) => j !== i));
+
+  const addTestimonial = () => set("testimonials", [...(d.testimonials || []), { id: `t${Date.now()}`, type: "text", text: "", name: "", role: "", rating: 5, placement: "homepage" }]);
+  const updTestimonial = (i: number, next: any) => set("testimonials", (d.testimonials || []).map((x: any, j: number) => j === i ? next : x));
+  const remTestimonial = (i: number) => set("testimonials", (d.testimonials || []).filter((_: any, j: number) => j !== i));
 
   const renderSectionMeta = (keyPrefix: string, label: string) => (
     <div className="rounded-2xl border border-border bg-surface/60 p-4 dark:bg-background/60">
@@ -1325,6 +1354,22 @@ function HomeForm({ data, onChange }: { data: any; onChange: (v: any) => void })
             ))}
           </div>
         </div>
+
+        <div className="mt-4 border-t border-border/50 pt-4">
+          <p className="mb-3 text-xs font-bold uppercase tracking-wide text-foreground">Hero Buttons &amp; Search</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Primary button label</span><input value={d.heroPrimaryLabel || ""} onChange={(e) => set("heroPrimaryLabel", e.target.value)} className={pageInputCls} /></label>
+            <label className="block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Primary button link</span><input value={d.heroPrimaryHref || ""} onChange={(e) => set("heroPrimaryHref", e.target.value)} placeholder="/courses" className={pageInputCls} /></label>
+            <label className="block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Secondary button label</span><input value={d.heroSecondaryLabel || ""} onChange={(e) => set("heroSecondaryLabel", e.target.value)} className={pageInputCls} /></label>
+            <label className="block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Secondary button link</span><input value={d.heroSecondaryHref || ""} onChange={(e) => set("heroSecondaryHref", e.target.value)} placeholder="/exams" className={pageInputCls} /></label>
+            <label className="block sm:col-span-2"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Search box placeholder</span><input value={d.heroSearchPlaceholder || ""} onChange={(e) => set("heroSearchPlaceholder", e.target.value)} className={pageInputCls} /></label>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-surface/60 p-4 dark:bg-background/60">
+        <p className="mb-3 font-display text-sm font-extrabold text-foreground">Instant-access strip</p>
+        <ListEditor value={listOf(d.deviceStrip)} onChange={(v) => set("deviceStrip", v)} placeholder="One line per entry (e.g. Log in on up to 2 devices)" />
       </div>
 
       <div className="rounded-2xl border border-border bg-surface/60 p-4 dark:bg-background/60">
@@ -1364,8 +1409,12 @@ function HomeForm({ data, onChange }: { data: any; onChange: (v: any) => void })
           </label>
         </div>
         <div className="mt-4 border-t border-border/50 pt-4">
+          <label className="mb-3 block">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Card heading</span>
+            <input value={d.examEngineTitle || ""} onChange={(e) => set("examEngineTitle", e.target.value)} placeholder="How the exam engine works" className={pageInputCls} />
+          </label>
           <div className="mb-3 flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-wide text-foreground">How the exam engine works</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-foreground">Steps</p>
             <button type="button" onClick={addExamStep} className="rounded bg-accent px-2 py-1 text-xs font-bold text-accent-foreground">Add Step</button>
           </div>
           <div className="space-y-2">
@@ -1382,11 +1431,57 @@ function HomeForm({ data, onChange }: { data: any; onChange: (v: any) => void })
 
       {renderSectionMeta("books", "Featured Books")}
       {renderSectionMeta("reviews", "Success Stories")}
+
+      <div className="rounded-2xl border border-border bg-surface/60 p-4 dark:bg-background/60">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="font-display text-sm font-extrabold text-foreground">Testimonials</p>
+          <button type="button" onClick={addTestimonial} className="rounded bg-accent px-2 py-1 text-xs font-bold text-accent-foreground">Add testimonial</button>
+        </div>
+        <div className="space-y-3">
+          {(d.testimonials || []).map((t: any, i: number) => (
+            <div key={i} className="rounded-xl border border-border bg-card p-3">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <input value={t.name || ""} onChange={(e) => updTestimonial(i, { ...t, name: e.target.value })} placeholder="Name" className={pageInputCls} />
+                <input value={t.role || ""} onChange={(e) => updTestimonial(i, { ...t, role: e.target.value })} placeholder="Role / batch" className={pageInputCls} />
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Rating</span>
+                  <input type="number" min={0} max={5} step={0.5} value={t.rating ?? 5} onChange={(e) => updTestimonial(i, { ...t, rating: Number(e.target.value) })} className={pageInputCls} />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Placement</span>
+                  <select value={t.placement || "homepage"} onChange={(e) => updTestimonial(i, { ...t, placement: e.target.value })} className={pageInputCls}>
+                    <option value="homepage">homepage</option>
+                    <option value="all">all</option>
+                    <option value="product">product</option>
+                  </select>
+                </label>
+                <textarea rows={3} value={t.text || ""} onChange={(e) => updTestimonial(i, { ...t, text: e.target.value })} placeholder="Testimonial text" className={cn(pageInputCls, "sm:col-span-2 resize-y")} />
+              </div>
+              <button type="button" onClick={() => remTestimonial(i)} className="mt-2 rounded-lg border border-danger/40 px-3 py-1 text-xs font-bold text-danger hover:bg-danger/10">Remove</button>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {renderSectionMeta("blogs", "From the Blog")}
       {renderSectionMeta("faq", "FAQ")}
 
       <div>
         <FaqEditor value={d.faq} onChange={(v) => set("faq", v)} />
+      </div>
+
+      <div className="rounded-2xl border border-border bg-surface/60 p-4 dark:bg-background/60">
+        <p className="mb-3 font-display text-sm font-extrabold text-foreground">Bottom CTA Banner</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block sm:col-span-2"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Badge</span><input value={d.ctaBadge || ""} onChange={(e) => set("ctaBadge", e.target.value)} placeholder="Start today" className={pageInputCls} /></label>
+          <label className="block sm:col-span-2"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Title</span><input value={d.ctaTitle || ""} onChange={(e) => set("ctaTitle", e.target.value)} className={pageInputCls} /></label>
+          <label className="block sm:col-span-2"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Description</span><textarea rows={2} value={d.ctaDescription || ""} onChange={(e) => set("ctaDescription", e.target.value)} className={cn(pageInputCls, "resize-y")} /></label>
+          <label className="block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Primary label</span><input value={d.ctaPrimaryLabel || ""} onChange={(e) => set("ctaPrimaryLabel", e.target.value)} className={pageInputCls} /></label>
+          <label className="block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Primary link</span><input value={d.ctaPrimaryHref || ""} onChange={(e) => set("ctaPrimaryHref", e.target.value)} placeholder="/courses" className={pageInputCls} /></label>
+          <label className="block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Secondary label</span><input value={d.ctaSecondaryLabel || ""} onChange={(e) => set("ctaSecondaryLabel", e.target.value)} className={pageInputCls} /></label>
+          <label className="block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Secondary link</span><input value={d.ctaSecondaryHref || ""} onChange={(e) => set("ctaSecondaryHref", e.target.value)} placeholder="/exams" className={pageInputCls} /></label>
+          <label className="block sm:col-span-2"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Footnote</span><input value={d.ctaFootnote || ""} onChange={(e) => set("ctaFootnote", e.target.value)} className={pageInputCls} /></label>
+        </div>
       </div>
     </div>
   );
@@ -1575,6 +1670,131 @@ export function PagesAdminPage() {
   );
 }
 
+
+// ─── Categories ──────────────────────────────────────────────────────────────
+const CATEGORY_ICONS = ["graduation", "book", "target", "video", "brain"];
+type CatRow = { slug: string; label: string; labelBn: string; description: string; icon: string; count: number };
+const EMPTY_CAT: CatRow = { slug: "", label: "", labelBn: "", description: "", icon: "graduation", count: 0 };
+
+export function CategoriesPage() {
+  useAdminTitle("Categories");
+  const toast = useToast();
+  const [items, setItems] = useState<CatRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.getPage("categories")
+      .then((p) => {
+        if (cancelled) return;
+        const list = (p.data as { items?: CatRow[] })?.items;
+        setItems(Array.isArray(list) ? list.map((c) => ({ ...EMPTY_CAT, ...c })) : []);
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const upd = (i: number, next: Partial<CatRow>) => setItems((arr) => arr.map((c, j) => (j === i ? { ...c, ...next } : c)));
+  const add = () => setItems((arr) => [...arr, { ...EMPTY_CAT }]);
+  const rem = (i: number) => setItems((arr) => arr.filter((_, j) => j !== i));
+  const move = (i: number, dir: -1 | 1) => setItems((arr) => {
+    const j = i + dir;
+    if (j < 0 || j >= arr.length) return arr;
+    const copy = [...arr];
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+    return copy;
+  });
+
+  async function save() {
+    const clean = items.map((c) => ({
+      ...c,
+      slug: (c.slug || c.label).trim().toLowerCase().replace(/\s+/g, "-"),
+      label: c.label.trim(),
+      labelBn: c.labelBn.trim(),
+      description: c.description.trim(),
+    }));
+    if (clean.some((c) => !c.label)) {
+      toast.error("Every category needs a label.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.updatePage("categories", { items: clean });
+      setItems(clean);
+      toast.success("Categories saved");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const inputCls = "w-full rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-accent";
+
+  return (
+    <div className="max-w-4xl">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-extrabold text-foreground">Categories</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Create the categories shown on the home page and selectable when adding a course.</p>
+        </div>
+        <button type="button" onClick={add} className="rounded-xl bg-accent px-4 py-2.5 text-sm font-bold text-accent-foreground hover:bg-accent-hover">+ Add category</button>
+      </div>
+
+      <div className="mt-5 rounded-3xl border border-border bg-card p-5 shadow-card">
+        {loading ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>
+        ) : items.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">No categories yet. Click “Add category”.</p>
+        ) : (
+          <div className="space-y-3">
+            {items.map((c, i) => (
+              <div key={i} className="rounded-2xl border border-border bg-surface/50 p-4">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Label (English)</span>
+                    <input value={c.label} onChange={(e) => upd(i, { label: e.target.value })} placeholder="BCS Preparation" className={inputCls} />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Label (Bangla)</span>
+                    <input value={c.labelBn} onChange={(e) => upd(i, { labelBn: e.target.value })} placeholder="বিসিএস" className={inputCls} />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Slug</span>
+                    <input value={c.slug} onChange={(e) => upd(i, { slug: e.target.value })} placeholder="bcs" className={inputCls} />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Icon</span>
+                    <select value={c.icon} onChange={(e) => upd(i, { icon: e.target.value })} className={inputCls}>
+                      {CATEGORY_ICONS.map((ic) => <option key={ic} value={ic}>{ic}</option>)}
+                    </select>
+                  </label>
+                  <label className="block sm:col-span-2">
+                    <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Description (shown under the category)</span>
+                    <input value={c.description} onChange={(e) => upd(i, { description: e.target.value })} placeholder="Preliminary, written & viva" className={inputCls} />
+                  </label>
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <button type="button" onClick={() => move(i, -1)} className="rounded-lg border border-border px-2 py-1 text-xs font-bold text-muted-foreground hover:text-foreground">↑</button>
+                  <button type="button" onClick={() => move(i, 1)} className="rounded-lg border border-border px-2 py-1 text-xs font-bold text-muted-foreground hover:text-foreground">↓</button>
+                  <button type="button" onClick={() => rem(i)} className="ml-auto rounded-lg border border-danger/40 px-3 py-1 text-xs font-bold text-danger hover:bg-danger/10">Remove</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-5 flex items-center gap-3 border-t border-border pt-5">
+          <button type="button" onClick={save} disabled={busy || loading} className="rounded-xl bg-accent px-6 py-2.5 text-sm font-bold text-accent-foreground hover:bg-accent-hover disabled:opacity-50">
+            {busy ? "Saving…" : "Save categories"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ─── Contact Messages ────────────────────────────────────────────────────────
 export function ContactMessagesPage() {

@@ -29,6 +29,7 @@ import {
 
 const NAV = [
   { href: "/admin", label: "Dashboard", icon: IconDashboard, exact: true },
+  { href: "/admin/categories", label: "Categories", icon: IconLayers },
   { href: "/admin/courses", label: "Courses", icon: IconLayers },
   { href: "/admin/books", label: "Books", icon: IconBookOpen },
   { href: "/admin/exams", label: "Exams", icon: IconTarget },

@@ -6,8 +6,8 @@ import { TestimonialCarousel } from "@/components/marketing/testimonials";
 import { CtaBanner } from "@/components/marketing/cta-banner";
 import { FaqAccordion } from "@/components/marketing/faq";
 import { CourseCard, BookCard, ExamCard, BlogCard } from "@/components/ui/product-card";
-import { getFeaturedCourses, getFeaturedBooks, getFeaturedExams, getFeaturedBlogs, getPageContent, type HomePageData } from "@/lib/api";
-import { categories, homeFaq } from "@/lib/data/site-content";
+import { getFeaturedCourses, getFeaturedBooks, getFeaturedExams, getFeaturedBlogs, getCourses, getCategories, getPageContent, type HomePageData } from "@/lib/api";
+import { homeFaq } from "@/lib/data/site-content";
 import {
   IconBookOpen,
   IconBrain,
@@ -32,21 +32,36 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const [courses, books, exams, blogPosts, home] = await Promise.all([
+  const [courses, books, exams, blogPosts, home, allCourses, catsRaw] = await Promise.all([
     getFeaturedCourses(4),
     getFeaturedBooks(4),
     getFeaturedExams(3),
     getFeaturedBlogs(3),
     getPageContent<HomePageData>("home"),
+    getCourses(),
+    getCategories(),
   ]);
 
-  const cats = home.categories?.length ? home.categories : categories;
+  const cats = catsRaw.map((c) => ({
+    ...c,
+    count: allCourses.filter((cc) => (cc.category ?? "").toLowerCase() === c.label.toLowerCase()).length,
+  }));
   const faqItems = home.faq?.length ? home.faq : homeFaq;
 
   return (
     <main>
-      <Hero eyebrow={home.heroEyebrow || undefined} title={home.heroTitle || undefined} description={home.heroDescription || undefined} metrics={home.heroMetrics} />
-      <DeviceLimitStrip />
+      <Hero
+        eyebrow={home.heroEyebrow || undefined}
+        title={home.heroTitle || undefined}
+        description={home.heroDescription || undefined}
+        metrics={home.heroMetrics}
+        primaryLabel={home.heroPrimaryLabel || undefined}
+        primaryHref={home.heroPrimaryHref || undefined}
+        secondaryLabel={home.heroSecondaryLabel || undefined}
+        secondaryHref={home.heroSecondaryHref || undefined}
+        searchPlaceholder={home.heroSearchPlaceholder || undefined}
+      />
+      <DeviceLimitStrip items={home.deviceStrip} />
       <StatsBand stats={home.stats} />
 
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
@@ -59,13 +74,13 @@ export default async function HomePage() {
           {cats.map((c) => (
             <a
               key={c.slug}
-              href={`/courses?category=${c.slug}`}
+              href={`/courses?category=${encodeURIComponent(c.label)}`}
               className="group flex flex-col items-center gap-2 rounded-2xl border border-border bg-card p-5 text-center shadow-card transition-all hover:-translate-y-1 hover:border-accent hover:shadow-card-hover"
             >
               <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/8 text-primary transition-colors group-hover:bg-accent group-hover:text-accent-foreground">
-                <CategoryIcon slug={c.slug} />
+                <CategoryIcon slug={c.slug} icon={c.icon} />
               </span>
-              <span className="font-display text-sm font-bold text-foreground">{c.label}</span>
+              <span className="font-display text-sm font-bold text-foreground">{c.labelBn || c.label}</span>
               <span className="text-[11px] text-muted-foreground">{c.description}</span>
               <span className="text-[11px] font-bold text-accent">{c.count} items</span>
             </a>
@@ -106,7 +121,7 @@ export default async function HomePage() {
             </div>
           </div>
           <div className="rounded-3xl border border-border bg-card p-6 shadow-card sm:p-8">
-            <h3 className="font-display text-xl font-bold text-foreground">How the exam engine works</h3>
+            <h3 className="font-display text-xl font-bold text-foreground">{home.examEngineTitle || "How the exam engine works"}</h3>
             <ol className="mt-6 space-y-5">
               {(home.examsSteps?.length ? home.examsSteps : [
                 { title: "Pick a topic", description: "Subject → topic-wise exam, tuned to the real paper pattern." },
@@ -153,7 +168,7 @@ export default async function HomePage() {
           title={home.reviewsTitle || "Reviews from our learners"}
           description={home.reviewsDescription || "From first attempt to final selection — real words from real toppers."}
         />
-        <TestimonialCarousel />
+        <TestimonialCarousel items={home.testimonials} />
       </section>
 
       <section className="bg-surface py-16 sm:py-20">
@@ -187,14 +202,29 @@ export default async function HomePage() {
       </section>
 
       <section className="pb-16 sm:pb-20">
-        <CtaBanner />
+        <CtaBanner
+          badge={home.ctaBadge || undefined}
+          title={home.ctaTitle || undefined}
+          description={home.ctaDescription || undefined}
+          primaryLabel={home.ctaPrimaryLabel || undefined}
+          primaryHref={home.ctaPrimaryHref || undefined}
+          secondaryLabel={home.ctaSecondaryLabel || undefined}
+          secondaryHref={home.ctaSecondaryHref || undefined}
+          footnote={home.ctaFootnote || undefined}
+        />
       </section>
     </main>
   );
 }
 
-function CategoryIcon({ slug }: { slug: string }) {
+function CategoryIcon({ slug, icon }: { slug: string; icon?: string }) {
+  const key = (icon || slug || "").toLowerCase();
   const map: Record<string, React.ReactNode> = {
+    graduation: <IconGraduationCap width={22} height={22} />,
+    book: <IconBookOpen width={22} height={22} />,
+    target: <IconChevronRight width={22} height={22} />,
+    video: <IconVideo width={22} height={22} />,
+    brain: <IconGraduationCap width={22} height={22} />,
     bcs: <IconGraduationCap width={22} height={22} />,
     ntrca: <IconBookOpen width={22} height={22} />,
     bank: <IconChevronRight width={22} height={22} />,
@@ -202,5 +232,5 @@ function CategoryIcon({ slug }: { slug: string }) {
     english: <IconBookOpen width={22} height={22} />,
     writing: <IconGraduationCap width={22} height={22} />,
   };
-  return map[slug] ?? <IconGraduationCap width={22} height={22} />;
+  return map[key] ?? <IconGraduationCap width={22} height={22} />;
 }

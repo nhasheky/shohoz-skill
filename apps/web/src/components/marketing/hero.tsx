@@ -1,17 +1,27 @@
 import { BackgroundOrbs, ParticleField } from "@/components/layout/background";
 import { Button, ButtonLink } from "@/components/ui/button";
-import { IconPlay, IconSearch, IconSparkles } from "@/components/ui/icons";
+import { IconSearch, IconSparkles } from "@/components/ui/icons";
 
 export function Hero({
   eyebrow = "Bangladesh's fastest learning platform",
   title,
   description = "BCS, NTRCA, bank & every government job — through fast video courses, real negative-marking MCQ exams, and books you can read instantly. Start learning in seconds, not weeks.",
   metrics,
+  primaryLabel = "Explore Courses",
+  primaryHref = "/courses",
+  secondaryLabel = "Free MCQ Exam",
+  secondaryHref = "/exams",
+  searchPlaceholder = "Search courses, exams, books…",
 }: {
   eyebrow?: string;
   title?: string;
   description?: string;
   metrics?: Array<{ value: string; label: string }>;
+  primaryLabel?: string;
+  primaryHref?: string;
+  secondaryLabel?: string;
+  secondaryHref?: string;
+  searchPlaceholder?: string;
 }) {
   const displayMetrics = metrics?.length ? metrics : [
     { value: "62k+", label: "Learners" },
@@ -52,11 +62,11 @@ export function Hero({
           </p>
 
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row animate-fade-up" style={{ animationDelay: "240ms" }}>
-            <ButtonLink href="/courses" variant="accent" size="xl" className="w-full sm:w-auto">
-              Explore Courses
+            <ButtonLink href={primaryHref} variant="accent" size="xl" className="w-full sm:w-auto">
+              {primaryLabel}
             </ButtonLink>
-            <ButtonLink href="/exams" variant="outline" size="xl" className="w-full sm:w-auto">
-              Free MCQ Exam
+            <ButtonLink href={secondaryHref} variant="outline" size="xl" className="w-full sm:w-auto">
+              {secondaryLabel}
             </ButtonLink>
           </div>
 
@@ -70,7 +80,7 @@ export function Hero({
             <input
               type="search"
               name="q"
-              placeholder="Search courses, exams, books…"
+              placeholder={searchPlaceholder}
               className="w-full bg-transparent px-1 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
               aria-label="Search courses, exams and books"
             />
@@ -97,19 +107,19 @@ export function Hero({
   );
 }
 
-export function DeviceLimitStrip() {
+export function DeviceLimitStrip({ items }: { items?: string[] }) {
+  const list = items?.filter(Boolean).length
+    ? items!.filter(Boolean)
+    : ["⚡ Instant access", "Log in on up to 2 devices", "Every page loads in under a second", "Watch sample lesson"];
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
       <div className="mb-8 flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-sky/50 bg-sky/5 px-4 py-3 text-center text-xs text-muted-foreground sm:flex-row">
-        <span className="text-sky-deep">⚡ Instant access</span>
-        <span className="hidden text-border sm:inline">•</span>
-        <span>Log in on up to 2 devices</span>
-        <span className="hidden text-border sm:inline">•</span>
-        <span>Every page loads in under a second</span>
-        <span className="hidden text-border sm:inline">•</span>
-        <span className="inline-flex items-center gap-1">
-          <IconPlay width={12} height={12} className="text-accent" /> Watch sample lesson
-        </span>
+        {list.map((text, i) => (
+          <span key={i} className="contents">
+            {i > 0 && <span className="hidden text-border sm:inline">•</span>}
+            <span className={i === 0 ? "text-sky-deep" : undefined}>{text}</span>
+          </span>
+        ))}
       </div>
     </div>
   );

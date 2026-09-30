@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { testimonials } from "@/lib/data/site-content";
+import type { TestimonialReview } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { Stars } from "@/components/ui/rating";
 import { IconChevronLeft, IconChevronRight } from "@/components/ui/icons";
@@ -14,18 +15,20 @@ function IconQuote() {
   );
 }
 
-export function TestimonialCarousel() {
-  const items = testimonials.filter((t) => t.placement !== "product");
+export function TestimonialCarousel({ items: itemsProp }: { items?: TestimonialReview[] }) {
+  const source = itemsProp?.length ? itemsProp : testimonials;
+  const items = source.filter((t) => t.placement !== "product");
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
 
   useEffect(() => {
-    if (paused) return;
+    if (paused || items.length === 0) return;
     const id = setInterval(() => setIndex((i) => (i + 1) % items.length), 5000);
     return () => clearInterval(id);
   }, [paused, items.length]);
 
   const current = items[index];
+  if (!current) return null;
 
   return (
     <div

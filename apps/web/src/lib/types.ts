@@ -302,6 +302,7 @@ export type Category = {
   label: string;
   labelBn: string;
   description: string;
+  icon?: string;
   count: number;
 };
 
