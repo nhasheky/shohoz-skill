@@ -89,7 +89,7 @@ export default async function BookDetailPage(props: PageProps<"/book/[slug]">) {
                 {book.titleBn && <span className="mt-1 block text-xl text-muted-foreground sm:text-2xl">{book.titleBn}</span>}
               </h1>
               <p className="mt-2 font-display text-sm font-semibold text-accent">{book.subtitle}</p>
-              <div className="mt-3 max-w-2xl text-base text-muted-foreground prose prose-sm" dangerouslySetInnerHTML={{ __html: book.description }} />
+              <div className="rich-text mt-3 max-w-2xl text-base text-muted-foreground" dangerouslySetInnerHTML={{ __html: book.description }} />
 
               <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
                 <span className="flex items-center gap-2">

@@ -160,7 +160,7 @@ export default async function ExamDetailPage(props: PageProps<"/exam/[slug]">) {
         <article className="mx-auto max-w-3xl space-y-14">
           <section>
             <h2 className="font-display text-2xl font-extrabold text-foreground">About this {isPackage ? "package" : "exam"}</h2>
-            <p className="mt-4 leading-relaxed text-muted-foreground">{exam.description}</p>
+            <div className="rich-text mt-4 text-muted-foreground" dangerouslySetInnerHTML={{ __html: exam.description }} />
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
               <StatCard icon={IconBrain} label="Subjects" value={subjects.length} />
               <StatCard icon={IconList} label="Topic exams" value={topicCount} />

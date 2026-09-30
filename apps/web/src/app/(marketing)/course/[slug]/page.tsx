@@ -191,7 +191,7 @@ export default async function CourseDetailPage(props: PageProps<"/course/[slug]"
           {/* About + preview */}
           <section>
             <h2 className="font-display text-2xl font-extrabold text-foreground">About this course</h2>
-            <p className="mt-4 leading-relaxed text-muted-foreground">{course.description}</p>
+            <div className="rich-text mt-4 text-muted-foreground" dangerouslySetInnerHTML={{ __html: course.description }} />
             {videoSource && (
               <div className="mt-6">
                 <VideoPlayer source={videoSource} title={`${course.title} — preview`} autoplayable={false} />
