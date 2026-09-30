@@ -18,9 +18,75 @@ export class UsersService {
   }
 
   async myEnrollments(userId: string) {
-    return this.prisma.enrollment.findMany({
+    const enrollments = await this.prisma.enrollment.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
+    });
+
+    if (!enrollments.length) return [];
+
+    const courseIds = enrollments.filter(e => e.productType === 'course').map(e => e.productId);
+    const bookIds = enrollments.filter(e => e.productType === 'book').map(e => e.productId);
+    const examIds = enrollments.filter(e => e.productType === 'exam').map(e => e.productId);
+
+    const [courses, books, exams, progressItems] = await Promise.all([
+      courseIds.length
+        ? this.prisma.course.findMany({
+            where: { OR: [{ id: { in: courseIds } }, { slug: { in: courseIds } }] },
+            select: { id: true, slug: true, title: true, thumbnailUrl: true },
+          })
+        : [],
+      bookIds.length
+        ? this.prisma.book.findMany({
+            where: { OR: [{ id: { in: bookIds } }, { slug: { in: bookIds } }] },
+            select: { id: true, slug: true, title: true, thumbnailUrl: true },
+          })
+        : [],
+      examIds.length
+        ? this.prisma.exam.findMany({
+            where: { OR: [{ id: { in: examIds } }, { slug: { in: examIds } }] },
+            select: { id: true, slug: true, title: true, thumbnailUrl: true },
+          })
+        : [],
+      this.prisma.progressItem.findMany({ where: { userId } }),
+    ]);
+
+    const courseMap = new Map<string, { id: string; slug: string; title: string; thumbnailUrl: string | null }>();
+    for (const c of courses) {
+      courseMap.set(c.id, c);
+      courseMap.set(c.slug, c);
+    }
+
+    const bookMap = new Map<string, { id: string; slug: string; title: string; thumbnailUrl: string | null }>();
+    for (const b of books) {
+      bookMap.set(b.id, b);
+      bookMap.set(b.slug, b);
+    }
+
+    const examMap = new Map<string, { id: string; slug: string; title: string; thumbnailUrl: string | null }>();
+    for (const x of exams) {
+      examMap.set(x.id, x);
+      examMap.set(x.slug, x);
+    }
+
+    const progressMap = new Map<string, number>();
+    for (const p of progressItems) {
+      progressMap.set(p.productId, p.percent);
+    }
+
+    return enrollments.map(e => {
+      let product: { id: string; slug: string; title: string; thumbnailUrl: string | null } | undefined;
+      if (e.productType === 'course') product = courseMap.get(e.productId);
+      else if (e.productType === 'book') product = bookMap.get(e.productId);
+      else if (e.productType === 'exam') product = examMap.get(e.productId);
+
+      return {
+        ...e,
+        title: product?.title || e.productId,
+        slug: product?.slug || e.productId,
+        thumbnailUrl: product?.thumbnailUrl ?? null,
+        progress: progressMap.get(e.productId) ?? 0,
+      };
     });
   }
 

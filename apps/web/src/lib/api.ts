@@ -109,6 +109,7 @@ type ApiOrder = {
 type ApiEnrollment = {
   id: string; userId: string; productType: string; productId: string; accessFrom: string;
   accessExpires?: string | null; viaAdmin: boolean | null; createdAt: string;
+  title?: string | null; slug?: string | null; thumbnailUrl?: string | null; progress?: number | null;
 };
 type ApiAttempt = {
   id: string; examId: string; topicId?: string | null; score: number; maxMarks: number; correct: number;
@@ -345,10 +346,10 @@ function mapEnrollment(raw: ApiEnrollment): DemoEnrollment {
   return {
     id: raw.id,
     productId: raw.productId,
-    slug: raw.productId,
+    slug: raw.slug || raw.productId,
     type: raw.productType as DemoEnrollment["type"],
-    title: raw.productId,
-    progress: 0,
+    title: raw.title || raw.productId,
+    progress: typeof raw.progress === "number" ? raw.progress : 0,
     accessFrom: raw.accessFrom,
     accessExpires: raw.accessExpires ?? undefined,
     viaAdmin: raw.viaAdmin ?? false,
@@ -377,11 +378,20 @@ export async function getCourses(): Promise<Course[]> {
 }
 
 export async function getCourse(slug: string): Promise<Course | undefined> {
-  return withFallback(
-    `/courses/${slug}`,
+  const decoded = decodeURIComponent(slug);
+  const course = await withFallback(
+    `/courses/${encodeURIComponent(decoded)}`,
     (raw) => mapCourse(raw as ApiCourse),
-    async () => (await import("@/lib/data/courses")).getCourseBySlug(slug),
+    async () => {
+      const data = await import("@/lib/data/courses");
+      return data.getCourseBySlug(decoded) || data.getCourseBySlug(slug) || data.courses.find(c => c.id === slug || c.slug === decoded || c.slug === slug);
+    },
   );
+  if (course) return course;
+
+  // Secondary fallback: lookup by ID or slug in full catalogue
+  const all = await getCourses().catch(() => []);
+  return all.find(c => c.id === slug || c.id === decoded || c.slug === slug || c.slug === decoded);
 }
 
 export async function getRelatedCourses(current: Course, limit = 3): Promise<Course[]> {
@@ -400,11 +410,19 @@ export async function getBooks(): Promise<Book[]> {
 }
 
 export async function getBook(slug: string): Promise<Book | undefined> {
-  return withFallback(
-    `/books/${slug}`,
+  const decoded = decodeURIComponent(slug);
+  const book = await withFallback(
+    `/books/${encodeURIComponent(decoded)}`,
     (raw) => mapBook(raw as ApiBook),
-    async () => (await import("@/lib/data/books")).getBookBySlug(slug),
+    async () => {
+      const data = await import("@/lib/data/books");
+      return data.getBookBySlug(decoded) || data.getBookBySlug(slug) || data.books.find(b => b.id === slug || b.slug === decoded || b.slug === slug);
+    },
   );
+  if (book) return book;
+
+  const all = await getBooks().catch(() => []);
+  return all.find(b => b.id === slug || b.id === decoded || b.slug === slug || b.slug === decoded);
 }
 
 export async function getRelatedBooks(current: Book, limit = 3): Promise<Book[]> {
@@ -423,11 +441,19 @@ export async function getExams(): Promise<Exam[]> {
 }
 
 export async function getExam(slug: string): Promise<Exam | undefined> {
-  return withFallback(
-    `/exams/${slug}`,
+  const decoded = decodeURIComponent(slug);
+  const exam = await withFallback(
+    `/exams/${encodeURIComponent(decoded)}`,
     (raw) => mapExam(raw as ApiExam),
-    async () => (await import("@/lib/data/exams")).getExamBySlug(slug),
+    async () => {
+      const data = await import("@/lib/data/exams");
+      return data.getExamBySlug(decoded) || data.getExamBySlug(slug) || data.allExams.find((x: any) => x.id === slug || x.slug === decoded || x.slug === slug);
+    },
   );
+  if (exam) return exam;
+
+  const all = await getExams().catch(() => []);
+  return all.find(x => x.id === slug || x.id === decoded || x.slug === slug || x.slug === decoded);
 }
 
 export async function getFreeExams(): Promise<Exam[]> {
@@ -500,11 +526,42 @@ export async function getMyOrders(): Promise<Order[]> {
 }
 
 export async function getMyEnrollments(): Promise<DemoEnrollment[]> {
-  return withFallback(
+  const enrollments = await withFallback(
     "/users/me/enrollments",
     (raw) => (raw as ApiEnrollment[]).map(mapEnrollment),
     async () => (await import("@/lib/data/users")).demoEnrollments,
   );
+
+  const needsResolution = enrollments.some(e => !e.title || e.title === e.productId || !e.slug || e.slug === e.productId);
+  if (needsResolution) {
+    try {
+      const [courses, books, exams] = await Promise.all([
+        getCourses().catch(() => []),
+        getBooks().catch(() => []),
+        getExams().catch(() => []),
+      ]);
+      const map = new Map<string, { title: string; slug: string }>();
+      courses.forEach(c => { map.set(c.id, c); map.set(c.slug, c); });
+      books.forEach(b => { map.set(b.id, b); map.set(b.slug, b); });
+      exams.forEach(x => { map.set(x.id, x); map.set(x.slug, x); });
+
+      return enrollments.map(e => {
+        const found = map.get(e.productId) || map.get(e.slug);
+        if (found) {
+          return {
+            ...e,
+            title: found.title,
+            slug: found.slug,
+          };
+        }
+        return e;
+      });
+    } catch {
+      return enrollments;
+    }
+  }
+
+  return enrollments;
 }
 
 export async function getMyAttempts(): Promise<{ id: string; examTitle: string; score: number; total: number; negative: number; date: string; durationUsed: number }[]> {

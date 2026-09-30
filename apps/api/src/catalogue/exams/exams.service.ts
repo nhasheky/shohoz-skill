@@ -16,9 +16,18 @@ export class ExamsService {
     });
   }
 
-  async findBySlug(slug: string) {
-    const exam = await this.prisma.exam.findUnique({
-      where: { slug },
+  async findBySlug(rawSlug: string) {
+    const decoded = decodeURIComponent(rawSlug).trim();
+    const exam = await this.prisma.exam.findFirst({
+      where: {
+        OR: [
+          { slug: rawSlug },
+          { slug: decoded },
+          { slug: { equals: decoded, mode: 'insensitive' } },
+          { id: rawSlug },
+          { id: decoded },
+        ],
+      },
       include: {
         subjects: { include: { topics: { include: { questions: true } } } },
       },

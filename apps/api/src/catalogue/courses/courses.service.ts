@@ -16,9 +16,18 @@ export class CoursesService {
     });
   }
 
-  async findBySlug(slug: string) {
-    const course = await this.prisma.course.findUnique({
-      where: { slug },
+  async findBySlug(rawSlug: string) {
+    const decoded = decodeURIComponent(rawSlug).trim();
+    const course = await this.prisma.course.findFirst({
+      where: {
+        OR: [
+          { slug: rawSlug },
+          { slug: decoded },
+          { slug: { equals: decoded, mode: 'insensitive' } },
+          { id: rawSlug },
+          { id: decoded },
+        ],
+      },
       include: { prices: true, instructor: true, curriculum: { include: { lessons: true } } },
     });
     if (!course || !course.published) throw new NotFoundException('Course not found.');

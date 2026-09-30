@@ -14,8 +14,19 @@ export class BooksService {
     });
   }
 
-  async findBySlug(slug: string) {
-    const book = await this.prisma.book.findUnique({ where: { slug } });
+  async findBySlug(rawSlug: string) {
+    const decoded = decodeURIComponent(rawSlug).trim();
+    const book = await this.prisma.book.findFirst({
+      where: {
+        OR: [
+          { slug: rawSlug },
+          { slug: decoded },
+          { slug: { equals: decoded, mode: 'insensitive' } },
+          { id: rawSlug },
+          { id: decoded },
+        ],
+      },
+    });
     if (!book || !book.published) throw new NotFoundException('Book not found.');
     return book;
   }
