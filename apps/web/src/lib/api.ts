@@ -23,7 +23,7 @@ import { cookies } from "next/headers";
 import type { DemoEnrollment } from "@/lib/data/users";
 import { SITE } from "@/lib/site";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://shohoz-api.onrender.com";
+const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "https://shohoz-api.onrender.com").replace(/\/api\/?$/, "").replace(/\/+$/, "");
 
 // ─── Low-level request with fallback ──────────────────────────────────────
 async function withFallback<T>(
