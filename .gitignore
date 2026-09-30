@@ -12,6 +12,13 @@ coverage/
 .env
 .env.local
 .env*.local
+.env.production
+
+# db migration artifacts
+db-export.json
+neon_backup.json
+*.bundle.zip
+api_bundle.zip
 
 # logs
 *.log

@@ -14,7 +14,10 @@ import { AppService } from './app.service.js';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: [`.env.${process.env.NODE_ENV ?? 'development'}`, '.env'],
+    }),
     PrismaModule,
     AuthModule,
     UsersModule,
