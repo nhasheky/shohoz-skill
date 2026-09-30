@@ -34,7 +34,7 @@ export function clearAdminSession() {
   localStorage.removeItem("shohoz_name");
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://shohoz-api.onrender.com";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.shohozskill.com.bd";
 
 export class ApiError extends Error {
   status: number;

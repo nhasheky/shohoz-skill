@@ -28,7 +28,7 @@ export default function AdminLoginPage() {
     }
     setBusy(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "https://shohoz-api.onrender.com";
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "https://api.shohozskill.com.bd";
       const res = await fetch(`${apiUrl}/api/auth/admin-login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

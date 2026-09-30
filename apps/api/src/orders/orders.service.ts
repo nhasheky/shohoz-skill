@@ -111,7 +111,7 @@ export class OrdersService {
       }
 
       const { storeId, storePass, isLive } = this.getCredentials();
-      const apiUrl = this.config.get('API_URL') || 'https://shohoz-api.onrender.com';
+      const apiUrl = this.config.get('API_URL') || 'https://api.shohozskill.com.bd';
       const frontendUrl = this.config.get('FRONTEND_URL') || 'https://shohozskill.com.bd';
       
       const sslcz = new SSLCommerzPayment(storeId, storePass, isLive);

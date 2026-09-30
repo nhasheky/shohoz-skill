@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/icons";
 
 /* ───────────────────────── helpers ──────────────────────────── */
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://shohoz-api.onrender.com";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.shohozskill.com.bd";
 const emailRx = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phoneRx = /^01\d{9}$/;
 

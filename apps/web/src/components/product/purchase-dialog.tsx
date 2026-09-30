@@ -11,7 +11,7 @@ type Step = "form" | "processing" | "success" | "error";
 type PaymentMethod = "COD" | "SSLCOMMERZ";
 type Region = "DHAKA" | "OUTSIDE";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://shohoz-api.onrender.com";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.shohozskill.com.bd";
 
 type Settings = {
   deliveryChargeDhaka: number;
