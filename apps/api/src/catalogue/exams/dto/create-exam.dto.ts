@@ -90,9 +90,9 @@ export class ExamSubjectDto {
 }
 
 export class CreateExamDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  slug: string;
+  slug?: string;
 
   @IsString()
   @IsNotEmpty()

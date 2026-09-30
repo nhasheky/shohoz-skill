@@ -350,7 +350,7 @@ function Row({ k, v }: { k: string; v: string }) {
 }
 
 function ContinueCard({ item }: { item: DemoEnrollment }) {
-  const href = item.type === "course" ? `/courses/${item.slug}` : item.type === "book" ? `/books/${item.slug}` : `/exams/${item.slug}`;
+  const href = item.type === "course" ? `/course/${item.slug}` : item.type === "book" ? `/book/${item.slug}` : `/exam/${item.slug}`;
   return (
     <Link href={href} className="group flex items-center gap-4 rounded-2xl border border-border bg-card p-4 shadow-card transition-colors hover:border-accent/50">
       <div className="hidden h-16 w-24 shrink-0 overflow-hidden rounded-xl sm:block">

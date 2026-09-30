@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function ExamTakePage(props: PageProps<"/exams/[slug]/take">) {
+export default async function ExamTakePage(props: PageProps<"/exam/[slug]/take">) {
   const params = await props.params;
   const searchParams = await props.searchParams;
   const exam = await getExam(params.slug);

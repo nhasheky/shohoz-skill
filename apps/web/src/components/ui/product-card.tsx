@@ -30,7 +30,7 @@ function CardShell({ href, children, className }: { href: string; children: Reac
 export function CourseCard({ course }: { course: Course }) {
   const from = course.priceMap.LIFETIME ?? course.priceMap["6_MONTHS"] ?? course.priceMap["3_MONTHS"] ?? { amount: 0 };
   return (
-    <CardShell href={`/courses/${course.slug}`}>
+    <CardShell href={`/course/${course.slug}`}>
       <div className="relative">
         <ProductCover
           title={course.title}
@@ -84,7 +84,7 @@ export function CourseCard({ course }: { course: Course }) {
 
 export function BookCard({ book }: { book: Book }) {
   return (
-    <CardShell href={`/books/${book.slug}`}>
+    <CardShell href={`/book/${book.slug}`}>
       <div className="relative">
         <ProductCover title={book.title} category={book.category} kind="book" accentText={book.isNew ? "NEW" : undefined} className="rounded-t-2xl" thumbnailUrl={book.thumbnailUrl} />
       </div>
@@ -126,7 +126,7 @@ export function BookCard({ book }: { book: Book }) {
 export function ExamCard({ exam }: { exam: Exam }) {
   const isPackage = exam.examType === "package";
   return (
-    <CardShell href={`/exams/${exam.slug}`}>
+    <CardShell href={`/exam/${exam.slug}`}>
       <div className="relative">
         <ProductCover
           title={exam.title}

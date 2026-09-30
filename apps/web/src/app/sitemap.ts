@@ -28,21 +28,21 @@ export default function sitemap(): MetadataRoute.Sitemap {
   }));
 
   const courseRoutes = courses.map((c) => ({
-    url: `${base}/courses/${c.slug}`,
+    url: `${base}/course/${c.slug}`,
     lastModified: new Date(c.createdAt),
     changeFrequency: "monthly" as const,
     priority: 0.9,
   }));
 
   const bookRoutes = books.map((b) => ({
-    url: `${base}/books/${b.slug}`,
+    url: `${base}/book/${b.slug}`,
     lastModified: new Date(b.createdAt),
     changeFrequency: "monthly" as const,
     priority: 0.8,
   }));
 
   const examRoutes = allExams.map((e) => ({
-    url: `${base}/exams/${e.slug}`,
+    url: `${base}/exam/${e.slug}`,
     lastModified: new Date(e.createdAt),
     changeFrequency: "weekly" as const,
     priority: 0.8,

@@ -6,7 +6,7 @@ import { PdfReader } from "@/components/product/pdf-reader";
 
 export const revalidate = 60;
 
-export async function generateMetadata(props: PageProps<"/books/[slug]/read">): Promise<Metadata> {
+export async function generateMetadata(props: PageProps<"/book/[slug]/read">): Promise<Metadata> {
   const params = await props.params;
   const book = await getBook(params.slug);
   if (!book) return { title: "Book not found" };
@@ -17,7 +17,7 @@ export async function generateMetadata(props: PageProps<"/books/[slug]/read">): 
   };
 }
 
-export default async function BookReadPage(props: PageProps<"/books/[slug]/read">) {
+export default async function BookReadPage(props: PageProps<"/book/[slug]/read">) {
   const params = await props.params;
   const searchParams = await props.searchParams;
   const book = await getBook(params.slug);
@@ -39,12 +39,12 @@ export default async function BookReadPage(props: PageProps<"/books/[slug]/read"
           <nav className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Link href="/books" className="hover:text-accent">Books</Link>
             <span>/</span>
-            <Link href={`/books/${book.slug}`} className="max-w-[20ch] truncate hover:text-accent">{book.title}</Link>
+            <Link href={`/book/${book.slug}`} className="max-w-[20ch] truncate hover:text-accent">{book.title}</Link>
             <span>/</span>
             <span className="text-foreground">{preview ? "Free preview" : "Reader"}</span>
           </nav>
           {preview && (
-            <a href={`/books/${book.slug}`} className="rounded-full bg-accent px-4 py-1.5 text-xs font-bold text-accent-foreground transition-colors hover:bg-accent-hover">
+            <a href={`/book/${book.slug}`} className="rounded-full bg-accent px-4 py-1.5 text-xs font-bold text-accent-foreground transition-colors hover:bg-accent-hover">
               Unlock full book
             </a>
           )}

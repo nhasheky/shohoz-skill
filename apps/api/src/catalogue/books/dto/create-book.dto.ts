@@ -12,9 +12,9 @@ import {
 } from 'class-validator';
 
 export class CreateBookDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  slug: string;
+  slug?: string;
 
   @IsString()
   @IsNotEmpty()

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { slugify } from '../../common/slug.js';
 import type { CreateCourseDto } from './dto/create-course.dto.js';
 import type { UpdateCourseDto } from './dto/update-course.dto.js';
 
@@ -139,7 +140,7 @@ export class CoursesService {
     const cleanCurriculum = this.sanitizeCurriculum(curriculum);
 
     const data: Prisma.CourseUncheckedCreateInput = {
-      slug: String(dto.slug).trim(),
+      slug: await this.uniqueSlug(slugify(String(dto.slug ?? '').trim() || String(dto.title).trim())),
       title: String(dto.title).trim(),
       tagline: String(dto.tagline ?? '').trim(),
       description: String(dto.description ?? '').trim(),
@@ -161,12 +162,16 @@ export class CoursesService {
   /** Admin: update a course. Nested relations are replaced when provided. */
   async update(id: string, dto: UpdateCourseDto) {
     await this.ensureExists(id);
-    const { prices, curriculum, instructorId, ...scalars } = dto;
+    const { prices, curriculum, instructorId, slug: rawSlug, ...scalars } = dto;
     const cleanScalars = this.sanitizeCourseScalars(scalars);
 
     const data: Prisma.CourseUncheckedUpdateInput = {
       ...cleanScalars,
     };
+
+    if (rawSlug !== undefined && String(rawSlug).trim()) {
+      data.slug = await this.uniqueSlug(slugify(String(rawSlug).trim()), id);
+    }
 
     if (instructorId !== undefined) {
       data.instructorId = await this.resolveInstructorId(instructorId);
@@ -204,5 +209,20 @@ export class CoursesService {
   private async ensureExists(id: string) {
     const exists = await this.prisma.course.findUnique({ where: { id }, select: { id: true } });
     if (!exists) throw new NotFoundException('Course not found.');
+  }
+
+  private async uniqueSlug(base: string, excludeId?: string): Promise<string> {
+    const root = base || `course-${Date.now().toString(36)}`;
+    let slug = root;
+    let n = 2;
+    while (
+      await this.prisma.course.findFirst({
+        where: { slug, ...(excludeId ? { id: { not: excludeId } } : {}) },
+        select: { id: true },
+      })
+    ) {
+      slug = `${root}-${n++}`;
+    }
+    return slug;
   }
 }

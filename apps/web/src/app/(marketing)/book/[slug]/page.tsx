@@ -30,14 +30,14 @@ export async function generateStaticParams() {
   return all.map((b) => ({ slug: b.slug }));
 }
 
-export async function generateMetadata(props: PageProps<"/books/[slug]">): Promise<Metadata> {
+export async function generateMetadata(props: PageProps<"/book/[slug]">): Promise<Metadata> {
   const params = await props.params;
   const book = await getBook(params.slug);
   if (!book) return { title: "Book not found" };
   return { title: book.seo.title, description: book.seo.description, keywords: book.seo.keywords };
 }
 
-export default async function BookDetailPage(props: PageProps<"/books/[slug]">) {
+export default async function BookDetailPage(props: PageProps<"/book/[slug]">) {
   const params = await props.params;
   const book = await getBook(params.slug);
   if (!book) notFound();
@@ -120,7 +120,7 @@ export default async function BookDetailPage(props: PageProps<"/books/[slug]">) 
               </div>
 
               <div className="mt-5 flex flex-wrap gap-3">
-                <ButtonLink href={`/books/${book.slug}/read`} variant="accent">
+                <ButtonLink href={`/book/${book.slug}/read`} variant="accent">
                   <IconEye width={16} height={16} className="mr-2" /> Preview {book.samplePages} free pages
                 </ButtonLink>
                 <ButtonLink href="#contents" variant="outline">
@@ -170,7 +170,7 @@ export default async function BookDetailPage(props: PageProps<"/books/[slug]">) 
                 </div>
               ))}
             </div>
-            <ButtonLink href={`/books/${book.slug}/read`} variant="outline" className="mt-5">
+            <ButtonLink href={`/book/${book.slug}/read`} variant="outline" className="mt-5">
               <IconEye width={16} height={16} className="mr-2" /> Try the {book.samplePages}-page free preview
             </ButtonLink>
           </section>

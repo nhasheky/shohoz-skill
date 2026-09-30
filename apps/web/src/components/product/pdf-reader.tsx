@@ -103,7 +103,7 @@ export function PdfReader({ book, ownerName, preview }: { book: Book; ownerName:
               <p className="text-xs text-muted-foreground">
                 Unlock all {total} pages with the online PDF for {formatPrice(book.pdfPrice.amount)}.
               </p>
-              <ButtonLinkHref href={`/books/${book.slug}`} variant="accent" size="sm">
+              <ButtonLinkHref href={`/book/${book.slug}`} variant="accent" size="sm">
                 Unlock full book
               </ButtonLinkHref>
             </div>

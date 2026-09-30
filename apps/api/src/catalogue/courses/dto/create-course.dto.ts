@@ -72,9 +72,9 @@ export class CurriculumSectionDto {
 }
 
 export class CreateCourseDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  slug: string;
+  slug?: string;
 
   @IsString()
   @IsNotEmpty()

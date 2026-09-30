@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { slugify } from '../../common/slug.js';
 import type { CreateExamDto } from './dto/create-exam.dto.js';
 import type { UpdateExamDto } from './dto/update-exam.dto.js';
 
@@ -126,7 +127,7 @@ export class ExamsService {
 
     return this.prisma.exam.create({
       data: {
-        slug: String(dto.slug).trim(),
+        slug: await this.uniqueSlug(slugify(String(dto.slug ?? '').trim() || String(dto.title).trim())),
         title: String(dto.title).trim(),
         tagline: String(dto.tagline ?? '').trim(),
         description: String(dto.description ?? '').trim(),
@@ -139,12 +140,16 @@ export class ExamsService {
 
   async update(id: string, dto: UpdateExamDto) {
     await this.ensureExists(id);
-    const { subjects, ...scalars } = dto;
+    const { subjects, slug: rawSlug, ...scalars } = dto;
     const cleanScalars = this.sanitizeExamScalars(scalars as any);
 
     const data: Prisma.ExamUncheckedUpdateInput = {
       ...cleanScalars,
     };
+
+    if (rawSlug !== undefined && String(rawSlug).trim()) {
+      data.slug = await this.uniqueSlug(slugify(String(rawSlug).trim()), id);
+    }
 
     if (subjects !== undefined) {
       const cleanSubjects = this.sanitizeSubjects(subjects);
@@ -170,5 +175,20 @@ export class ExamsService {
   private async ensureExists(id: string) {
     const exists = await this.prisma.exam.findUnique({ where: { id }, select: { id: true } });
     if (!exists) throw new NotFoundException('Exam not found.');
+  }
+
+  private async uniqueSlug(base: string, excludeId?: string): Promise<string> {
+    const root = base || `exam-${Date.now().toString(36)}`;
+    let slug = root;
+    let n = 2;
+    while (
+      await this.prisma.exam.findFirst({
+        where: { slug, ...(excludeId ? { id: { not: excludeId } } : {}) },
+        select: { id: true },
+      })
+    ) {
+      slug = `${root}-${n++}`;
+    }
+    return slug;
   }
 }

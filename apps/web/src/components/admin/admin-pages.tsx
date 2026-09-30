@@ -37,7 +37,7 @@ type Row = { id: string } & Record<string, unknown>;
 
 // ─── Field definitions ─────────────────────────────────────────────────────
 const courseFields: FieldDef[] = [
-  { name: "slug", label: "Slug", required: true, span2: true },
+  { name: "slug", label: "Slug", span2: true, help: "Leave blank to auto-generate from the title." },
   { name: "title", label: "Title", required: true, span2: true },
   { name: "titleBn", label: "Title (Bangla)" },
   { name: "category", label: "Category", required: true, type: "select", options: [] },
@@ -62,7 +62,7 @@ const courseFields: FieldDef[] = [
 ];
 
 const bookFields: FieldDef[] = [
-  { name: "slug", label: "Slug", required: true, span2: true },
+  { name: "slug", label: "Slug", span2: true, help: "Leave blank to auto-generate from the title." },
   { name: "title", label: "Title", required: true, span2: true },
   { name: "titleBn", label: "Title (Bangla)" },
   { name: "subtitle", label: "Subtitle", span2: true },
@@ -86,7 +86,7 @@ const bookFields: FieldDef[] = [
 ];
 
 const examFields: FieldDef[] = [
-  { name: "slug", label: "Slug", required: true, span2: true },
+  { name: "slug", label: "Slug", span2: true, help: "Leave blank to auto-generate from the title." },
   { name: "title", label: "Title", required: true, span2: true },
   { name: "titleBn", label: "Title (Bangla)" },
   { name: "tagline", label: "Tagline", required: true, span2: true },

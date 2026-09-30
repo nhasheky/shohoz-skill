@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { slugify } from '../../common/slug.js';
 import type { CreateBookDto } from './dto/create-book.dto.js';
 import type { UpdateBookDto } from './dto/update-book.dto.js';
 
@@ -73,7 +74,7 @@ export class BooksService {
     const clean = this.sanitizeBookScalars(dto as any);
     return this.prisma.book.create({
       data: {
-        slug: String(dto.slug).trim(),
+        slug: await this.uniqueSlug(slugify(String(dto.slug ?? '').trim() || String(dto.title).trim())),
         title: String(dto.title).trim(),
         description: String(dto.description ?? '').trim(),
         category: String(dto.category ?? '').trim(),
@@ -89,7 +90,11 @@ export class BooksService {
 
   async update(id: string, dto: UpdateBookDto) {
     await this.ensureExists(id);
-    const clean = this.sanitizeBookScalars(dto as any);
+    const { slug: rawSlug, ...rest } = dto;
+    const clean = this.sanitizeBookScalars(rest as any);
+    if (rawSlug !== undefined && String(rawSlug).trim()) {
+      clean.slug = await this.uniqueSlug(slugify(String(rawSlug).trim()), id);
+    }
     return this.prisma.book.update({ where: { id }, data: clean });
   }
 
@@ -102,5 +107,20 @@ export class BooksService {
   private async ensureExists(id: string) {
     const exists = await this.prisma.book.findUnique({ where: { id }, select: { id: true } });
     if (!exists) throw new NotFoundException('Book not found.');
+  }
+
+  private async uniqueSlug(base: string, excludeId?: string): Promise<string> {
+    const root = base || `book-${Date.now().toString(36)}`;
+    let slug = root;
+    let n = 2;
+    while (
+      await this.prisma.book.findFirst({
+        where: { slug, ...(excludeId ? { id: { not: excludeId } } : {}) },
+        select: { id: true },
+      })
+    ) {
+      slug = `${root}-${n++}`;
+    }
+    return slug;
   }
 }

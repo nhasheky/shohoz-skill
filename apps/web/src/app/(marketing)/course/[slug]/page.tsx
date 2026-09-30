@@ -37,7 +37,7 @@ export async function generateStaticParams() {
   return all.map((c) => ({ slug: c.slug }));
 }
 
-export async function generateMetadata(props: PageProps<"/courses/[slug]">): Promise<Metadata> {
+export async function generateMetadata(props: PageProps<"/course/[slug]">): Promise<Metadata> {
   const params = await props.params;
   const course = await getCourse(params.slug);
   if (!course) return { title: "Course not found" };
@@ -53,7 +53,7 @@ export async function generateMetadata(props: PageProps<"/courses/[slug]">): Pro
   };
 }
 
-export default async function CourseDetailPage(props: PageProps<"/courses/[slug]">) {
+export default async function CourseDetailPage(props: PageProps<"/course/[slug]">) {
   const params = await props.params;
   const course = await getCourse(params.slug);
   if (!course) notFound();

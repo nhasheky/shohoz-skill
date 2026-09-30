@@ -33,14 +33,14 @@ export async function generateStaticParams() {
   return all.map((e) => ({ slug: e.slug }));
 }
 
-export async function generateMetadata(props: PageProps<"/exams/[slug]">): Promise<Metadata> {
+export async function generateMetadata(props: PageProps<"/exam/[slug]">): Promise<Metadata> {
   const params = await props.params;
   const exam = await getExam(params.slug);
   if (!exam) return { title: "Exam not found" };
   return { title: exam.seo.title, description: exam.seo.description, keywords: exam.seo.keywords };
 }
 
-export default async function ExamDetailPage(props: PageProps<"/exams/[slug]">) {
+export default async function ExamDetailPage(props: PageProps<"/exam/[slug]">) {
   const params = await props.params;
   const exam = await getExam(params.slug);
   if (!exam) notFound();
@@ -199,7 +199,7 @@ export default async function ExamDetailPage(props: PageProps<"/exams/[slug]">) 
                           </div>
                         </div>
                         {exam.isFree || isPackage ? (
-                          <ButtonLink href={`/exams/${exam.slug}/take?subject=${encodeURIComponent(s.id)}&topic=${encodeURIComponent(s.topics.indexOf(t))}`} variant="outline" size="sm">
+                          <ButtonLink href={`/exam/${exam.slug}/take?subject=${encodeURIComponent(s.id)}&topic=${encodeURIComponent(s.topics.indexOf(t))}`} variant="outline" size="sm">
                             {exam.isFree ? "Start" : "Start topic"}
                           </ButtonLink>
                         ) : (
