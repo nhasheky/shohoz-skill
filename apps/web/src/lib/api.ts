@@ -41,6 +41,7 @@ async function withFallback<T>(
 
     const res = await fetch(`${API_URL}/api${path}`, {
       headers,
+      signal: AbortSignal.timeout(3500),
       next: { revalidate: 10 },
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
