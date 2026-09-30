@@ -133,6 +133,7 @@ export default async function ExamDetailPage(props: PageProps<"/exams/[slug]">) 
                   category={isPackage ? "Exam Package" : "Topic Exam"}
                   kind={isPackage ? "package" : "exam"}
                   accentText={exam.isFree ? "Free" : exam.difficulty}
+                  thumbnailUrl={exam.thumbnailUrl}
                 />
               </div>
             </div>

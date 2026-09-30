@@ -150,6 +150,7 @@ export default async function CourseDetailPage(props: PageProps<"/courses/[slug]
                   kind="course"
                   accentText={course.level}
                   className="aspect-video"
+                  thumbnailUrl={course.thumbnailUrl}
                 />
               </div>
             </div>

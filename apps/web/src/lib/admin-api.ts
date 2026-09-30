@@ -47,8 +47,14 @@ export class ApiError extends Error {
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const session = getAdminSession();
   if (!session) throw new ApiError(401, "Not authenticated");
-  const res = await fetch(`${API_URL}/api${path}`, {
+  const method = (options.method ?? "GET").toUpperCase();
+  const url =
+    method === "GET"
+      ? `${API_URL}/api${path}${path.includes("?") ? "&" : "?"}_t=${Date.now()}`
+      : `${API_URL}/api${path}`;
+  const res = await fetch(url, {
     ...options,
+    cache: "no-store",
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",

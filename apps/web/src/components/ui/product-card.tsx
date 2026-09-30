@@ -38,6 +38,7 @@ export function CourseCard({ course }: { course: Course }) {
           kind="course"
           accentText={course.isNew ? "NEW" : course.level}
           className="rounded-t-2xl"
+          thumbnailUrl={course.thumbnailUrl}
         />
       </div>
       <div className="flex flex-1 flex-col p-4">
@@ -85,7 +86,7 @@ export function BookCard({ book }: { book: Book }) {
   return (
     <CardShell href={`/books/${book.slug}`}>
       <div className="relative">
-        <ProductCover title={book.title} category={book.category} kind="book" accentText={book.isNew ? "NEW" : undefined} className="rounded-t-2xl" />
+        <ProductCover title={book.title} category={book.category} kind="book" accentText={book.isNew ? "NEW" : undefined} className="rounded-t-2xl" thumbnailUrl={book.thumbnailUrl} />
       </div>
       <div className="flex flex-1 flex-col p-4">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -133,6 +134,7 @@ export function ExamCard({ exam }: { exam: Exam }) {
           kind={isPackage ? "package" : "exam"}
           accentText={exam.isFree ? "FREE" : "PAID"}
           className="rounded-t-2xl"
+          thumbnailUrl={exam.thumbnailUrl}
         />
       </div>
       <div className="flex flex-1 flex-col p-4">

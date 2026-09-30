@@ -19,7 +19,7 @@ export function FileUploadField({
   const [fileName, setFileName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setError("");
     const file = e.target.files?.[0];
     if (!file) return;
@@ -30,16 +30,22 @@ export function FileUploadField({
     }
 
     setFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      if (ev.target?.result) {
-        onChange(ev.target.result as string);
-      }
-    };
-    reader.onerror = () => {
-      setError("Failed to read file.");
-    };
-    reader.readAsDataURL(file);
+
+    if (!file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        if (ev.target?.result) onChange(ev.target.result as string);
+      };
+      reader.onerror = () => setError("Failed to read file.");
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    try {
+      onChange(await resizeImage(file, 1280, 0.82));
+    } catch {
+      setError("Failed to process image.");
+    }
   };
 
   return (
@@ -89,4 +95,29 @@ export function FileUploadField({
       )}
     </div>
   );
+}
+
+async function resizeImage(file: File, maxWidth: number, quality: number): Promise<string> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = dataUrl;
+  });
+  const scale = Math.min(1, maxWidth / img.width);
+  const width = Math.max(1, Math.round(img.width * scale));
+  const height = Math.max(1, Math.round(img.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return dataUrl;
+  ctx.drawImage(img, 0, 0, width, height);
+  return canvas.toDataURL("image/jpeg", quality);
 }

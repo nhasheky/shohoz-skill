@@ -39,10 +39,10 @@ async function withFallback<T>(
       headers.Authorization = `Bearer ${token}`;
     }
 
-    const res = await fetch(`${API_URL}/api${path}`, {
+    const res = await fetch(`${API_URL}/api${path}${path.includes("?") ? "&" : "?"}_t=${Date.now()}`, {
       headers,
-      signal: AbortSignal.timeout(3500),
-      next: { revalidate: 10 },
+      signal: AbortSignal.timeout(8000),
+      cache: "no-store",
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return map(await res.json());
