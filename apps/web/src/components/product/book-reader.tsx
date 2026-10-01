@@ -65,7 +65,9 @@ export function BookReader({ book, ownerName, preview, logoUrl }: { book: Book; 
   if (state === "ready" && pdfUrl) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-6">
-        <SecurePdfViewer dataUrl={pdfUrl} title={book.title} logoUrl={logoUrl} />
+        <div className="h-[85vh]">
+          <SecurePdfViewer dataUrl={pdfUrl} title={book.title} logoUrl={logoUrl} />
+        </div>
         {preview && (
           <div className="mt-5 flex flex-col items-center gap-2 rounded-2xl border border-dashed border-accent/50 bg-accent/5 px-6 py-5 text-center">
             <p className="text-sm font-bold text-foreground">This is a free sample</p>

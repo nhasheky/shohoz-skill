@@ -132,7 +132,7 @@ export function BookPreview({
               <IconX width={18} height={18} />
             </button>
           </div>
-          <div className="mx-auto w-full max-w-5xl flex-1 px-2 pb-2 sm:px-0">
+          <div className="mx-auto min-h-0 w-full max-w-5xl flex-1 px-2 pb-2 sm:px-0">
             {demoUrl ? (
               <SecurePdfViewer dataUrl={demoUrl} title={`${title} (demo)`} logoUrl={logoUrl} />
             ) : (

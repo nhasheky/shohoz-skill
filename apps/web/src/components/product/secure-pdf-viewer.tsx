@@ -215,10 +215,10 @@ export function SecurePdfViewer({
   }
 
   return (
-    <div className={cn("relative flex h-full flex-col", className)} onContextMenu={(e) => e.preventDefault()}>
+    <div className={cn("relative flex h-full min-h-0 flex-col", className)} onContextMenu={(e) => e.preventDefault()}>
       <div
         ref={scrollRef}
-        className="flex-1 snap-y snap-proximity scroll-smooth overflow-y-auto rounded-2xl bg-[#e9e2d4] p-2 dark:bg-[#101d2b]"
+        className="min-h-0 flex-1 snap-y snap-proximity scroll-smooth overflow-y-auto rounded-2xl bg-[#e9e2d4] p-2 dark:bg-[#101d2b]"
       >
         {doc ? (
           <div className="mx-auto w-full max-w-3xl space-y-3">
