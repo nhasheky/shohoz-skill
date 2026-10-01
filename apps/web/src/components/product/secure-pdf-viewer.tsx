@@ -173,9 +173,9 @@ export function SecurePdfViewer({
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
               {logoUrl ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
-                <img src={logoUrl} alt="" className="w-1/2 max-w-[280px] opacity-30" />
+                <img src={logoUrl} alt="" className="w-[55%] max-w-[340px] opacity-40" />
               ) : (
-                <LogoMark markOnly className="h-32 w-32 opacity-30" />
+                <LogoMark markOnly className="h-36 w-36 opacity-40" />
               )}
             </div>
           ) : (
