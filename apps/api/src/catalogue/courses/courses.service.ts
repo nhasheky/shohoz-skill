@@ -56,7 +56,7 @@ export class CoursesService {
 
   private sanitizeCourseScalars(scalars: Record<string, any>) {
     const clean: Record<string, any> = {};
-    const stringFields = ['slug', 'title', 'titleBn', 'tagline', 'description', 'category', 'categoryBn', 'level', 'durationLabel', 'thumbnailUrl'];
+    const stringFields = ['title', 'titleBn', 'tagline', 'description', 'category', 'categoryBn', 'level', 'durationLabel', 'thumbnailUrl'];
     for (const f of stringFields) {
       if (scalars[f] !== undefined) {
         clean[f] = scalars[f] ? String(scalars[f]).trim() : null;

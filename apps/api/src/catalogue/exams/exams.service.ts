@@ -39,7 +39,7 @@ export class ExamsService {
 
   private sanitizeExamScalars(dto: Record<string, any>) {
     const clean: Record<string, any> = {};
-    const stringFields = ['slug', 'title', 'titleBn', 'tagline', 'description', 'examType', 'difficulty', 'thumbnailUrl'];
+    const stringFields = ['title', 'titleBn', 'tagline', 'description', 'examType', 'difficulty', 'thumbnailUrl'];
     for (const f of stringFields) {
       if (dto[f] !== undefined) {
         clean[f] = dto[f] ? String(dto[f]).trim() : null;
