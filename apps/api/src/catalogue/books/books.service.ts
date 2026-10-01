@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { slugify } from '../../common/slug.js';
 import type { CreateBookDto } from './dto/create-book.dto.js';
@@ -8,9 +8,11 @@ import type { UpdateBookDto } from './dto/update-book.dto.js';
 export class BooksService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** Lightweight public list — never ships the (potentially huge) PDF payloads. */
   async findAll() {
     return this.prisma.book.findMany({
       where: { published: true },
+      omit: { pdfFileUrl: true, demoPdfUrl: true },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -27,23 +29,66 @@ export class BooksService {
           { id: decoded },
         ],
       },
+      omit: { pdfFileUrl: true },
     });
     if (!book || !book.published) throw new NotFoundException('Book not found.');
-    return book;
+    // Ship a light flag instead of the (potentially huge) sample PDF payload.
+    const { demoPdfUrl, ...rest } = book;
+    return { ...rest, hasDemo: Boolean(demoPdfUrl) };
+  }
+
+  /** Public sample PDF (opened from the cover) — no auth required. */
+  async demo(idOrSlug: string) {
+    const decoded = decodeURIComponent(idOrSlug).trim();
+    const book = await this.prisma.book.findFirst({
+      where: { OR: [{ id: idOrSlug }, { id: decoded }, { slug: idOrSlug }, { slug: decoded }] },
+      select: { demoPdfUrl: true },
+    });
+    if (!book?.demoPdfUrl) throw new NotFoundException('No sample PDF for this book.');
+    return { pdfUrl: book.demoPdfUrl };
+  }
+
+  /**
+   * Full book PDF for the authenticated reader. Only the owner (a user with a
+   * paid/enrolled copy) receives the content — it is never exposed publicly.
+   */
+  async content(idOrSlug: string, userId: string) {
+    const decoded = decodeURIComponent(idOrSlug).trim();
+    const book = await this.prisma.book.findFirst({
+      where: {
+        OR: [{ id: idOrSlug }, { id: decoded }, { slug: idOrSlug }, { slug: decoded }],
+      },
+      select: { id: true, slug: true, title: true, pdfFileUrl: true },
+    });
+    if (!book) throw new NotFoundException('Book not found.');
+    if (!book.pdfFileUrl) throw new NotFoundException('This book has no online PDF.');
+
+    const enrolled = await this.prisma.enrollment.findFirst({
+      where: {
+        userId,
+        productType: 'book',
+        productId: { in: [book.id, book.slug] },
+      },
+      select: { id: true },
+    });
+    if (!enrolled) throw new ForbiddenException('You do not own this book.');
+
+    return { id: book.id, slug: book.slug, title: book.title, pdfUrl: book.pdfFileUrl };
   }
 
   private sanitizeBookScalars(dto: Record<string, any>) {
     const clean: Record<string, any> = {};
-    const stringFields = ['slug', 'title', 'titleBn', 'subtitle', 'description', 'category', 'author', 'publisher', 'edition', 'language', 'thumbnailUrl', 'demoPdfUrl'];
+    const stringFields = ['slug', 'title', 'titleBn', 'subtitle', 'description', 'category', 'author', 'publisher', 'edition', 'language', 'thumbnailUrl', 'demoPdfUrl', 'pdfFileUrl'];
     for (const f of stringFields) {
       if (dto[f] !== undefined) {
         clean[f] = dto[f] ? String(dto[f]).trim() : null;
       }
     }
     const intFields = ['pages', 'pdfPrice', 'hardcopyPrice', 'samplePages', 'students', 'reviewCount'];
+    const nullableIntFields = ['pdfPrice', 'hardcopyPrice']; // empty ⇒ format not sold
     for (const f of intFields) {
       if (dto[f] !== undefined) {
-        if (f === 'hardcopyPrice' && (dto[f] === '' || dto[f] === null || dto[f] === undefined)) {
+        if (nullableIntFields.includes(f) && (dto[f] === '' || dto[f] === null)) {
           clean[f] = null;
         } else {
           clean[f] = Math.round(Number(dto[f])) || 0;
@@ -82,9 +127,9 @@ export class BooksService {
         edition: String(dto.edition ?? '1st Edition').trim(),
         publisher: String(dto.publisher ?? 'Shohoz Skill').trim(),
         pages: Math.round(Number(dto.pages)) || 0,
-        pdfPrice: Math.round(Number(dto.pdfPrice)) || 0,
         ...clean,
       },
+      omit: { pdfFileUrl: true, demoPdfUrl: true },
     });
   }
 
@@ -95,7 +140,7 @@ export class BooksService {
     if (rawSlug !== undefined && String(rawSlug).trim()) {
       clean.slug = await this.uniqueSlug(slugify(String(rawSlug).trim()), id);
     }
-    return this.prisma.book.update({ where: { id }, data: clean });
+    return this.prisma.book.update({ where: { id }, data: clean, omit: { pdfFileUrl: true, demoPdfUrl: true } });
   }
 
   async remove(id: string) {

@@ -153,11 +153,11 @@ const PAYMENT_METHODS = [
   { id: "COD", label: "Cash on Delivery", hint: "Physical hardcopy books only" },
 ];
 
-export function PaymentMethodsEditor({ value, onChange }: { value: string[] | undefined; onChange: (v: string[]) => void }) {
+export function PaymentMethodsEditor({ value, onChange, hint }: { value: string[] | undefined; onChange: (v: string[]) => void; hint?: string }) {
   const selected = value ?? [];
   const toggle = (id: string) => (selected.includes(id) ? onChange(selected.filter((x) => x !== id)) : onChange([...selected, id]));
   return (
-    <SectionCard title="Allowed payment methods" hint="Leave all unchecked to use the platform default">
+    <SectionCard title="Allowed payment methods" hint={hint ?? "Leave all unchecked to use the platform default"}>
       <div className="space-y-2">
         {PAYMENT_METHODS.map((m) => (
           <label key={m.id} className="flex items-start gap-2.5 rounded-xl border border-border bg-card p-3 text-sm">

@@ -101,7 +101,7 @@ export function PdfReader({ book, ownerName, preview }: { book: Book; ownerName:
             <div className="mt-2 flex w-full max-w-3xl flex-col items-center gap-2 rounded-2xl border border-dashed border-accent/50 bg-accent/5 px-6 py-5 text-center">
               <p className="text-sm font-bold text-foreground">This is where the free preview ends</p>
               <p className="text-xs text-muted-foreground">
-                Unlock all {total} pages with the online PDF for {formatPrice(book.pdfPrice.amount)}.
+                Unlock all {total} pages with the online PDF for {formatPrice(book.pdfPrice?.amount ?? 0)}.
               </p>
               <ButtonLinkHref href={`/book/${book.slug}`} variant="accent" size="sm">
                 Unlock full book

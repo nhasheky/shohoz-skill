@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { IconCheck, IconDevice, IconShieldCheck } from "@/components/ui/icons";
 import { PurchaseDialog } from "./purchase-dialog";
 
-export type PurchasePlan = { id: string; label: string; price: number; originalPrice?: number; note?: string };
+export type PurchasePlan = { id: string; label: string; price: number; originalPrice?: number; note?: string; allowedPaymentMethods?: string[] };
 
 export function PurchasePanel({
   kind = "Course",
@@ -133,7 +133,7 @@ export function PurchasePanel({
         title={title}
         productId={productId}
         productType={productType}
-        allowedPaymentMethods={allowedPaymentMethods}
+        allowedPaymentMethods={plan.allowedPaymentMethods ?? allowedPaymentMethods}
         planId={plan.id}
         planLabel={plan.label}
         price={plan.price}

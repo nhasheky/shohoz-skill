@@ -201,15 +201,38 @@ export class OrdersService {
         where: { OR: [{ id: dto.productId }, { slug: dto.productId }] },
       });
       if (!book) throw new NotFoundException('Book not found.');
-      const variant = dto.variant ?? (book.hardcopyPrice ? 'hardcopy' : 'pdf');
+
+      // A format is on sale only when its price has been set by the admin.
+      const pdfAvailable = book.pdfPrice !== null && book.pdfPrice !== undefined;
+      const hardcopyAvailable = book.hardcopyPrice !== null && book.hardcopyPrice !== undefined;
+      if (!pdfAvailable && !hardcopyAvailable) {
+        throw new BadRequestException('This book is not available for purchase.');
+      }
+
+      const variant = dto.variant ?? (pdfAvailable ? 'pdf' : 'hardcopy');
+      if (variant === 'pdf' && !pdfAvailable) {
+        throw new BadRequestException('The online PDF is not available for this book.');
+      }
+      if (variant === 'hardcopy' && !hardcopyAvailable) {
+        throw new BadRequestException('The hardcopy is not available for this book.');
+      }
+
       const isPhysical = variant === 'hardcopy';
-      const unitPrice = isPhysical ? book.hardcopyPrice ?? book.pdfPrice : book.pdfPrice;
+      const unitPrice = isPhysical ? book.hardcopyPrice ?? 0 : book.pdfPrice ?? 0;
+
+      // Payment rules: PDF is online-only (SSLCOMMERZ). Hardcopy may be paid
+      // online or cash on delivery. An admin override can only narrow this set.
+      const variantMethods = isPhysical ? ['COD', 'SSLCOMMERZ'] : ['SSLCOMMERZ'];
+      const allowedPaymentMethods = book.allowedPaymentMethods.length
+        ? variantMethods.filter((m) => book.allowedPaymentMethods.includes(m))
+        : variantMethods;
+
       return {
         title: isPhysical ? `${book.title} (Hardcopy)` : `${book.title} (PDF)`,
         unitPrice,
         isPhysical,
         variant,
-        allowedPaymentMethods: book.allowedPaymentMethods,
+        allowedPaymentMethods,
       };
     }
 

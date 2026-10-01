@@ -121,7 +121,14 @@ export class AdminService {
       ? { OR: [{ title: { contains: q, mode: 'insensitive' as const } }, { slug: { contains: q, mode: 'insensitive' as const } }] }
       : {};
     return this.paginate(
-      (skip, take) => this.prisma.book.findMany({ where, skip, take, orderBy: { createdAt: 'desc' } }),
+      (skip, take) =>
+        this.prisma.book.findMany({
+          where,
+          omit: { pdfFileUrl: true, demoPdfUrl: true },
+          skip,
+          take,
+          orderBy: { createdAt: 'desc' },
+        }),
       () => this.prisma.book.count({ where }),
       page,
       perPage,
@@ -166,7 +173,9 @@ export class AdminService {
   async bookById(id: string) {
     const row = await this.prisma.book.findUnique({ where: { id } });
     if (!row) throw new NotFoundException('Book not found.');
-    return row;
+    // Never ship the (huge) PDF payloads to the browser — just their presence.
+    const { pdfFileUrl, demoPdfUrl, ...rest } = row;
+    return { ...rest, hasPdfFile: Boolean(pdfFileUrl), hasDemoPdf: Boolean(demoPdfUrl) };
   }
 
   async examById(id: string) {

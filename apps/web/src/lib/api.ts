@@ -79,7 +79,7 @@ type ApiBook = {
   category?: string | null; author?: string | null; pages?: number | null; edition?: string | null; language?: string | null; publisher?: string | null;
   pdfPrice?: number | null; hardcopyPrice?: number | null; samplePages?: number | null; students?: number | null; rating?: number | null;
   reviewCount?: number | null; featured?: boolean | null; published: boolean; createdAt: string;
-  thumbnailUrl?: string | null; demoPdfUrl?: string | null;
+  thumbnailUrl?: string | null; demoPdfUrl?: string | null; hasDemo?: boolean;
   allowedPaymentMethods?: string[];
 };
 type ApiQuestion = { id: string; text: string; options: string[] | string; answerIndex: number; explanation?: string | null; sortOrder?: number | null };
@@ -207,6 +207,7 @@ function mapBook(raw: ApiBook): Book {
     category: raw.category ?? "",
     thumbnailUrl: raw.thumbnailUrl ?? undefined,
     demoPdfUrl: raw.demoPdfUrl ?? undefined,
+    hasDemo: raw.hasDemo ?? Boolean(raw.demoPdfUrl),
     author: {
       id: `author-${raw.slug}`,
       name: raw.author ?? "Shohoz Skill",
@@ -217,8 +218,8 @@ function mapBook(raw: ApiBook): Book {
     edition: raw.edition ?? "",
     language: (raw.language as Book["language"]) ?? "Bengali",
     publisher: raw.publisher ?? "Shohoz Skill",
-    pdfPrice: { amount: raw.pdfPrice ?? 0 },
-    hardcopyPrice: raw.hardcopyPrice ? { amount: raw.hardcopyPrice } : { amount: raw.pdfPrice ?? 0 },
+    pdfPrice: raw.pdfPrice != null ? { amount: raw.pdfPrice } : undefined,
+    hardcopyPrice: raw.hardcopyPrice != null ? { amount: raw.hardcopyPrice } : undefined,
     tableOfContents: [{ title: "Full contents", pages: `1–${raw.pages ?? 0}` }],
     samplePages: raw.samplePages ?? 0,
     students: raw.students ?? 0,

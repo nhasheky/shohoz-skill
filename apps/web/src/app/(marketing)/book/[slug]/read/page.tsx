@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getBook, hasSession } from "@/lib/api";
-import { PdfReader } from "@/components/product/pdf-reader";
+import { getBook, getMe, hasSession } from "@/lib/api";
+import { BookReader } from "@/components/product/book-reader";
 
 export const revalidate = 60;
 
@@ -30,7 +30,7 @@ export default async function BookReadPage(props: PageProps<"/book/[slug]/read">
   // Full digital content requires an authenticated session.
   if (!preview && !(await hasSession())) redirect(`/login`);
 
-  const ownerName = "Demo Student (Rafi Ahmed)";
+  const ownerName = preview ? "" : (await getMe().catch(() => null))?.name ?? "Shohoz Skill Reader";
 
   return (
     <div className="min-h-screen">
@@ -50,7 +50,7 @@ export default async function BookReadPage(props: PageProps<"/book/[slug]/read">
           )}
         </div>
       </div>
-      <PdfReader book={book} ownerName={ownerName} preview={preview} />
+      <BookReader book={book} ownerName={ownerName} preview={preview} />
     </div>
   );
 }

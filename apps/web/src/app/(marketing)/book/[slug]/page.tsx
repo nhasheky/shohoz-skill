@@ -42,10 +42,34 @@ export default async function BookDetailPage(props: PageProps<"/book/[slug]">) {
   const book = await getBook(params.slug);
   if (!book) notFound();
 
-  const plans: PurchasePlan[] = [
-    { id: "pdf", label: "Online PDF (read-only)", price: book.pdfPrice.amount, originalPrice: book.pdfPrice.originalAmount, note: "Watermarked · read on any device · no download" },
-    { id: "hardcopy", label: "Hardcopy (printed)", price: book.hardcopyPrice?.amount ?? book.pdfPrice.amount, originalPrice: book.hardcopyPrice?.originalAmount, note: "Nationwide shipping via courier" },
-  ];
+  // Mirror the server's per-variant payment rules: PDF = online only,
+  // hardcopy = online + cash on delivery (an admin override can narrow this).
+  const methodsFor = (base: string[]) =>
+    book.allowedPaymentMethods?.length ? base.filter((m) => book.allowedPaymentMethods!.includes(m)) : base;
+
+  const plans: PurchasePlan[] = [];
+  if (book.pdfPrice) {
+    plans.push({
+      id: "pdf",
+      label: "Online PDF (read-only)",
+      price: book.pdfPrice.amount,
+      originalPrice: book.pdfPrice.originalAmount,
+      note: "Watermarked · read on any device · no download",
+      allowedPaymentMethods: methodsFor(["SSLCOMMERZ"]),
+    });
+  }
+  if (book.hardcopyPrice) {
+    plans.push({
+      id: "hardcopy",
+      label: "Hardcopy (printed)",
+      price: book.hardcopyPrice.amount,
+      originalPrice: book.hardcopyPrice.originalAmount,
+      note: "Nationwide shipping · pay online or cash on delivery",
+      allowedPaymentMethods: methodsFor(["COD", "SSLCOMMERZ"]),
+    });
+  }
+  const hasDemo = Boolean(book.hasDemo || book.demoPdfUrl);
+  const canRead = hasDemo || Boolean(book.pdfPrice);
 
   const features = [
     `${book.pages} pages · ${book.edition}`,
@@ -108,21 +132,31 @@ export default async function BookDetailPage(props: PageProps<"/book/[slug]">) {
                 </span>
               </div>
 
-              <div className="mt-7 overflow-hidden rounded-3xl border border-border shadow-card relative group">
-                <ProductCover title={book.title} category={book.category} kind="book" accentText={`${book.pages} pages`} thumbnailUrl={book.thumbnailUrl} />
-                {book.demoPdfUrl && (
-                  <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 to-transparent flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <ButtonLink href={book.demoPdfUrl} target="_blank" variant="accent" className="w-full justify-center">
+              {canRead ? (
+                <Link
+                  href={`/book/${book.slug}/read`}
+                  aria-label="Read a free sample of this book"
+                  className="group relative mt-7 block overflow-hidden rounded-3xl border border-border shadow-card transition-shadow hover:shadow-pop"
+                >
+                  <ProductCover title={book.title} category={book.category} kind="book" accentText={`${book.pages} pages`} thumbnailUrl={book.thumbnailUrl} />
+                  <div className="absolute inset-x-0 bottom-0 flex justify-center bg-gradient-to-t from-black/80 to-transparent p-4 opacity-0 transition-opacity group-hover:opacity-100">
+                    <span className="inline-flex w-full items-center justify-center rounded-xl bg-accent px-4 py-2 text-sm font-bold text-accent-foreground">
                       একটু পড়ে দেখুন (Look Inside)
-                    </ButtonLink>
+                    </span>
                   </div>
-                )}
-              </div>
+                </Link>
+              ) : (
+                <div className="relative mt-7 overflow-hidden rounded-3xl border border-border shadow-card">
+                  <ProductCover title={book.title} category={book.category} kind="book" accentText={`${book.pages} pages`} thumbnailUrl={book.thumbnailUrl} />
+                </div>
+              )}
 
               <div className="mt-5 flex flex-wrap gap-3">
-                <ButtonLink href={`/book/${book.slug}/read`} variant="accent">
-                  <IconEye width={16} height={16} className="mr-2" /> Preview {book.samplePages} free pages
-                </ButtonLink>
+                {canRead && (
+                  <ButtonLink href={`/book/${book.slug}/read`} variant="accent">
+                    <IconEye width={16} height={16} className="mr-2" /> {hasDemo ? "Read free sample PDF" : `Preview ${book.samplePages} free pages`}
+                  </ButtonLink>
+                )}
                 <ButtonLink href="#contents" variant="outline">
                   <IconBookOpen width={16} height={16} className="mr-2" /> View contents
                 </ButtonLink>
@@ -131,7 +165,14 @@ export default async function BookDetailPage(props: PageProps<"/book/[slug]">) {
 
             <aside className="mt-8 lg:mt-0">
               <div className="lg:sticky lg:top-24">
-                <PurchasePanel kind="Book" title={book.title} productId={book.id} productType="book" allowedPaymentMethods={book.allowedPaymentMethods} plans={plans} planNote="Choose your format" features={features} />
+                {plans.length ? (
+                  <PurchasePanel kind="Book" title={book.title} productId={book.id} productType="book" allowedPaymentMethods={book.allowedPaymentMethods} plans={plans} planNote="Choose your format" features={features} />
+                ) : (
+                  <div className="rounded-3xl border border-dashed border-border bg-card p-6 text-center shadow-card">
+                    <p className="font-display text-lg font-extrabold text-foreground">Coming soon</p>
+                    <p className="mt-1 text-sm text-muted-foreground">This book is not available for purchase yet.</p>
+                  </div>
+                )}
               </div>
             </aside>
           </div>

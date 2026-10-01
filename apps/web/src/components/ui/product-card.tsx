@@ -106,12 +106,21 @@ export function BookCard({ book }: { book: Book }) {
         </div>
         <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
           <div className="text-sm">
-            <span className="font-display text-lg font-extrabold text-foreground">{formatPrice(book.pdfPrice.amount)}</span>
-            <span className="ml-1 text-xs text-muted-foreground">PDF</span>
-            {book.hardcopyPrice && (
-              <span className="ml-2 block text-xs text-muted-foreground">
-                Hardcopy {formatPrice(book.hardcopyPrice.amount)}
-              </span>
+            {book.pdfPrice ? (
+              <>
+                <span className="font-display text-lg font-extrabold text-foreground">{formatPrice(book.pdfPrice.amount)}</span>
+                <span className="ml-1 text-xs text-muted-foreground">PDF</span>
+                {book.hardcopyPrice && (
+                  <span className="ml-2 block text-xs text-muted-foreground">Hardcopy {formatPrice(book.hardcopyPrice.amount)}</span>
+                )}
+              </>
+            ) : book.hardcopyPrice ? (
+              <>
+                <span className="font-display text-lg font-extrabold text-foreground">{formatPrice(book.hardcopyPrice.amount)}</span>
+                <span className="ml-1 text-xs text-muted-foreground">Hardcopy</span>
+              </>
+            ) : (
+              <span className="text-xs text-muted-foreground">Coming soon</span>
             )}
           </div>
           <span className="flex items-center gap-1 text-sm font-semibold text-accent">

@@ -187,7 +187,11 @@ model Book {
   edition               String
   language              String   @default("Bn")
   publisher             String
-  pdfPrice              Int
+  // Format availability is inferred from nullable prices:
+  //   pdfPrice != null      → the online PDF can be purchased (requires SSLCOMMERZ)
+  //   hardcopyPrice != null → the printed book can be purchased (SSLCOMMERZ or COD)
+  // Both may be set (sold together) or exactly one.
+  pdfPrice              Int?
   hardcopyPrice         Int?
   samplePages           Int      @default(12)
   students              Int      @default(0)
@@ -199,7 +203,8 @@ model Book {
   updatedAt             DateTime @updatedAt
   seo                   Json?
   thumbnailUrl          String?
-  demoPdfUrl            String?
+  demoPdfUrl            String? // short sample PDF (public — opened from the cover)
+  pdfFileUrl            String? // full book PDF (owner-only, read in the secure viewer)
   allowedPaymentMethods String[] @default([])
 }
 

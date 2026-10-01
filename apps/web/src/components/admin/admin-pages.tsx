@@ -67,16 +67,17 @@ const bookFields: FieldDef[] = [
   { name: "titleBn", label: "Title (Bangla)" },
   { name: "subtitle", label: "Subtitle", span2: true },
   { name: "description", label: "Description", type: "richtext", required: true, span2: true },
-  { name: "thumbnailUrl", label: "Cover Image URL", type: "image", span2: true },
-  { name: "demoPdfUrl", label: "Demo PDF URL", type: "file", span2: true },
+  { name: "thumbnailUrl", label: "Cover image", type: "image", span2: true, help: "Shown on cards. Clicking the cover opens the demo PDF." },
+  { name: "demoPdfUrl", label: "Demo PDF (free sample)", type: "file", span2: true, help: "A few sample pages buyers can read for free." },
   { name: "category", label: "Category", required: true },
   { name: "author", label: "Author", required: true },
   { name: "publisher", label: "Publisher" },
   { name: "edition", label: "Edition" },
   { name: "language", label: "Language", type: "select", options: ["En", "Bn", "Mixture"] },
   { name: "pages", label: "Pages", type: "number", required: true },
-  { name: "pdfPrice", label: "PDF price (৳)", type: "number", required: true },
-  { name: "hardcopyPrice", label: "Hardcopy price (৳)", type: "number" },
+  { name: "pdfPrice", label: "Online PDF price (৳)", type: "number", help: "Leave empty if you do NOT want to sell the online PDF. PDF is online-only (SSLCOMMERZ)." },
+  { name: "pdfFileUrl", label: "Full PDF (owners only)", type: "file", span2: true, help: "The complete book. Buyers read it in the secure viewer (no download). Required when a PDF price is set." },
+  { name: "hardcopyPrice", label: "Hardcopy price (৳)", type: "number", help: "Leave empty if you do NOT want to sell the printed book. Hardcopy supports SSLCOMMERZ + Cash on Delivery." },
   { name: "samplePages", label: "Sample pages", type: "number" },
   { name: "students", label: "Students", type: "number" },
   { name: "rating", label: "Rating", type: "number" },
@@ -293,7 +294,14 @@ const bookColumns: AdminColumn<Row>[] = [
   { key: "title", label: "Title", sortable: true, render: (r) => <p className="max-w-[26ch] truncate font-bold text-foreground">{String(r.title ?? "")}</p> },
   { key: "author", label: "Author", render: (r) => <span className="text-muted-foreground">{String(r.author ?? "—")}</span> },
   { key: "category", label: "Category", render: (r) => <span className="text-muted-foreground">{String(r.category ?? "—")}</span> },
-  { key: "pdfPrice", label: "PDF price", render: (r) => <span className="font-bold text-foreground">{num(r.pdfPrice) === "" ? "—" : formatBdt(num(r.pdfPrice) as number)}</span> },
+  { key: "pdfPrice", label: "Formats", render: (r) => {
+    const pdf = num(r.pdfPrice);
+    const hard = num(r.hardcopyPrice);
+    const parts: string[] = [];
+    if (pdf !== "") parts.push(`PDF ${formatBdt(pdf as number)}`);
+    if (hard !== "") parts.push(`HC ${formatBdt(hard as number)}`);
+    return <span className="font-bold text-foreground">{parts.length ? parts.join(" · ") : "—"}</span>;
+  } },
   { key: "rating", label: "Rating", sortable: true, render: (r) => <span className="text-muted-foreground">{typeof r.rating === "number" ? r.rating.toFixed(1) : "—"}</span> },
   { key: "published", label: "Status", render: (r) => <PubBadge published={r.published} /> },
 ];
@@ -320,6 +328,7 @@ export function BookFormPage({ id }: { id?: string }) {
   useAdminTitle(id ? "Edit Book" : "New Book");
   const router = useRouter();
   const { initial, loading, notFound } = useAdminRecord(id, api.getBook, () => seedBooks as unknown as Row[]);
+  const hasPdfFile = Boolean((initial as Record<string, unknown> | null)?.hasPdfFile);
   return (
     <PageSkeleton title="Book" loading={loading} notFound={notFound}>
       <AdminForm
@@ -329,6 +338,17 @@ export function BookFormPage({ id }: { id?: string }) {
         backHref="/admin/books"
         submitLabel={id ? "Save changes" : "Create book"}
         onSubmit={async (dto) => {
+          delete dto.hasPdfFile;
+          // A blank price means "do not sell this format" → persist an explicit null
+          // so an existing price can also be cleared.
+          if (dto.pdfPrice === undefined) dto.pdfPrice = null;
+          if (dto.hardcopyPrice === undefined) dto.hardcopyPrice = null;
+          if (!dto.pdfPrice && !dto.hardcopyPrice) {
+            throw new Error("Set at least one price — online PDF and/or hardcopy.");
+          }
+          if (dto.pdfPrice && !dto.pdfFileUrl && !hasPdfFile) {
+            throw new Error("Upload the full PDF file when selling the online PDF.");
+          }
           if (id) await api.updateBook(id, dto);
           else await api.createBook(dto);
           router.push("/admin/books");
@@ -336,7 +356,12 @@ export function BookFormPage({ id }: { id?: string }) {
       >
         {(form, set) => (
           <>
-            <PaymentMethodsEditor value={listOf(form.allowedPaymentMethods)} onChange={(v) => set("allowedPaymentMethods", v)} />
+            {hasPdfFile && <p className="mt-4 rounded-xl bg-muted/60 px-4 py-2.5 text-xs text-muted-foreground">A full PDF is already uploaded. Leave the field blank to keep it, or upload a new file to replace it.</p>}
+            <PaymentMethodsEditor
+              value={listOf(form.allowedPaymentMethods)}
+              onChange={(v) => set("allowedPaymentMethods", v)}
+              hint="Optional. For the PDF only SSLCOMMERZ applies; hardcopy defaults to SSLCOMMERZ + Cash on Delivery."
+            />
             <SeoEditor value={form.seo as Record<string, unknown> | undefined} onChange={(v) => set("seo", v)} />
           </>
         )}
@@ -539,7 +564,14 @@ function normalizeInitial(row: Record<string, unknown>): Record<string, unknown>
     return { ...toForm(examFields, row), priceAmount: num(row.priceAmount), subjects: normSubjects(row), allowedPaymentMethods: listOf(row.allowedPaymentMethods), seo: (row.seo as Record<string, unknown>) ?? {} };
   }
   if ("pdfPrice" in row) {
-    return { ...toForm(bookFields, row), pdfPrice: num(row.pdfPrice), hardcopyPrice: num(row.hardcopyPrice), allowedPaymentMethods: listOf(row.allowedPaymentMethods), seo: (row.seo as Record<string, unknown>) ?? {} };
+    return {
+      ...toForm(bookFields, row),
+      pdfPrice: num(row.pdfPrice),
+      hardcopyPrice: num(row.hardcopyPrice),
+      allowedPaymentMethods: listOf(row.allowedPaymentMethods),
+      seo: (row.seo as Record<string, unknown>) ?? {},
+      hasPdfFile: Boolean(row.hasPdfFile),
+    };
   }
   return { ...toForm(blogFields, row), content: normBlocks(row.content), seo: (row.seo as Record<string, unknown>) ?? {} };
 }

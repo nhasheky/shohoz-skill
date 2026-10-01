@@ -54,10 +54,13 @@ export class CreateBookDto {
   @IsString()
   publisher: string;
 
+  // Leave empty to hide the online PDF option for this book.
+  @IsOptional()
   @IsInt()
   @Min(0)
-  pdfPrice: number;
+  pdfPrice?: number;
 
+  // Leave empty to hide the printed hardcopy option for this book.
   @IsOptional()
   @IsInt()
   @Min(0)
@@ -104,6 +107,11 @@ export class CreateBookDto {
   @IsOptional()
   @IsString()
   demoPdfUrl?: string;
+
+  // Full book PDF (data URL or link). Served only to owners via the reader.
+  @IsOptional()
+  @IsString()
+  pdfFileUrl?: string;
 
   @IsOptional()
   seo?: Prisma.InputJsonValue;

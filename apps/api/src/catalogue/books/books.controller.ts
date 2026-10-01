@@ -1,10 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Req, UseGuards } from '@nestjs/common';
+import type { Request } from 'express';
 import { BooksService } from './books.service.js';
 import { CreateBookDto } from './dto/create-book.dto.js';
 import { UpdateBookDto } from './dto/update-book.dto.js';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../auth/guards/roles.guard.js';
 import { Roles } from '../../auth/decorators/roles.decorator.js';
+
+type Authed = Request & { user: { sub: string; role: string } };
 
 @Controller('books')
 export class BooksController {
@@ -13,6 +16,19 @@ export class BooksController {
   @Get()
   findAll() {
     return this.books.findAll();
+  }
+
+  /** Owner-only full PDF for the secure reader. Registered before `:slug`. */
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/content')
+  content(@Param('id') id: string, @Req() req: Authed) {
+    return this.books.content(id, req.user.sub);
+  }
+
+  /** Public sample PDF opened from the cover. */
+  @Get(':id/demo')
+  demo(@Param('id') id: string) {
+    return this.books.demo(id);
   }
 
   @Get(':slug')

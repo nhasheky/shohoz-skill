@@ -13,7 +13,10 @@ type Item = Course | Book | Exam;
 
 function metaOf(item: Item): Base {
   if (isCourse(item)) return { ...item, category: item.category, priceLow: item.priceMap.LIFETIME?.amount ?? 0, students: item.students };
-  if (isBook(item)) return { ...item, priceLow: Math.min(item.pdfPrice.amount, item.hardcopyPrice?.amount ?? item.pdfPrice.amount) };
+  if (isBook(item)) {
+    const prices = [item.pdfPrice?.amount, item.hardcopyPrice?.amount].filter((n): n is number => typeof n === "number");
+    return { ...item, priceLow: prices.length ? Math.min(...prices) : 0 };
+  }
   return { ...item, title: item.title, category: item.category ?? "Exam", priceLow: item.isFree ? 0 : item.price.amount, students: item.attemptCount };
 }
 

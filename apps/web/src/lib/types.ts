@@ -85,13 +85,15 @@ export type Book = {
   category: string;
   thumbnailUrl?: string;
   demoPdfUrl?: string;
+  hasDemo?: boolean;
   author: BookAuthor;
   pages: number;
   edition: string;
   language: "En" | "Bn" | "Mixture";
   publisher: string;
-  pdfPrice: Price;
-  hardcopyPrice: Price;
+  // A format is offered only when its price is present.
+  pdfPrice?: Price;
+  hardcopyPrice?: Price;
   allowedPaymentMethods?: string[];
   tableOfContents: { title: string; pages: string }[];
   samplePages: number;
