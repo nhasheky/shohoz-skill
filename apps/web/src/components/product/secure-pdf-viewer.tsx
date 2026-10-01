@@ -121,6 +121,8 @@ export function SecurePdfViewer({
           viewport,
           transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined,
         }).promise;
+        // Page heights changed → refresh the current-page indicator.
+        scrollRef.current?.dispatchEvent(new Event("scroll"));
       } catch {
         renderedRef.current.delete(n);
       }
@@ -154,18 +156,13 @@ export function SecurePdfViewer({
     const root = scrollRef.current;
     if (!root) return;
     const onScroll = () => {
-      const rootRect = root.getBoundingClientRect();
-      const mid = rootRect.top + root.clientHeight / 2;
+      // The current page is the last one whose top has scrolled past the
+      // container's top edge — this reads naturally while scrolling down.
+      const edge = root.getBoundingClientRect().top + 12;
       let best = 1;
-      let bestDist = Infinity;
       pageRefs.current.forEach((el, i) => {
         if (!el) return;
-        const r = el.getBoundingClientRect();
-        const d = Math.abs(r.top + r.height / 2 - mid);
-        if (d < bestDist) {
-          bestDist = d;
-          best = i + 1;
-        }
+        if (el.getBoundingClientRect().top <= edge) best = i + 1;
       });
       setCurrent(best);
     };
