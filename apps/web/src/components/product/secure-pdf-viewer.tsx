@@ -156,13 +156,24 @@ export function SecurePdfViewer({
     const root = scrollRef.current;
     if (!root) return;
     const onScroll = () => {
-      // The current page is the last one whose top has scrolled past the
-      // container's top edge — this reads naturally while scrolling down.
-      const edge = root.getBoundingClientRect().top + 12;
+      // Current page = the one covering the vertical middle of the viewport
+      // (falling back to the nearest edge).
+      const mid = root.getBoundingClientRect().top + root.clientHeight / 2;
       let best = 1;
+      let bestDist = Infinity;
       pageRefs.current.forEach((el, i) => {
         if (!el) return;
-        if (el.getBoundingClientRect().top <= edge) best = i + 1;
+        const r = el.getBoundingClientRect();
+        if (r.top <= mid && r.bottom >= mid) {
+          best = i + 1;
+          bestDist = -1;
+        } else if (bestDist >= 0) {
+          const d = Math.min(Math.abs(r.top - mid), Math.abs(r.bottom - mid));
+          if (d < bestDist) {
+            bestDist = d;
+            best = i + 1;
+          }
+        }
       });
       setCurrent(best);
     };
