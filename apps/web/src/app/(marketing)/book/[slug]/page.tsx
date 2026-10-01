@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getBook, getBooks, getRelatedBooks } from "@/lib/api";
+import { getBook, getBooks, getRelatedBooks, getSiteSettings } from "@/lib/api";
 import { getReviews } from "@/lib/data/reviews";
 import { formatCount } from "@/lib/format";
 import { Stars } from "@/components/ui/rating";
@@ -81,7 +81,7 @@ export default async function BookDetailPage(props: PageProps<"/book/[slug]">) {
 
   const reviews = getReviews({ id: book.id, count: 5, baseRating: book.rating });
 
-  const relatedBooks = await getRelatedBooks(book, 3);
+  const [relatedBooks, settings] = await Promise.all([getRelatedBooks(book, 3), getSiteSettings()]);
 
   return (
     <main>
@@ -107,6 +107,7 @@ export default async function BookDetailPage(props: PageProps<"/book/[slug]">) {
                 hasDemo={hasDemo}
                 canRead={canRead}
                 accentText={`${book.pages} pages`}
+                logoUrl={settings.logoUrl}
               />
             </div>
 

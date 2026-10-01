@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ProductCover } from "@/components/ui/product-cover";
-import { SecurePdfViewer } from "./secure-pdf-viewer";
+import { SecurePdfViewer, preloadPdf } from "./secure-pdf-viewer";
 import { IconEye, IconX } from "@/components/ui/icons";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "https://api.shohozskill.com.bd").replace(/\/+$/, "");
@@ -22,6 +22,7 @@ export function BookPreview({
   hasDemo,
   canRead,
   accentText,
+  logoUrl,
 }: {
   bookId: string;
   slug: string;
@@ -31,6 +32,7 @@ export function BookPreview({
   hasDemo: boolean;
   canRead: boolean;
   accentText?: string;
+  logoUrl?: string | null;
 }) {
   const router = useRouter();
   const [demoUrl, setDemoUrl] = useState<string | null>(null);
@@ -44,7 +46,10 @@ export function BookPreview({
     fetch(`${API_URL}/api/books/${encodeURIComponent(bookId)}/demo`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d: { pdfUrl?: string } | null) => {
-        if (!cancelled && d && typeof d.pdfUrl === "string") setDemoUrl(d.pdfUrl);
+        if (!cancelled && d && typeof d.pdfUrl === "string") {
+          setDemoUrl(d.pdfUrl);
+          preloadPdf(d.pdfUrl); // parse ahead so the modal opens instantly
+        }
       })
       .catch(() => {});
     return () => {
@@ -129,7 +134,7 @@ export function BookPreview({
           </div>
           <div className="mx-auto w-full max-w-5xl flex-1 px-2 pb-2 sm:px-0">
             {demoUrl ? (
-              <SecurePdfViewer dataUrl={demoUrl} title={`${title} (demo)`} watermarkLogo />
+              <SecurePdfViewer dataUrl={demoUrl} title={`${title} (demo)`} logoUrl={logoUrl} />
             ) : (
               <div className="flex h-[60vh] items-center justify-center rounded-2xl bg-white/95 text-sm text-muted-foreground">লোড হচ্ছে…</div>
             )}

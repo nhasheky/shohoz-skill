@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getBook, getMe, hasSession } from "@/lib/api";
+import { getBook, getMe, getSiteSettings, hasSession } from "@/lib/api";
 import { BookReader } from "@/components/product/book-reader";
 
 export const revalidate = 60;
@@ -30,7 +30,8 @@ export default async function BookReadPage(props: PageProps<"/book/[slug]/read">
   // Full digital content requires an authenticated session.
   if (!preview && !(await hasSession())) redirect(`/login`);
 
-  const ownerName = preview ? "" : (await getMe().catch(() => null))?.name ?? "Shohoz Skill Reader";
+  const [me, settings] = await Promise.all([preview ? Promise.resolve(null) : getMe().catch(() => null), getSiteSettings()]);
+  const ownerName = preview ? "" : me?.name ?? "Shohoz Skill Reader";
 
   return (
     <div className="min-h-screen">
@@ -50,7 +51,7 @@ export default async function BookReadPage(props: PageProps<"/book/[slug]/read">
           )}
         </div>
       </div>
-      <BookReader book={book} ownerName={ownerName} preview={preview} />
+      <BookReader book={book} ownerName={ownerName} preview={preview} logoUrl={settings.logoUrl} />
     </div>
   );
 }

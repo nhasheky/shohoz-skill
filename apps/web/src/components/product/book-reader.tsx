@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Book } from "@/lib/types";
 import { PdfReader } from "./pdf-reader";
-import { SecurePdfViewer } from "./secure-pdf-viewer";
+import { SecurePdfViewer, preloadPdf } from "./secure-pdf-viewer";
 import { IconLock } from "@/components/ui/icons";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "https://api.shohozskill.com.bd").replace(/\/+$/, "");
@@ -21,7 +21,7 @@ type State = "loading" | "ready" | "demo-fallback" | "locked" | "empty";
  * - preview: opens the public demo PDF (falls back to the stylized preview).
  * - full:    fetches the owner-only PDF from the API and renders it locked down.
  */
-export function BookReader({ book, ownerName, preview }: { book: Book; ownerName: string; preview: boolean }) {
+export function BookReader({ book, ownerName, preview, logoUrl }: { book: Book; ownerName: string; preview: boolean; logoUrl?: string | null }) {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [state, setState] = useState<State>("loading");
 
@@ -47,6 +47,7 @@ export function BookReader({ book, ownerName, preview }: { book: Book; ownerName
         if (cancelled) return;
         if (typeof data.pdfUrl === "string" && data.pdfUrl.length) {
           setPdfUrl(data.pdfUrl);
+          preloadPdf(data.pdfUrl);
           setState("ready");
         } else {
           setState(preview ? "demo-fallback" : "empty");
@@ -64,7 +65,7 @@ export function BookReader({ book, ownerName, preview }: { book: Book; ownerName
   if (state === "ready" && pdfUrl) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-6">
-        <SecurePdfViewer dataUrl={pdfUrl} title={book.title} owner={preview ? undefined : ownerName} />
+        <SecurePdfViewer dataUrl={pdfUrl} title={book.title} logoUrl={logoUrl} />
         {preview && (
           <div className="mt-5 flex flex-col items-center gap-2 rounded-2xl border border-dashed border-accent/50 bg-accent/5 px-6 py-5 text-center">
             <p className="text-sm font-bold text-foreground">This is a free sample</p>
