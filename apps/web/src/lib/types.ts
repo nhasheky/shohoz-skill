@@ -91,9 +91,9 @@ export type Book = {
   edition: string;
   language: "En" | "Bn" | "Mixture";
   publisher: string;
-  // A format is offered only when its price is present.
-  pdfPrice?: Price;
-  hardcopyPrice?: Price;
+  // A format is offered only when its price is present (null = not sold).
+  pdfPrice?: Price | null;
+  hardcopyPrice?: Price | null;
   allowedPaymentMethods?: string[];
   tableOfContents: { title: string; pages: string }[];
   samplePages: number;

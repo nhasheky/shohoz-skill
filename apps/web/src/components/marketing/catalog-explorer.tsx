@@ -15,16 +15,16 @@ function metaOf(item: Item): Base {
   if (isCourse(item)) return { ...item, category: item.category, priceLow: item.priceMap.LIFETIME?.amount ?? 0, students: item.students };
   if (isBook(item)) {
     const prices = [item.pdfPrice?.amount, item.hardcopyPrice?.amount].filter((n): n is number => typeof n === "number");
-    return { ...item, priceLow: prices.length ? Math.min(...prices) : 0 };
+    return { ...item, priceLow: prices.length ? Math.min(...prices) : 0, students: item.students };
   }
-  return { ...item, title: item.title, category: item.category ?? "Exam", priceLow: item.isFree ? 0 : item.price.amount, students: item.attemptCount };
+  return { ...item, title: item.title, category: item.category ?? "Exam", priceLow: item.isFree ? 0 : item.price?.amount ?? 0, students: item.attemptCount };
 }
 
 function isCourse(i: Item): i is Course {
   return "priceMap" in i;
 }
 function isBook(i: Item): i is Book {
-  return "pdfPrice" in i;
+  return "hardcopyPrice" in i || "pdfPrice" in i;
 }
 
 const sorters: Record<SortKey, (a: Base, b: Base) => number> = {
