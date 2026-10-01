@@ -4,8 +4,8 @@ import { notFound } from "next/navigation";
 import { getBook, getBooks, getRelatedBooks } from "@/lib/api";
 import { getReviews } from "@/lib/data/reviews";
 import { formatCount } from "@/lib/format";
-import { ProductCover } from "@/components/ui/product-cover";
 import { Stars } from "@/components/ui/rating";
+import { BookPreview } from "@/components/product/book-preview";
 import { BackgroundOrbs } from "@/components/layout/background";
 import { ButtonLink } from "@/components/ui/button";
 import { PurchasePanel, type PurchasePlan } from "@/components/product/purchase-panel";
@@ -96,8 +96,21 @@ export default async function BookDetailPage(props: PageProps<"/book/[slug]">) {
             <span className="max-w-[24ch] truncate text-foreground">{book.title}</span>
           </nav>
 
-          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-10">
-            <div>
+          <div className="grid gap-8 lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-10 xl:grid-cols-[280px_minmax(0,1fr)_360px]">
+            <div className="lg:pt-1">
+              <BookPreview
+                bookId={book.id}
+                slug={book.slug}
+                title={book.title}
+                category={book.category}
+                thumbnailUrl={book.thumbnailUrl}
+                hasDemo={hasDemo}
+                canRead={canRead}
+                accentText={`${book.pages} pages`}
+              />
+            </div>
+
+            <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
                   {book.category}
@@ -132,29 +145,10 @@ export default async function BookDetailPage(props: PageProps<"/book/[slug]">) {
                 </span>
               </div>
 
-              {canRead ? (
-                <Link
-                  href={`/book/${book.slug}/read`}
-                  aria-label="Read a free sample of this book"
-                  className="group relative mt-7 block overflow-hidden rounded-3xl border border-border shadow-card transition-shadow hover:shadow-pop"
-                >
-                  <ProductCover title={book.title} category={book.category} kind="book" accentText={`${book.pages} pages`} thumbnailUrl={book.thumbnailUrl} />
-                  <div className="absolute inset-x-0 bottom-0 flex justify-center bg-gradient-to-t from-black/80 to-transparent p-4 opacity-0 transition-opacity group-hover:opacity-100">
-                    <span className="inline-flex w-full items-center justify-center rounded-xl bg-accent px-4 py-2 text-sm font-bold text-accent-foreground">
-                      একটু পড়ে দেখুন (Look Inside)
-                    </span>
-                  </div>
-                </Link>
-              ) : (
-                <div className="relative mt-7 overflow-hidden rounded-3xl border border-border shadow-card">
-                  <ProductCover title={book.title} category={book.category} kind="book" accentText={`${book.pages} pages`} thumbnailUrl={book.thumbnailUrl} />
-                </div>
-              )}
-
-              <div className="mt-5 flex flex-wrap gap-3">
+              <div className="mt-6 flex flex-wrap gap-3">
                 {canRead && (
                   <ButtonLink href={`/book/${book.slug}/read`} variant="accent">
-                    <IconEye width={16} height={16} className="mr-2" /> {hasDemo ? "Read free sample PDF" : `Preview ${book.samplePages} free pages`}
+                    <IconEye width={16} height={16} className="mr-2" /> একটু পড়ে দেখুন
                   </ButtonLink>
                 )}
                 <ButtonLink href="#contents" variant="outline">
@@ -163,8 +157,8 @@ export default async function BookDetailPage(props: PageProps<"/book/[slug]">) {
               </div>
             </div>
 
-            <aside className="mt-8 lg:mt-0">
-              <div className="lg:sticky lg:top-24">
+            <aside className="lg:col-span-2 xl:col-span-1">
+              <div className="xl:sticky xl:top-24">
                 {plans.length ? (
                   <PurchasePanel kind="Book" title={book.title} productId={book.id} productType="book" allowedPaymentMethods={book.allowedPaymentMethods} plans={plans} planNote="Choose your format" features={features} />
                 ) : (
@@ -212,7 +206,7 @@ export default async function BookDetailPage(props: PageProps<"/book/[slug]">) {
               ))}
             </div>
             <ButtonLink href={`/book/${book.slug}/read`} variant="outline" className="mt-5">
-              <IconEye width={16} height={16} className="mr-2" /> Try the {book.samplePages}-page free preview
+              <IconEye width={16} height={16} className="mr-2" /> একটু পড়ে দেখুন
             </ButtonLink>
           </section>
 

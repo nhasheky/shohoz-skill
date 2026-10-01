@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/cn";
 import { IconLock, IconX } from "@/components/ui/icons";
+import { LogoMark } from "@/components/brand/logo-mark";
 
 /**
  * Renders a PDF (data URL or link) inside a locked-down viewer:
@@ -16,11 +17,13 @@ export function SecurePdfViewer({
   dataUrl,
   title,
   owner,
+  watermarkLogo = false,
   className,
 }: {
   dataUrl: string;
   title: string;
   owner?: string;
+  watermarkLogo?: boolean;
   className?: string;
 }) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
@@ -86,7 +89,7 @@ export function SecurePdfViewer({
         <iframe
           src={`${blobUrl}#toolbar=0&navpanes=0&scrollbar=0&statusbar=0&messages=0&view=FitH`}
           title={`${title} — secure reader`}
-          className="h-[86vh] w-full select-none rounded-2xl border border-border bg-white shadow-card"
+          className="h-[80vh] w-full select-none rounded-2xl border border-border bg-white shadow-card"
         />
       ) : error ? (
         <div className="flex h-[60vh] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border text-center">
@@ -105,6 +108,14 @@ export function SecurePdfViewer({
           <span className="rotate-[-24deg] whitespace-nowrap font-mono text-[13px] uppercase tracking-widest text-[#0d2a4e]/10">
             {owner} · Shohoz Skill
           </span>
+        </div>
+      )}
+
+      {watermarkLogo && blobUrl && (
+        <div className="pointer-events-none absolute inset-0 grid grid-cols-3 place-items-center gap-y-4 overflow-hidden rounded-2xl opacity-[0.08]">
+          {Array.from({ length: 9 }).map((_, i) => (
+            <LogoMark key={i} markOnly className="h-16 w-16 sm:h-20 sm:w-20" />
+          ))}
         </div>
       )}
 

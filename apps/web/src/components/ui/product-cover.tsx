@@ -28,6 +28,7 @@ export function ProductCover({
   className,
   compact = false,
   thumbnailUrl,
+  ratio,
 }: {
   title: string;
   category?: string;
@@ -36,10 +37,13 @@ export function ProductCover({
   className?: string;
   compact?: boolean;
   thumbnailUrl?: string;
+  // Books default to a portrait "book" ratio; everything else stays 16:9.
+  ratio?: "video" | "portrait";
 }) {
   const [from, to] = hashGradient(kind + category + title);
   const shape =
     kind === "book" ? "book" : kind === "exam" ? "target" : kind === "package" ? "package" : "cap";
+  const aspect = (ratio ?? (kind === "book" && !compact ? "portrait" : "video")) === "portrait" ? "aspect-[3/4]" : "aspect-video";
   const titleLines = compact
     ? title.split(" ").slice(0, 4)
     : title.split(" ").slice(0, 6);
@@ -48,7 +52,7 @@ export function ProductCover({
 
   if (thumbnailUrl) {
     return (
-      <div className={cn("relative overflow-hidden aspect-video w-full", className)}>
+      <div className={cn("relative overflow-hidden bg-muted", aspect, "w-full", className)}>
         <img src={thumbnailUrl} alt={title} className="w-full h-full object-cover" />
         {accentText && (
           <div className="absolute top-4 right-4 rounded-md bg-accent px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent-foreground shadow">
@@ -61,7 +65,7 @@ export function ProductCover({
 
   return (
     <div
-      className={cn("relative overflow-hidden aspect-video w-full", className)}
+      className={cn("relative overflow-hidden", aspect, "w-full", className)}
       style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}
     >
       <CoverPattern />
