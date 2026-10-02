@@ -88,6 +88,10 @@ export function PurchaseDialog({
   const [orderId, setOrderId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [loggedIn] = useState(() => hasStoredToken());
+  const [coupon, setCoupon] = useState("");
+  const [applied, setApplied] = useState<{ code: string; discount: number } | null>(null);
+  const [couponMsg, setCouponMsg] = useState("");
+  const [couponBusy, setCouponBusy] = useState(false);
 
   const free = price === 0;
   const physical = productType === "book" && planId === "hardcopy";
@@ -97,7 +101,33 @@ export function PurchaseDialog({
       ? settings.deliveryChargeDhaka
       : settings.deliveryChargeOutside
     : 0;
-  const total = price + deliveryCharge;
+  const couponDiscount = applied?.discount ?? 0;
+  const total = Math.max(0, price - couponDiscount) + deliveryCharge;
+
+  async function applyCoupon() {
+    if (!coupon.trim()) return;
+    setCouponBusy(true);
+    setCouponMsg("");
+    try {
+      const item: Record<string, unknown> = { productType, productId, quantity: 1 };
+      if (productType === "book") item.variant = planId;
+      if (productType === "course") item.duration = planId;
+      const res = await fetch(`${API_URL}/api/orders/coupon/validate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: coupon.trim(), items: [item] }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error((data as { message?: string })?.message || "Invalid coupon.");
+      setApplied({ code: data.code, discount: data.discount });
+      setCouponMsg(`Applied — you save ${formatBdt(data.discount)}`);
+    } catch (e) {
+      setApplied(null);
+      setCouponMsg(e instanceof Error ? e.message : "Invalid coupon.");
+    } finally {
+      setCouponBusy(false);
+    }
+  }
 
   const allowed = useMemo<PaymentMethod[]>(() => {
     const defaults: PaymentMethod[] = physical ? ["COD", "SSLCOMMERZ"] : ["SSLCOMMERZ"];
@@ -184,6 +214,7 @@ export function PurchaseDialog({
       body.address = address.trim();
       body.region = region;
     }
+    if (applied?.code) body.couponCode = applied.code;
 
     try {
       const res = await fetch(`${API_URL}/api/orders/checkout`, {
@@ -292,11 +323,39 @@ export function PurchaseDialog({
                   <span className="font-semibold text-foreground">{formatBdt(deliveryCharge)}</span>
                 </div>
               )}
+              {couponDiscount > 0 && (
+                <div className="flex items-center justify-between text-success">
+                  <span>Coupon ({applied?.code})</span>
+                  <span className="font-semibold">− {formatBdt(couponDiscount)}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between border-t border-border pt-1.5">
                 <span className="font-semibold text-foreground">Total</span>
                 <span className="font-display text-xl font-extrabold text-foreground">{formatBdt(total)}</span>
               </div>
             </div>
+
+            {!free && (
+              <div className="mt-4">
+                <div className="flex gap-2">
+                  <input
+                    value={coupon}
+                    onChange={(e) => setCoupon(e.target.value.toUpperCase())}
+                    placeholder="Coupon code"
+                    className={cn(inputCls, "py-2.5 uppercase")}
+                  />
+                  <button
+                    type="button"
+                    onClick={applyCoupon}
+                    disabled={couponBusy || !coupon.trim()}
+                    className="shrink-0 rounded-xl border border-border px-4 text-sm font-bold text-foreground hover:bg-muted disabled:opacity-50"
+                  >
+                    {couponBusy ? "…" : "Apply"}
+                  </button>
+                </div>
+                {couponMsg && <p className={cn("mt-1.5 text-xs font-semibold", applied ? "text-success" : "text-danger")}>{couponMsg}</p>}
+              </div>
+            )}
 
             {loggedIn ? (
               <p className="mt-4 rounded-xl border border-border bg-muted/40 px-4 py-2.5 text-xs text-muted-foreground">

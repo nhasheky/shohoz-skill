@@ -75,9 +75,9 @@ const bookFields: FieldDef[] = [
   { name: "edition", label: "Edition" },
   { name: "language", label: "Language", type: "select", options: ["En", "Bn", "Mixture"] },
   { name: "pages", label: "Pages", type: "number", required: true },
-  { name: "pdfPrice", label: "Online PDF price (৳)", type: "number", help: "Leave empty if you do NOT want to sell the online PDF. PDF is online-only (SSLCOMMERZ)." },
-  { name: "pdfFileUrl", label: "Full PDF (owners only)", type: "file", span2: true, help: "The complete book. Buyers read it in the secure viewer (no download). Required when a PDF price is set." },
-  { name: "hardcopyPrice", label: "Hardcopy price (৳)", type: "number", help: "Leave empty if you do NOT want to sell the printed book. Hardcopy supports SSLCOMMERZ + Cash on Delivery." },
+  { name: "pdfPrice", label: "Online PDF price (৳)", type: "number", help: "Set to sell the online PDF (needs demo + full PDF). Leave empty if this book is hardcopy only. A book is EITHER PDF or hardcopy." },
+  { name: "pdfFileUrl", label: "Full PDF (owners only)", type: "file", span2: true, help: "PDF format only. The complete book, read in the secure viewer (no download). Required when a PDF price is set." },
+  { name: "hardcopyPrice", label: "Hardcopy price (৳)", type: "number", help: "Set to sell the printed hardcopy (demo PDF only — no full PDF). Leave empty if this book is an online PDF." },
   { name: "samplePages", label: "Sample pages", type: "number" },
   { name: "students", label: "Students", type: "number" },
   { name: "rating", label: "Rating", type: "number" },
@@ -344,10 +344,17 @@ export function BookFormPage({ id }: { id?: string }) {
           if (dto.pdfPrice === undefined) dto.pdfPrice = null;
           if (dto.hardcopyPrice === undefined) dto.hardcopyPrice = null;
           if (!dto.pdfPrice && !dto.hardcopyPrice) {
-            throw new Error("Set at least one price — online PDF and/or hardcopy.");
+            throw new Error("Choose a format — set an online PDF price OR a hardcopy price.");
+          }
+          if (dto.pdfPrice && dto.hardcopyPrice) {
+            throw new Error("Choose either online PDF or hardcopy — not both.");
           }
           if (dto.pdfPrice && !dto.pdfFileUrl && !hasPdfFile) {
             throw new Error("Upload the full PDF file when selling the online PDF.");
+          }
+          if (dto.hardcopyPrice) {
+            // Hardcopy books only ship the free demo PDF (no full online PDF).
+            dto.pdfFileUrl = undefined;
           }
           if (id) await api.updateBook(id, dto);
           else await api.createBook(dto);

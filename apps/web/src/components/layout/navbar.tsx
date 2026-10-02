@@ -9,9 +9,11 @@ import { LogoMark } from "@/components/brand/logo-mark";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { ButtonLink } from "@/components/ui/button";
 import { IconMenu, IconX } from "@/components/ui/icons";
+import { useCart } from "@/components/cart/cart-provider";
 
 export function Navbar({ logoUrl }: { logoUrl?: string }) {
   const pathname = usePathname();
+  const { count } = useCart();
   const [open, setOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
@@ -47,6 +49,22 @@ export function Navbar({ logoUrl }: { logoUrl?: string }) {
 
         <div className="flex items-center gap-2">
           <ThemeToggle className="hidden sm:inline-flex" />
+          <Link
+            href="/cart"
+            aria-label="Cart"
+            className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="9" cy="21" r="1" />
+              <circle cx="20" cy="21" r="1" />
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+            </svg>
+            {count > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-accent-foreground">
+                {count}
+              </span>
+            )}
+          </Link>
           {isLoggedIn ? (
             <ButtonLink href="/dashboard" variant="accent" size="sm" className="hidden md:inline-flex">
               Dashboard

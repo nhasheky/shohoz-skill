@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { slugify } from '../../common/slug.js';
 import type { CreateBookDto } from './dto/create-book.dto.js';
@@ -112,11 +112,30 @@ export class BooksService {
     if (dto.seo !== undefined) {
       clean.seo = dto.seo && typeof dto.seo === 'object' ? dto.seo : null;
     }
+
+    // Format exclusivity: a book is either an online PDF or a printed hardcopy.
+    if (clean.pdfPrice !== undefined || clean.hardcopyPrice !== undefined) {
+      const pdf = clean.pdfPrice ?? null;
+      const hard = clean.hardcopyPrice ?? null;
+      if (pdf != null && hard != null) {
+        throw new BadRequestException('Choose either an online PDF price or a hardcopy price — not both.');
+      }
+      if (pdf != null) {
+        clean.hardcopyPrice = null;
+      } else if (hard != null) {
+        // Hardcopy books only ship the free demo; never a full online PDF.
+        clean.pdfPrice = null;
+        clean.pdfFileUrl = null;
+      }
+    }
     return clean;
   }
 
   async create(dto: CreateBookDto) {
     const clean = this.sanitizeBookScalars(dto as any);
+    if (clean.pdfPrice != null && !clean.pdfFileUrl) {
+      throw new BadRequestException('Upload the full PDF file when selling the online PDF.');
+    }
     return this.prisma.book.create({
       data: {
         slug: await this.uniqueSlug(slugify(String(dto.slug ?? '').trim() || String(dto.title).trim())),
@@ -137,6 +156,12 @@ export class BooksService {
     await this.ensureExists(id);
     const { slug: rawSlug, ...rest } = dto;
     const clean = this.sanitizeBookScalars(rest as any);
+    if (clean.pdfPrice != null && clean.pdfFileUrl === undefined) {
+      const existing = await this.prisma.book.findUnique({ where: { id }, select: { pdfFileUrl: true } });
+      if (!existing?.pdfFileUrl) {
+        throw new BadRequestException('Upload the full PDF file when selling the online PDF.');
+      }
+    }
     if (rawSlug !== undefined && String(rawSlug).trim()) {
       clean.slug = await this.uniqueSlug(slugify(String(rawSlug).trim()), id);
     }

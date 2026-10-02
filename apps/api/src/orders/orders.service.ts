@@ -1,17 +1,22 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { CouponsService } from '../coupons/coupons.service.js';
 import type { CreateOrderDto } from './dto/create-order.dto.js';
 import type { UpdateOrderStatusDto } from './dto/update-order-status.dto.js';
-import type { CheckoutDto } from './dto/checkout.dto.js';
+import type { CheckoutDto, CheckoutBatchDto } from './dto/checkout.dto.js';
+import type { ValidateCouponDto } from '../coupons/dto/coupon.dto.js';
 // @ts-ignore
 import SSLCommerzPayment from 'sslcommerz-lts';
 
 type ResolvedProduct = {
+  productType: string;
   title: string;
   unitPrice: number;
   isPhysical: boolean;
   variant?: string;
+  duration?: string;
+  productId: string;
   allowedPaymentMethods: string[];
 };
 
@@ -23,6 +28,7 @@ export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly coupons: CouponsService,
   ) {}
 
   // ─── Guest / authenticated checkout ────────────────────────────────────────
@@ -48,21 +54,23 @@ export class OrdersService {
       deliveryCharge = dto.region === 'DHAKA' ? chargeDhaka : chargeOutside;
     }
 
-    // ── Payment-method resolution ────────────────────────────────────────────
-    const codEnabled = settings?.codEnabled ?? true;
-    const sslEnabled = settings?.sslcommerzEnabled ?? true;
-    const defaults = product.isPhysical ? ['COD', 'SSLCOMMERZ'] : ['SSLCOMMERZ'];
-    const configured = product.allowedPaymentMethods.length ? product.allowedPaymentMethods : defaults;
-    const allowed = configured.filter((m) =>
-      m === 'COD' ? codEnabled && product.isPhysical : m === 'SSLCOMMERZ' ? sslEnabled : false,
-    );
+    const allowed = this.allowedMethods([product], settings);
     if (!allowed.includes(dto.paymentMethod)) {
       throw new BadRequestException(
         `Payment method ${dto.paymentMethod} is not available for this product.`,
       );
     }
 
-    const total = amount + deliveryCharge;
+    const couponCode = dto.couponCode?.trim() ? dto.couponCode.trim().toUpperCase() : null;
+    let discount = 0;
+    if (couponCode) {
+      const applied = await this.coupons.evaluate(couponCode, [
+        { productType: product.productType, unitPrice: product.unitPrice, quantity },
+      ]);
+      discount = applied.discount;
+    }
+
+    const total = Math.max(0, amount - discount) + deliveryCharge;
     const isFree = total === 0;
     const status = isFree ? 'PAID' : 'PENDING';
     const txId = `${isFree ? 'FREE' : dto.paymentMethod}-${randomRef()}`;
@@ -73,13 +81,15 @@ export class OrdersService {
         guestName: userId ? null : dto.guestName?.trim() || null,
         guestPhone: userId ? null : normalizePhone(dto.guestPhone) ?? null,
         guestEmail: userId ? null : dto.guestEmail?.toLowerCase().trim() || null,
-        productType: dto.productType,
-        productId: dto.productId,
+        productType: product.productType,
+        productId: product.productId,
         productTitle: product.title,
         variant: product.variant ?? null,
         isPhysical: product.isPhysical,
         quantity,
         amount,
+        discount,
+        couponCode,
         deliveryCharge,
         total,
         method: dto.paymentMethod,
@@ -91,80 +101,17 @@ export class OrdersService {
       },
     });
 
-    // Free digital items grant access immediately for signed-in users.
-    if (isFree && userId && !product.isPhysical) {
-      await this.grantAccess(userId, dto.productType, dto.productId);
-    }
+    if (discount > 0 && couponCode) await this.coupons.markUsed(couponCode);
+    if (isFree) await this.grantAccessForOrder(order);
 
-    let paymentUrl: string | null = null;
-    if (!isFree && dto.paymentMethod === 'SSLCOMMERZ') {
-      let customerName = order.guestName || 'Customer';
-      let customerEmail = order.guestEmail || 'customer@shohozskill.com';
-      let customerPhone = order.guestPhone || '01700000000';
-      if (userId) {
-        const user = await this.prisma.user.findUnique({ where: { id: userId } });
-        if (user) {
-          customerName = user.name || customerName;
-          customerEmail = user.email || customerEmail;
-          customerPhone = user.phone || customerPhone;
-        }
-      }
-
-      const { storeId, storePass, isLive } = this.getCredentials();
-      const apiUrl = this.config.get('API_URL') || 'https://api.shohozskill.com.bd';
-      const frontendUrl = this.config.get('FRONTEND_URL') || 'https://shohozskill.com.bd';
-      
-      const sslcz = new SSLCommerzPayment(storeId, storePass, isLive);
-      
-      const initData = {
-        total_amount: order.total,
-        currency: 'BDT',
-        tran_id: order.txId,
-        success_url: `${apiUrl}/api/orders/sslcommerz/success?orderId=${order.id}`,
-        fail_url: `${apiUrl}/api/orders/sslcommerz/fail?orderId=${order.id}`,
-        cancel_url: `${apiUrl}/api/orders/sslcommerz/cancel?orderId=${order.id}`,
-        ipn_url: `${apiUrl}/api/orders/sslcommerz/ipn`,
-        shipping_method: order.isPhysical ? 'Courier' : 'No',
-        product_name: order.productTitle || 'Shohoz Skill Order',
-        product_category: order.productType || 'General',
-        product_profile: 'general',
-        cus_name: customerName,
-        cus_email: customerEmail,
-        cus_add1: order.address || 'Dhaka',
-        cus_city: 'Dhaka',
-        cus_state: 'Dhaka',
-        cus_postcode: '1000',
-        cus_country: 'Bangladesh',
-        cus_phone: customerPhone,
-      };
-
-      try {
-        let apiResponse = await sslcz.init(initData);
-        if (!apiResponse?.GatewayPageURL && (storeId !== 'shohozskillcombd0live' || !isLive)) {
-          console.warn('Initial SSLCommerz init failed, attempting with verified fallback live credentials...');
-          const fallbackSsl = new SSLCommerzPayment('shohozskillcombd0live', '69F07E8E9B34A63050', true);
-          const fallbackRes = await fallbackSsl.init(initData);
-          if (fallbackRes?.GatewayPageURL) {
-            apiResponse = fallbackRes;
-          }
-        }
-        if (apiResponse?.GatewayPageURL) {
-          paymentUrl = apiResponse.GatewayPageURL;
-        } else {
-          console.error('SSLCommerz Init failed:', apiResponse);
-          throw new BadRequestException(apiResponse?.failedreason || 'Failed to initiate SSLCOMMERZ session.');
-        }
-      } catch (err: any) {
-        console.error('SSLCommerz Init Error:', err);
-        throw new BadRequestException(err?.message || 'Payment gateway error. Try again.');
-      }
-    }
+    const paymentUrl = isFree ? null : await this.initiatePayment(order, userId);
 
     return {
       orderId: order.id,
       status: order.status,
       paymentMethod: order.paymentMethod,
       amount,
+      discount,
       deliveryCharge,
       total,
       paymentUrl,
@@ -176,8 +123,247 @@ export class OrdersService {
     };
   }
 
+  /**
+   * Multi-product cart checkout. Creates ONE order holding every line item and
+   * a single SSLCOMMERZ payment for the grand total (shared delivery charge).
+   */
+  async checkoutBatch(userId: string | null, dto: CheckoutBatchDto) {
+    const rawItems = dto.items ?? [];
+    if (!rawItems.length) throw new BadRequestException('Your cart is empty.');
+
+    const products: (ResolvedProduct & { quantity: number })[] = [];
+    for (const it of rawItems) {
+      const resolved = await this.resolveProduct(it);
+      products.push({ ...resolved, quantity: it.quantity ?? 1 });
+    }
+
+    const settings = await this.prisma.siteSetting.findUnique({ where: { id: 'default' } });
+    const chargeDhaka = settings?.deliveryChargeDhaka ?? 60;
+    const chargeOutside = settings?.deliveryChargeOutside ?? 120;
+
+    const anyPhysical = products.some((p) => p.isPhysical);
+    const subtotal = products.reduce((sum, p) => sum + p.unitPrice * p.quantity, 0);
+
+    let deliveryCharge = 0;
+    if (anyPhysical) {
+      if (!dto.region) throw new BadRequestException('Delivery region is required for physical items.');
+      if (!dto.address?.trim()) throw new BadRequestException('Delivery address is required for physical items.');
+      deliveryCharge = dto.region === 'DHAKA' ? chargeDhaka : chargeOutside;
+    }
+
+    const allowed = this.allowedMethods(products, settings);
+    if (!allowed.length || !allowed.includes(dto.paymentMethod)) {
+      throw new BadRequestException(`Payment method ${dto.paymentMethod} is not available for your cart.`);
+    }
+
+    const couponCode = dto.couponCode?.trim() ? dto.couponCode.trim().toUpperCase() : null;
+    let discount = 0;
+    if (couponCode) {
+      const applied = await this.coupons.evaluate(
+        couponCode,
+        products.map((p) => ({ productType: p.productType, unitPrice: p.unitPrice, quantity: p.quantity })),
+      );
+      discount = applied.discount;
+    }
+
+    const total = Math.max(0, subtotal - discount) + deliveryCharge;
+    const isFree = total === 0;
+    const status = isFree ? 'PAID' : 'PENDING';
+    const txId = `${isFree ? 'FREE' : dto.paymentMethod}-${randomRef()}`;
+    const quantity = products.reduce((sum, p) => sum + p.quantity, 0);
+    const single = products.length === 1 ? products[0] : null;
+
+    const itemsJson = products.map((p) => ({
+      productType: p.productType,
+      productId: p.productId,
+      title: p.title,
+      variant: p.variant ?? null,
+      duration: p.duration ?? null,
+      quantity: p.quantity,
+      unitPrice: p.unitPrice,
+      isPhysical: p.isPhysical,
+    }));
+
+    const order = await this.prisma.order.create({
+      data: {
+        userId: userId ?? null,
+        guestName: userId ? null : dto.guestName?.trim() || null,
+        guestPhone: userId ? null : normalizePhone(dto.guestPhone) ?? null,
+        guestEmail: userId ? null : dto.guestEmail?.toLowerCase().trim() || null,
+        productType: single ? single.productType : 'cart',
+        productId: single ? single.productId : 'cart',
+        productTitle: single ? single.title : `${products[0].title} + ${products.length - 1} more`,
+        variant: single?.variant ?? null,
+        isPhysical: anyPhysical,
+        quantity,
+        amount: subtotal,
+        discount,
+        couponCode,
+        deliveryCharge,
+        total,
+        method: dto.paymentMethod,
+        paymentMethod: dto.paymentMethod,
+        status,
+        address: dto.address?.trim() || null,
+        region: dto.region ?? null,
+        txId,
+        items: itemsJson,
+      },
+    });
+
+    if (discount > 0 && couponCode) await this.coupons.markUsed(couponCode);
+    if (isFree) await this.grantAccessForOrder(order);
+
+    const paymentUrl = isFree ? null : await this.initiatePayment(order, userId);
+
+    return {
+      orderId: order.id,
+      status: order.status,
+      paymentMethod: order.paymentMethod,
+      amount: subtotal,
+      discount,
+      deliveryCharge,
+      total,
+      paymentUrl,
+      message: anyPhysical && dto.paymentMethod === 'COD' ? 'Order placed. Pay cash on delivery.' : 'Proceeding to payment…',
+    };
+  }
+
+  /** Public coupon preview: price the cart items and return the discount. */
+  async validateCoupon(dto: ValidateCouponDto) {
+    const items: { productType: string; unitPrice: number; quantity: number }[] = [];
+    for (const it of dto.items ?? []) {
+      const p = await this.resolveProduct(it);
+      items.push({ productType: p.productType, unitPrice: p.unitPrice, quantity: it.quantity ?? 1 });
+    }
+    return this.coupons.evaluate(dto.code, items);
+  }
+
+  /** Methods available for a set of products (COD only when everything is physical). */
+  private allowedMethods(
+    products: ResolvedProduct[],
+    settings: { codEnabled?: boolean | null; sslcommerzEnabled?: boolean | null } | null,
+  ): string[] {
+    const codEnabled = settings?.codEnabled ?? true;
+    const sslEnabled = settings?.sslcommerzEnabled ?? true;
+    const anyPhysical = products.some((p) => p.isPhysical);
+    const methods: string[] = [];
+    if (anyPhysical && codEnabled) methods.push('COD');
+    if (sslEnabled) methods.push('SSLCOMMERZ');
+    // Every product must permit the method.
+    return methods.filter((m) =>
+      products.every((p) => {
+        const defaults = p.isPhysical ? ['COD', 'SSLCOMMERZ'] : ['SSLCOMMERZ'];
+        const configured = p.allowedPaymentMethods.length ? p.allowedPaymentMethods : defaults;
+        return configured.includes(m);
+      }),
+    );
+  }
+
+  /** Initiate an SSLCOMMERZ session for an order (returns the gateway URL). */
+  private async initiatePayment(
+    order: {
+      id: string;
+      status: string;
+      paymentMethod: string;
+      total: number;
+      txId: string | null;
+      isPhysical: boolean;
+      productTitle: string;
+      productType: string;
+      address: string | null;
+      guestName: string | null;
+      guestEmail: string | null;
+      guestPhone: string | null;
+    },
+    userId: string | null,
+  ): Promise<string | null> {
+    if (order.status === 'PAID' || order.paymentMethod !== 'SSLCOMMERZ') return null;
+
+    let customerName = order.guestName || 'Customer';
+    let customerEmail = order.guestEmail || 'customer@shohozskill.com';
+    let customerPhone = order.guestPhone || '01700000000';
+    if (userId) {
+      const user = await this.prisma.user.findUnique({ where: { id: userId } });
+      if (user) {
+        customerName = user.name || customerName;
+        customerEmail = user.email || customerEmail;
+        customerPhone = user.phone || customerPhone;
+      }
+    }
+
+    const { storeId, storePass, isLive } = this.getCredentials();
+    const apiUrl = this.config.get('API_URL') || 'https://api.shohozskill.com.bd';
+    const sslcz = new SSLCommerzPayment(storeId, storePass, isLive);
+
+    const initData = {
+      total_amount: order.total,
+      currency: 'BDT',
+      tran_id: order.txId,
+      success_url: `${apiUrl}/api/orders/sslcommerz/success?orderId=${order.id}`,
+      fail_url: `${apiUrl}/api/orders/sslcommerz/fail?orderId=${order.id}`,
+      cancel_url: `${apiUrl}/api/orders/sslcommerz/cancel?orderId=${order.id}`,
+      ipn_url: `${apiUrl}/api/orders/sslcommerz/ipn`,
+      shipping_method: order.isPhysical ? 'Courier' : 'No',
+      product_name: order.productTitle || 'Shohoz Skill Order',
+      product_category: order.productType || 'General',
+      product_profile: 'general',
+      cus_name: customerName,
+      cus_email: customerEmail,
+      cus_add1: order.address || 'Dhaka',
+      cus_city: 'Dhaka',
+      cus_state: 'Dhaka',
+      cus_postcode: '1000',
+      cus_country: 'Bangladesh',
+      cus_phone: customerPhone,
+    };
+
+    try {
+      let apiResponse = await sslcz.init(initData);
+      if (!apiResponse?.GatewayPageURL && (storeId !== 'shohozskillcombd0live' || !isLive)) {
+        console.warn('Initial SSLCommerz init failed, attempting with verified fallback live credentials...');
+        const fallbackSsl = new SSLCommerzPayment('shohozskillcombd0live', '69F07E8E9B34A63050', true);
+        const fallbackRes = await fallbackSsl.init(initData);
+        if (fallbackRes?.GatewayPageURL) apiResponse = fallbackRes;
+      }
+      if (apiResponse?.GatewayPageURL) return apiResponse.GatewayPageURL;
+      console.error('SSLCommerz Init failed:', apiResponse);
+      throw new BadRequestException(apiResponse?.failedreason || 'Failed to initiate SSLCOMMERZ session.');
+    } catch (err: any) {
+      console.error('SSLCommerz Init Error:', err);
+      throw new BadRequestException(err?.message || 'Payment gateway error. Try again.');
+    }
+  }
+
+  /** Grant enrolment for every digital line in an order (single or cart). */
+  private async grantAccessForOrder(order: {
+    userId: string | null;
+    isPhysical: boolean;
+    productType: string;
+    productId: string;
+    items?: unknown;
+  }) {
+    if (!order.userId) return;
+    const items = Array.isArray(order.items) ? (order.items as Record<string, unknown>[]) : null;
+    if (items && items.length) {
+      for (const it of items) {
+        if (it?.isPhysical) continue;
+        if (typeof it?.productType === 'string' && typeof it?.productId === 'string') {
+          await this.grantAccess(order.userId, it.productType, it.productId);
+        }
+      }
+      return;
+    }
+    if (!order.isPhysical) await this.grantAccess(order.userId, order.productType, order.productId);
+  }
+
   /** Load a product (by id or slug) and compute its authoritative price. */
-  private async resolveProduct(dto: CheckoutDto): Promise<ResolvedProduct> {
+  private async resolveProduct(dto: {
+    productType: string;
+    productId: string;
+    variant?: string;
+    duration?: string;
+  }): Promise<ResolvedProduct> {
     if (dto.productType === 'course') {
       const course = await this.prisma.course.findFirst({
         where: { OR: [{ id: dto.productId }, { slug: dto.productId }] },
@@ -189,9 +375,12 @@ export class OrdersService {
         course.prices.find((p) => p.duration === 'LIFETIME') ??
         course.prices[0];
       return {
+        productType: 'course',
+        productId: dto.productId,
         title: course.title,
         unitPrice: price?.amount ?? 0,
         isPhysical: false,
+        duration: dto.duration,
         allowedPaymentMethods: course.allowedPaymentMethods,
       };
     }
@@ -228,6 +417,8 @@ export class OrdersService {
         : variantMethods;
 
       return {
+        productType: 'book',
+        productId: dto.productId,
         title: isPhysical ? `${book.title} (Hardcopy)` : `${book.title} (PDF)`,
         unitPrice,
         isPhysical,
@@ -241,6 +432,8 @@ export class OrdersService {
     });
     if (!exam) throw new NotFoundException('Exam not found.');
     return {
+      productType: 'exam',
+      productId: dto.productId,
       title: exam.title,
       unitPrice: exam.isFree ? 0 : exam.priceAmount,
       isPhysical: false,
@@ -295,9 +488,7 @@ export class OrdersService {
 
     if (ticks >= 2) {
       await this.prisma.order.update({ where: { id: order.id }, data: { status: 'PAID' } });
-      if (order.userId && !order.isPhysical) {
-        await this.grantAccess(order.userId, order.productType, order.productId);
-      }
+      await this.grantAccessForOrder(order);
       return { status: 'PAID', message: 'Payment confirmed — access unlocked.' };
     }
     return { status: 'PENDING', message: 'Still waiting for gateway confirmation.' };
@@ -345,8 +536,8 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('Order not found.');
 
-    if (dto.status === 'PAID' && order.status !== 'PAID' && order.userId && !order.isPhysical) {
-      await this.grantAccess(order.userId, order.productType, order.productId);
+    if (dto.status === 'PAID' && order.status !== 'PAID') {
+      await this.grantAccessForOrder(order);
     }
 
     return this.prisma.order.update({
@@ -478,9 +669,7 @@ export class OrdersService {
               where: { id: order.id },
               data: { status: 'PAID', txId: body.bank_tran_id || body.tran_id || order.txId },
             });
-            if (order.userId && !order.isPhysical) {
-              await this.grantAccess(order.userId, order.productType, order.productId);
-            }
+            await this.grantAccessForOrder(order);
             return `${frontendUrl}/checkout/success?orderId=${order.id}&method=SSLCOMMERZ&status=PAID&digital=${digital}`;
           }
         }
@@ -527,9 +716,7 @@ export class OrdersService {
          const isValid = await sslcz.validate(body);
          if (isValid && order.status !== 'PAID') {
             await this.prisma.order.update({ where: { id: order.id }, data: { status: 'PAID' } });
-            if (order.userId && !order.isPhysical) {
-              await this.grantAccess(order.userId, order.productType, order.productId);
-            }
+            await this.grantAccessForOrder(order);
          }
        } catch (err) {
          console.error('IPN Validation Error:', err);

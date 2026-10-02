@@ -17,6 +17,30 @@ const AUTO_MIGRATIONS: string[] = [
   `ALTER TABLE "Book" ADD COLUMN IF NOT EXISTS "demoPdfUrl" TEXT`,
   `ALTER TABLE "Book" ADD COLUMN IF NOT EXISTS "pdfFileUrl" TEXT`,
   `ALTER TABLE "Book" ALTER COLUMN "pdfPrice" DROP NOT NULL`,
+  // Coupons + multi-item (cart) order support.
+  `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "couponCode" TEXT`,
+  `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "discount" INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "items" JSONB`,
+  `CREATE TABLE IF NOT EXISTS "Coupon" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "description" TEXT,
+    "type" TEXT NOT NULL DEFAULT 'PERCENT',
+    "value" INTEGER NOT NULL,
+    "minSubtotal" INTEGER NOT NULL DEFAULT 0,
+    "maxDiscount" INTEGER,
+    "appliesTo" TEXT[] NOT NULL DEFAULT '{}',
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "startsAt" TIMESTAMP(3),
+    "expiresAt" TIMESTAMP(3),
+    "usageLimit" INTEGER,
+    "usedCount" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Coupon_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "Coupon_code_key" ON "Coupon"("code")`,
+  `CREATE INDEX IF NOT EXISTS "Coupon_active_idx" ON "Coupon"("active")`,
 ];
 
 @Injectable()

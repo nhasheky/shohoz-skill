@@ -328,12 +328,36 @@ model Order {
   txId             String?   @unique
   gatewayReference String? // poll uses this
   refundedAt       DateTime?
+  couponCode       String?
+  discount         Int       @default(0)
+  items            Json? // line items for multi-product (cart) orders
   createdAt        DateTime  @default(now())
 
   @@index([userId, createdAt])
   @@index([status])
   @@index([guestPhone])
   @@index([guestEmail])
+}
+
+// Discount coupons usable across courses, books and exams.
+model Coupon {
+  id          String    @id @default(cuid())
+  code        String    @unique // always stored upper-cased
+  description String?
+  type        String    @default("PERCENT") // PERCENT | FIXED
+  value       Int // percent (1-100) for PERCENT, BDT for FIXED
+  minSubtotal Int       @default(0)
+  maxDiscount Int? // cap for PERCENT coupons
+  appliesTo   String[]  @default([]) // empty = all; else subset of course|book|exam
+  active      Boolean   @default(true)
+  startsAt    DateTime?
+  expiresAt   DateTime?
+  usageLimit  Int? // null = unlimited
+  usedCount   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([active])
 }
 
 model Enrollment {

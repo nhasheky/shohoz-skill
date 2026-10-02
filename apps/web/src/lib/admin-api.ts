@@ -172,6 +172,32 @@ export const updateBlog = (id: string, dto: Record<string, unknown>) =>
   request(`/blogs/${id}`, { method: "PUT", body: JSON.stringify(dto) });
 export const deleteBlog = (id: string) => request(`/blogs/${id}`, { method: "DELETE" });
 
+// ─── Coupons ──────────────────────────────────────────────────────────────
+export type Coupon = {
+  id: string;
+  code: string;
+  description?: string | null;
+  type: "PERCENT" | "FIXED";
+  value: number;
+  minSubtotal: number;
+  maxDiscount?: number | null;
+  appliesTo: string[];
+  active: boolean;
+  startsAt?: string | null;
+  expiresAt?: string | null;
+  usageLimit?: number | null;
+  usedCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export const listCoupons = () => request<Coupon[]>("/admin/coupons");
+export const createCoupon = (dto: Record<string, unknown>) =>
+  request<Coupon>("/admin/coupons", { method: "POST", body: JSON.stringify(dto) });
+export const updateCoupon = (id: string, dto: Record<string, unknown>) =>
+  request<Coupon>(`/admin/coupons/${id}`, { method: "PUT", body: JSON.stringify(dto) });
+export const deleteCoupon = (id: string) => request(`/admin/coupons/${id}`, { method: "DELETE" });
+
 // ─── Users ────────────────────────────────────────────────────────────────
 export const listUsers = (q?: string, page = 1, perPage = 20) =>
   request<PageResult<AppUser>>(`/users${qs({ q, page, perPage })}`);

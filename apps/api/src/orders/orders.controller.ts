@@ -2,7 +2,8 @@ import { All, Body, Controller, Get, Param, Post, Put, Query, Req, Res, UseGuard
 import type { Response } from 'express';
 import { OrdersService } from './orders.service.js';
 import { CreateOrderDto } from './dto/create-order.dto.js';
-import { CheckoutDto } from './dto/checkout.dto.js';
+import { CheckoutDto, CheckoutBatchDto } from './dto/checkout.dto.js';
+import { ValidateCouponDto } from '../coupons/dto/coupon.dto.js';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard.js';
@@ -22,6 +23,19 @@ export class OrdersController {
   @UseGuards(OptionalJwtAuthGuard)
   checkout(@Req() req: MaybeAuthed, @Body() dto: CheckoutDto) {
     return this.orders.checkout(req.user?.sub ?? null, dto);
+  }
+
+  /** Multi-product cart checkout — one combined order + single payment. */
+  @Post('checkout-batch')
+  @UseGuards(OptionalJwtAuthGuard)
+  checkoutBatch(@Req() req: MaybeAuthed, @Body() dto: CheckoutBatchDto) {
+    return this.orders.checkoutBatch(req.user?.sub ?? null, dto);
+  }
+
+  /** Public coupon preview for the cart / checkout. */
+  @Post('coupon/validate')
+  validateCoupon(@Body() dto: ValidateCouponDto) {
+    return this.orders.validateCoupon(dto);
   }
 
   /** Public mock-gateway poll (guest orders have no session). */
