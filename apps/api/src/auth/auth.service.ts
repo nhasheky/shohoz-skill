@@ -324,6 +324,14 @@ export class AuthService {
   /* ═══════════════════════════════════════════════════════════════════
    *  Account merging: attach guest orders once a user verifies.
    * ═══════════════════════════════════════════════════════════════════ */
+  private async grantEnrollment(userId: string, productType: string, productId: string) {
+    await this.prisma.enrollment.upsert({
+      where: { userId_productType_productId: { userId, productType, productId } },
+      create: { userId, productType, productId, accessFrom: new Date() },
+      update: {},
+    });
+  }
+
   private async mergeGuestOrders(user: { id: string; phone: string; email?: string | null }) {
     const localPhone = user.phone.replace(/^\+88/, '');
     const or: { guestPhone?: string; guestEmail?: string }[] = [{ guestPhone: user.phone }];
@@ -332,7 +340,7 @@ export class AuthService {
 
     const orders = await this.prisma.order.findMany({
       where: { userId: null, OR: or },
-      select: { id: true, status: true, isPhysical: true, productType: true, productId: true },
+      select: { id: true, status: true, isPhysical: true, productType: true, productId: true, items: true },
     });
     if (!orders.length) return { merged: 0 };
 
@@ -343,23 +351,17 @@ export class AuthService {
 
     // Unlock access for guest purchases that were already paid.
     for (const order of orders) {
-      if (order.status === 'PAID' && !order.isPhysical) {
-        await this.prisma.enrollment.upsert({
-          where: {
-            userId_productType_productId: {
-              userId: user.id,
-              productType: order.productType,
-              productId: order.productId,
-            },
-          },
-          create: {
-            userId: user.id,
-            productType: order.productType,
-            productId: order.productId,
-            accessFrom: new Date(),
-          },
-          update: {},
-        });
+      if (order.status !== 'PAID') continue;
+      const items = Array.isArray(order.items) ? (order.items as Record<string, unknown>[]) : null;
+      if (items && items.length) {
+        for (const it of items) {
+          if (it?.isPhysical) continue;
+          if (typeof it?.productType === 'string' && typeof it?.productId === 'string') {
+            await this.grantEnrollment(user.id, it.productType, it.productId);
+          }
+        }
+      } else if (!order.isPhysical) {
+        await this.grantEnrollment(user.id, order.productType, order.productId);
       }
     }
     return { merged: orders.length };

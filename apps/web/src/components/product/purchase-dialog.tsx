@@ -83,7 +83,7 @@ export function PurchaseDialog({
   const [phone, setPhone] = useState(() => readStoredUser()?.phone?.replace(/^\+88/, "") ?? "");
   const [email, setEmail] = useState(() => readStoredUser()?.email ?? "");
   const [address, setAddress] = useState("");
-  const [region, setRegion] = useState<Region>("DHAKA");
+  const [region, setRegion] = useState<Region>("OUTSIDE");
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
@@ -176,14 +176,12 @@ export function PurchaseDialog({
   }
 
   function validate(): string {
-    if (!loggedIn) {
-      if (!name.trim()) return "Please enter your name.";
-      if (!/^01\d{9}$/.test(phone.replace(/\D/g, ""))) return "Enter a valid 11-digit Bangladeshi mobile number.";
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return "Enter a valid email address.";
-    }
+    if (!name.trim()) return "আপনার সম্পূর্ণ নাম লিখুন।";
+    if (!/^01\d{9}$/.test(phone.replace(/\D/g, ""))) return "সঠিক ১১ ডিজিটের মোবাইল নম্বর দিন।";
     if (physical) {
-      if (!address.trim()) return "Enter your delivery address.";
-      if (!region) return "Select a delivery region.";
+      if (!address.trim()) return "আপনার সম্পূর্ণ ঠিকানা লিখুন।";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return "সঠিক Gmail / ইমেইল অ্যাড্রেস দিন।";
     }
     return "";
   }
@@ -319,7 +317,7 @@ export function PurchaseDialog({
               </div>
               {physical && (
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Delivery ({region === "DHAKA" ? "inside Dhaka" : "outside Dhaka"})</span>
+                  <span className="text-muted-foreground">ডেলিভারি ({region === "DHAKA" ? "ঢাকার ভেতরে" : "ঢাকার বাহিরে"})</span>
                   <span className="font-semibold text-foreground">{formatBdt(deliveryCharge)}</span>
                 </div>
               )}
@@ -357,59 +355,56 @@ export function PurchaseDialog({
               </div>
             )}
 
-            {loggedIn ? (
-              <p className="mt-4 rounded-xl border border-border bg-muted/40 px-4 py-2.5 text-xs text-muted-foreground">
-                Signed in — your purchase will be linked to your account automatically.
-              </p>
-            ) : (
-              <div className="mt-4 space-y-3">
+            <div className="mt-4 space-y-3">
+              {!loggedIn && (
                 <p className="text-xs text-muted-foreground">
-                  Checkout as guest — or{" "}
-                  <a href="/login" className="font-bold text-accent hover:underline">login</a> to link it to your account.
+                  Checkout as guest — বা{" "}
+                  <a href="/login" className="font-bold text-accent hover:underline">লগইন</a> করলে এই অর্ডার আপনার একাউন্টে যুক্ত হয়ে যাবে।
                 </p>
+              )}
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">আপনার সম্পূর্ণ নাম লিখুন *</span>
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="যেমন: রহিম উদ্দিন" className={inputCls} />
+              </label>
+              <div className={cn("grid gap-3", physical ? "grid-cols-1" : "sm:grid-cols-2")}>
                 <label className="block">
-                  <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Full name *</span>
-                  <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Rahim Uddin" className={inputCls} />
+                  <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">মোবাইল নম্বর *</span>
+                  <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="01XXXXXXXXX" className={inputCls} />
                 </label>
-                <div className="grid gap-3 sm:grid-cols-2">
+                {!physical && (
                   <label className="block">
-                    <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mobile *</span>
-                    <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="01XXXXXXXXX" className={inputCls} />
+                    <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Gmail address *</span>
+                    <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@gmail.com" className={inputCls} />
                   </label>
-                  <label className="block">
-                    <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Email *</span>
-                    <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@example.com" className={inputCls} />
-                  </label>
-                </div>
+                )}
               </div>
-            )}
-
-            {physical && (
-              <div className="mt-4 space-y-3">
-                <label className="block">
-                  <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Delivery address *</span>
-                  <textarea value={address} onChange={(e) => setAddress(e.target.value)} rows={2} placeholder="House, road, area, district" className={cn(inputCls, "resize-y")} />
-                </label>
-                <div>
-                  <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Region *</span>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(["DHAKA", "OUTSIDE"] as const).map((r) => (
-                      <button
-                        key={r}
-                        type="button"
-                        onClick={() => setRegion(r)}
-                        className={cn(
-                          "rounded-xl border px-3 py-2.5 text-xs font-bold transition-colors",
-                          region === r ? "border-accent bg-accent/10 text-accent" : "border-border bg-card text-muted-foreground hover:text-foreground",
-                        )}
-                      >
-                        {r === "DHAKA" ? `Inside Dhaka (${formatBdt(settings.deliveryChargeDhaka)})` : `Outside Dhaka (${formatBdt(settings.deliveryChargeOutside)})`}
-                      </button>
-                    ))}
+              {physical && (
+                <>
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">আপনার সম্পূর্ণ ঠিকানা *</span>
+                    <textarea value={address} onChange={(e) => setAddress(e.target.value)} rows={2} placeholder="বাসা, রোড, এলাকা, জেলা" className={cn(inputCls, "resize-y")} />
+                  </label>
+                  <div>
+                    <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">ডেলিভারি এরিয়া *</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(["OUTSIDE", "DHAKA"] as const).map((r) => (
+                        <button
+                          key={r}
+                          type="button"
+                          onClick={() => setRegion(r)}
+                          className={cn(
+                            "rounded-xl border px-3 py-2.5 text-xs font-bold transition-colors",
+                            region === r ? "border-accent bg-accent/10 text-accent" : "border-border bg-card text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          {r === "OUTSIDE" ? `ঢাকার বাহিরে (${formatBdt(settings.deliveryChargeOutside)})` : `ঢাকার ভেতরে (${formatBdt(settings.deliveryChargeDhaka)})`}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </div>
-            )}
+                </>
+              )}
+            </div>
 
             {!free && (
               <div className="mt-4">
@@ -446,9 +441,11 @@ export function PurchaseDialog({
               <IconShieldCheck width={14} height={14} className="text-success" />
               Secure checkout — SSLCOMMERZ &amp; Cash on Delivery
             </p>
-            <p className="mt-1 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
-              <IconLock width={13} height={13} /> {note}
-            </p>
+            {note && (
+              <p className="mt-1 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
+                <IconLock width={13} height={13} /> {note}
+              </p>
+            )}
           </>
         )}
 

@@ -32,7 +32,7 @@ export default function CartPage() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
-  const [region, setRegion] = useState<Region>("DHAKA");
+  const [region, setRegion] = useState<Region>("OUTSIDE");
   const [method, setMethod] = useState<Method>("SSLCOMMERZ");
   const [coupon, setCoupon] = useState("");
   const [applied, setApplied] = useState<{ code: string; discount: number; description?: string } | null>(null);
@@ -59,6 +59,7 @@ export default function CartPage() {
   }, []);
 
   const anyPhysical = cart.items.some((i) => i.isPhysical);
+  const anyDigital = cart.items.some((i) => !i.isPhysical);
   const deliveryCharge = anyPhysical ? (region === "DHAKA" ? settings.deliveryChargeDhaka : settings.deliveryChargeOutside) : 0;
   const discount = applied?.discount ?? 0;
   const total = Math.max(0, cart.subtotal - discount) + deliveryCharge;
@@ -104,12 +105,10 @@ export default function CartPage() {
   async function checkout() {
     setError("");
     if (!cart.items.length) return;
-    if (!loggedIn) {
-      if (!name.trim()) return setError("Please enter your name.");
-      if (!/^01\d{9}$/.test(phone.replace(/\D/g, ""))) return setError("Enter a valid 11-digit Bangladeshi mobile number.");
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError("Enter a valid email address.");
-    }
-    if (anyPhysical && !address.trim()) return setError("Enter your delivery address.");
+    if (!name.trim()) return setError("আপনার সম্পূর্ণ নাম লিখুন।");
+    if (!/^01\d{9}$/.test(phone.replace(/\D/g, ""))) return setError("সঠিক ১১ ডিজিটের মোবাইল নম্বর দিন।");
+    if (anyPhysical && !address.trim()) return setError("আপনার সম্পূর্ণ ঠিকানা লিখুন।");
+    if (anyDigital && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError("সঠিক Gmail / ইমেইল অ্যাড্রেস দিন।");
 
     setBusy(true);
     try {
@@ -244,7 +243,7 @@ export default function CartPage() {
               )}
               {anyPhysical && (
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Delivery ({region === "DHAKA" ? "inside Dhaka" : "outside Dhaka"})</span>
+                  <span className="text-muted-foreground">ডেলিভারি ({region === "DHAKA" ? "ঢাকার ভেতরে" : "ঢাকার বাহিরে"})</span>
                   <span className="font-semibold text-foreground">{formatBdt(deliveryCharge)}</span>
                 </div>
               )}
@@ -281,25 +280,27 @@ export default function CartPage() {
 
           {/* Checkout form */}
           <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
-            {loggedIn ? (
+            {!loggedIn && (
               <p className="rounded-xl border border-border bg-muted/40 px-4 py-2.5 text-xs text-muted-foreground">
-                Signed in — this order will be linked to your account.
+                গেস্ট চেকআউট — <a href="/login" className="font-bold text-accent hover:underline">লগইন</a> করলে এই অর্ডার আপনার একাউন্টে যুক্ত হয়ে যাবে।
               </p>
-            ) : (
-              <div className="space-y-3">
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name *" className={inputCls} />
-                <div className="grid grid-cols-2 gap-3">
-                  <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="Mobile *" className={inputCls} />
-                  <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Email *" className={inputCls} />
-                </div>
-              </div>
             )}
+
+            <div className="mt-3 space-y-3">
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="আপনার সম্পূর্ণ নাম লিখুন *" className={inputCls} />
+              <div className={cn("grid gap-3", anyDigital ? "grid-cols-2" : "grid-cols-1")}>
+                <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="মোবাইল নম্বর *" className={inputCls} />
+                {anyDigital && (
+                  <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Gmail address *" className={inputCls} />
+                )}
+              </div>
+            </div>
 
             {anyPhysical && (
               <div className="mt-3 space-y-3">
-                <textarea value={address} onChange={(e) => setAddress(e.target.value)} rows={2} placeholder="Delivery address *" className={cn(inputCls, "resize-y")} />
+                <textarea value={address} onChange={(e) => setAddress(e.target.value)} rows={2} placeholder="আপনার সম্পূর্ণ ঠিকানা *" className={cn(inputCls, "resize-y")} />
                 <div className="grid grid-cols-2 gap-2">
-                  {(["DHAKA", "OUTSIDE"] as const).map((r) => (
+                  {(["OUTSIDE", "DHAKA"] as const).map((r) => (
                     <button
                       key={r}
                       type="button"
@@ -309,7 +310,7 @@ export default function CartPage() {
                         region === r ? "border-accent bg-accent/10 text-accent" : "border-border bg-card text-muted-foreground hover:text-foreground",
                       )}
                     >
-                      {r === "DHAKA" ? `Inside Dhaka (${formatBdt(settings.deliveryChargeDhaka)})` : `Outside Dhaka (${formatBdt(settings.deliveryChargeOutside)})`}
+                      {r === "OUTSIDE" ? `ঢাকার বাহিরে (${formatBdt(settings.deliveryChargeOutside)})` : `ঢাকার ভেতরে (${formatBdt(settings.deliveryChargeDhaka)})`}
                     </button>
                   ))}
                 </div>

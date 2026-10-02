@@ -71,12 +71,15 @@ export default async function BookDetailPage(props: PageProps<"/book/[slug]">) {
   const hasDemo = Boolean(book.hasDemo || book.demoPdfUrl);
   const canRead = hasDemo || Boolean(book.pdfPrice);
 
+  const bn = (n: number) => String(n).replace(/[0-9]/g, (d) => "০১২৩৪৫৬৭৮৯"[Number(d)]);
   const features = [
-    `${book.pages} pages · ${book.edition}`,
-    `Read ${book.samplePages} pages free before buying`,
-    book.language === "Bn" ? "Full Bangla explanation" : book.language === "En" ? "English text" : "Mixed Bangla + English",
-    "Offline reading on the app (coming with API)",
-    "Instant activation after payment",
+    `বইটিতে ${bn(book.pages)} টি পৃষ্ঠা রয়েছে।`,
+    `ক্রয়ের আগে ${bn(book.samplePages)} পৃষ্ঠা বিনামূল্যে পড়ে দেখতে পারবেন।`,
+    book.language === "Bn"
+      ? "বাংলা ভার্সনের জন্যে লেখা।"
+      : book.language === "En"
+        ? "ইংরেজি ভার্সনের জন্যে লেখা।"
+        : "বাংলা ও ইংরেজি মিলিয়ে লেখা।",
   ];
 
   const reviews = getReviews({ id: book.id, count: 5, baseRating: book.rating });
@@ -136,7 +139,7 @@ export default async function BookDetailPage(props: PageProps<"/book/[slug]">) {
                   <span>({formatCount(book.reviewCount)} reviews)</span>
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <IconUsers width={15} height={15} className="text-sky" /> {formatCount(book.students)} readers
+                  <IconUsers width={15} height={15} className="text-sky" /> {bn(book.students)} জন মানুষ এই বইটি অর্ডার করেছেন
                 </span>
                 <span className="flex items-center gap-1.5">
                   <IconFileText width={15} height={15} className="text-sky" /> {book.pages} pages

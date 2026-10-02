@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/cn";
 import { formatBdt } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import { IconCheck, IconDevice, IconShieldCheck } from "@/components/ui/icons";
+import { IconCheck } from "@/components/ui/icons";
 import { PurchaseDialog } from "./purchase-dialog";
 
 export type PurchasePlan = { id: string; label: string; price: number; originalPrice?: number; note?: string; allowedPaymentMethods?: string[] };
@@ -18,7 +18,6 @@ export function PurchasePanel({
   plans,
   planNote,
   features,
-  deviceNote = "1 premium login at a time — 12 free signup logins can share up to 4 devices.",
 }: {
   kind?: "Course" | "Book" | "Exam";
   title: string;
@@ -28,7 +27,6 @@ export function PurchasePanel({
   plans: PurchasePlan[];
   planNote?: string;
   features: string[];
-  deviceNote?: string;
 }) {
   const [active, setActive] = useState(plans[0]?.id ?? "");
   const [open, setOpen] = useState(false);
@@ -93,16 +91,6 @@ export function PurchasePanel({
           ))}
         </ul>
 
-        <div className="mt-6 space-y-2 rounded-2xl bg-muted/60 p-4 text-xs text-muted-foreground">
-          <p className="flex items-start gap-2">
-            <IconDevice width={14} height={14} className="mt-0.5 shrink-0 text-accent" />
-            {deviceNote}
-          </p>
-          <p className="flex items-start gap-2">
-            <IconShieldCheck width={14} height={14} className="mt-0.5 shrink-0 text-success" />
-            Instant activation · 7-day refund on courses &amp; books
-          </p>
-        </div>
       </div>
 
       {/* Mobile sticky bottom bar */}
@@ -138,7 +126,7 @@ export function PurchasePanel({
         planLabel={plan.label}
         price={plan.price}
         originalPrice={plan.originalPrice ?? 0}
-        note={deviceNote}
+        note=""
       />
     </>
   );
