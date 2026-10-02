@@ -1,11 +1,14 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module.js';
 import { json, urlencoded } from 'express';
 import type { NextFunction, Request, Response } from 'express';
+import { mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   // Large media uploads (demo/full PDFs, covers). Base64 inflates a file by
   // ~33%, so a 500MB upload arrives as ~670MB of JSON — leave headroom.
   app.use(json({ limit: '800mb' }));
@@ -25,6 +28,18 @@ async function bootstrap() {
       'https://shohoz-skill-web.vercel.app',
     ],
     credentials: true,
+  });
+  // Uploaded media (book PDFs, etc.) is streamed to disk in chunks and served
+  // from here so the huge payloads never touch the database or the JSON body.
+  const uploadsDir = join(process.cwd(), 'uploads');
+  mkdirSync(uploadsDir, { recursive: true });
+  app.useStaticAssets(uploadsDir, {
+    prefix: '/uploads/',
+    setHeaders: (res) => {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    },
   });
   app.useGlobalPipes(
     new ValidationPipe({

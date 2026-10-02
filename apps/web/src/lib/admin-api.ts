@@ -68,6 +68,46 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return (await res.json()) as T;
 }
 
+/**
+ * Upload a large file (e.g. a book PDF) to the API in small chunks so it stays
+ * under the web host's per-request body cap, then return the public file URL.
+ */
+export async function uploadFile(file: File, onProgress?: (pct: number) => void): Promise<string> {
+  const session = getAdminSession();
+  if (!session) throw new ApiError(401, "Not authenticated");
+  const auth = { Authorization: `Bearer ${session.token}` };
+  const ext = (file.name.split(".").pop() ?? "bin").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8) || "bin";
+
+  const initRes = await fetch(`${API_URL}/api/uploads/init`, {
+    method: "POST",
+    headers: { ...auth, "Content-Type": "application/json" },
+    body: JSON.stringify({ name: file.name, size: file.size }),
+  });
+  if (!initRes.ok) throw new ApiError(initRes.status, `Upload failed (${initRes.status})`);
+  const { uploadId } = (await initRes.json()) as { uploadId: string };
+
+  const CHUNK = 16 * 1024 * 1024;
+  let index = 0;
+  for (let offset = 0; offset < file.size; offset += CHUNK) {
+    const slice = file.slice(offset, Math.min(offset + CHUNK, file.size));
+    const form = new FormData();
+    form.append("chunk", slice, `chunk-${index}`);
+    const res = await fetch(`${API_URL}/api/uploads/${uploadId}/part`, { method: "POST", headers: auth, body: form });
+    if (!res.ok) throw new ApiError(res.status, `Upload failed (${res.status})`);
+    index++;
+    onProgress?.(Math.min(99, Math.round((index * CHUNK * 100) / Math.max(file.size, 1))));
+  }
+
+  const doneRes = await fetch(`${API_URL}/api/uploads/${uploadId}/complete`, {
+    method: "POST",
+    headers: { ...auth, "Content-Type": "application/json" },
+    body: JSON.stringify({ ext, name: file.name }),
+  });
+  if (!doneRes.ok) throw new ApiError(doneRes.status, `Upload failed (${doneRes.status})`);
+  onProgress?.(100);
+  return ((await doneRes.json()) as { url: string }).url;
+}
+
 function qs(params: Record<string, string | number | undefined>) {
   const sp = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {

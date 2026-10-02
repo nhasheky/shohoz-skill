@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { cn } from "@/lib/cn";
+import { uploadFile } from "@/lib/admin-api";
 
 export function FileUploadField({
   value,
@@ -17,6 +18,8 @@ export function FileUploadField({
   const [mode, setMode] = useState<"link" | "upload">("link");
   const [error, setError] = useState("");
   const [fileName, setFileName] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -32,12 +35,16 @@ export function FileUploadField({
     setFileName(file.name);
 
     if (!file.type.startsWith("image/")) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        if (ev.target?.result) onChange(ev.target.result as string);
-      };
-      reader.onerror = () => setError("Failed to read file.");
-      reader.readAsDataURL(file);
+      setUploading(true);
+      setProgress(0);
+      try {
+        onChange(await uploadFile(file, setProgress));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Upload failed.");
+        setFileName("");
+      } finally {
+        setUploading(false);
+      }
       return;
     }
 
@@ -87,9 +94,13 @@ export function FileUploadField({
             accept={accept}
             ref={inputRef}
             onChange={handleFileChange}
-            className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-accent/10 file:text-accent hover:file:bg-accent/20 cursor-pointer"
+            disabled={uploading}
+            className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-accent/10 file:text-accent hover:file:bg-accent/20 cursor-pointer disabled:opacity-60"
           />
-          {value.startsWith("data:") && <span className="text-xs text-success font-semibold">✓ {fileName || "File"} uploaded (ready to save)</span>}
+          {uploading && <span className="text-xs font-semibold text-accent">Uploading… {progress}%</span>}
+          {!uploading && fileName && !error && (
+            <span className="text-xs text-success font-semibold">✓ {fileName} uploaded (ready to save)</span>
+          )}
           {error && <span className="text-xs text-danger">{error}</span>}
         </div>
       )}
