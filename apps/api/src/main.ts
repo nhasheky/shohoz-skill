@@ -6,8 +6,10 @@ import type { NextFunction, Request, Response } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.use(json({ limit: '50mb' }));
-  app.use(urlencoded({ extended: true, limit: '50mb' }));
+  // Large media uploads (demo/full PDFs, covers). Base64 inflates a file by
+  // ~33%, so a 500MB upload arrives as ~670MB of JSON — leave headroom.
+  app.use(json({ limit: '800mb' }));
+  app.use(urlencoded({ extended: true, limit: '800mb' }));
   app.use((_req: Request, res: Response, next: NextFunction) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');

@@ -24,8 +24,8 @@ export function FileUploadField({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 10 * 1024 * 1024) {
-      setError("File size exceeds 10MB limit.");
+    if (file.size > 500 * 1024 * 1024) {
+      setError("File size exceeds 500MB limit.");
       return;
     }
 
