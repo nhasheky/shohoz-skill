@@ -159,6 +159,14 @@ export class OrdersController {
     return this.orders.refund(id, req.user.sub);
   }
 
+  /** User: cancel their own (not-yet-paid/shipped) order. */
+  @Post(':id/cancel')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('STUDENT', 'ADMIN', 'SUPER_ADMIN', 'TEACHER')
+  cancel(@Req() req: Authed, @Param('id') id: string) {
+    return this.orders.cancel(id, req.user.sub);
+  }
+
   @Put(':id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')

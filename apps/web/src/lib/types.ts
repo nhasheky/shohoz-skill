@@ -279,7 +279,7 @@ export type AppUser = {
   verified: boolean;
 };
 
-export type OrderStatus = "PENDING" | "PAID" | "FAILED" | "REFUNDED";
+export type OrderStatus = "PENDING" | "PAID" | "FAILED" | "REFUNDED" | "CANCELLED";
 export type PaymentMethod = "BKASH" | "NAGAD" | "SSC" | "ROCKET" | "COD" | "SSLCOMMERZ";
 export type DeliveryRegion = "DHAKA" | "OUTSIDE";
 

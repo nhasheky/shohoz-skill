@@ -50,6 +50,22 @@ export function DashboardShell({
   const [tab, setTab] = useState<Tab>("overview");
   const [devices, setDevices] = useState<DeviceSession[]>(user.devices);
   const [revoked, setRevoked] = useState<string[]>([]);
+  const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.shohozskill.com.bd";
+
+  async function cancelOrder(id: string) {
+    if (typeof window !== "undefined" && !window.confirm("আপনি এই অর্ডারটি বাতিল করতে চান?")) return;
+    const token = typeof window !== "undefined" ? localStorage.getItem("shohoz_token") : null;
+    try {
+      const res = await fetch(`${API_URL}/api/orders/${id}/cancel`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error(((await res.json()) as { message?: string })?.message || "বাতিল করা যায়নি।");
+      router.refresh();
+    } catch (e) {
+      if (typeof window !== "undefined") window.alert(e instanceof Error ? e.message : "বাতিল করা যায়নি।");
+    }
+  }
 
   const courses = enrollments.filter((e) => e.type === "course");
   const books = enrollments.filter((e) => e.type === "book");
@@ -226,28 +242,36 @@ export function DashboardShell({
                       <th className="px-5 py-3 font-bold">Method</th>
                       <th className="px-5 py-3 font-bold">Status</th>
                       <th className="px-5 py-3 text-right font-bold">Amount</th>
+                      <th className="px-5 py-3 font-bold" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {orders.map((o) => (
                       <tr key={o.id} className="transition-colors hover:bg-muted/40">
                         <td className="px-5 py-3">
-                          <p className="font-mono text-xs font-bold text-foreground">{o.id}</p>
+                          <p className="font-mono text-xs font-bold text-foreground">#{o.orderNumber ?? o.id.slice(-6)}</p>
                           <p className="text-xs text-muted-foreground">{formatDate(o.createdAt)}</p>
                         </td>
-                        <td className="px-5 py-3 text-muted-foreground">{o.productTitle}</td>
+                        <td className="max-w-[24ch] truncate px-5 py-3 text-muted-foreground">{o.productTitle}</td>
                         <td className="px-5 py-3 text-xs text-muted-foreground">{o.method}</td>
                         <td className="px-5 py-3">
                           <span
                             className={cn(
                               "rounded-full px-2.5 py-1 text-[11px] font-bold",
-                              o.status === "PAID" ? "bg-success/10 text-success" : o.status === "REFUNDED" ? "bg-warning/10 text-warning" : "bg-muted text-muted-foreground",
+                              o.status === "PAID" ? "bg-success/10 text-success" : o.status === "REFUNDED" ? "bg-warning/10 text-warning" : o.status === "CANCELLED" ? "bg-danger/10 text-danger" : "bg-muted text-muted-foreground",
                             )}
                           >
                             {o.status}
                           </span>
                         </td>
                         <td className="px-5 py-3 text-right font-bold text-foreground">{formatBdt(o.amount)}</td>
+                        <td className="px-5 py-3 text-right">
+                          {o.status === "PENDING" ? (
+                            <button type="button" onClick={() => cancelOrder(o.id)} className="rounded-lg border border-danger/40 px-3 py-1.5 text-xs font-bold text-danger hover:bg-danger/10">
+                              Cancel
+                            </button>
+                          ) : null}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

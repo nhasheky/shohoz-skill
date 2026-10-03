@@ -110,7 +110,7 @@ type ApiUser = {
   role: string; status: string; joinedAt: string; verified: boolean; devices: ApiDevice[];
 };
 type ApiOrder = {
-  id: string; userId: string; productType: string; productId: string; productTitle: string; amount: number;
+  id: string; orderNumber?: number | null; userId: string; productType: string; productId: string; productTitle: string; amount: number;
   method: string; status: string; txId?: string | null; createdAt: string;
 };
 type ApiEnrollment = {
@@ -356,6 +356,7 @@ function mapUser(raw: ApiUser): AppUser {
 function mapOrder(raw: ApiOrder): Order {
   return {
     id: raw.id,
+    orderNumber: raw.orderNumber ?? null,
     userId: raw.userId,
     productType: raw.productType as Order["productType"],
     productId: raw.productId,

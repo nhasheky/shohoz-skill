@@ -536,6 +536,16 @@ export class OrdersService {
     return this.prisma.order.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
   }
 
+  /** User: cancel their own order (only before payment / shipping). */
+  async cancel(orderId: string, userId: string) {
+    const order = await this.prisma.order.findFirst({ where: { id: orderId, userId } });
+    if (!order) throw new NotFoundException('Order not found.');
+    if (order.status === 'CANCELLED') return order;
+    if (order.trackingCode) throw new BadRequestException('অর্ডার ইতিমধ্যে কুরিয়ারে দেওয়া হয়েছে — বাতিল করা যাবে না।');
+    if (order.status === 'PAID') throw new BadRequestException('পরিশোধিত অর্ডার বাতিল করতে সাপোর্টে যোগাযোগ করুন।');
+    return this.prisma.order.update({ where: { id: orderId }, data: { status: 'CANCELLED' } });
+  }
+
   async refund(orderId: string, userId: string) {
     const order = await this.prisma.order.findFirst({ where: { id: orderId, userId } });
     if (!order) throw new NotFoundException('Order not found.');
@@ -821,6 +831,9 @@ export class OrdersService {
   async sendToSteadfast(orderId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('Order not found.');
+    if (order.status === 'CANCELLED') {
+      throw new BadRequestException('বাতিল করা অর্ডার Steadfast-এ পাঠানো যাবে না।');
+    }
     if (order.trackingCode || order.consignmentId) {
       throw new BadRequestException('This order is already sent to Steadfast.');
     }
