@@ -325,12 +325,24 @@ export class AuthService {
   /* ═══════════════════════════════════════════════════════════════════
    *  Account merging: attach guest orders once a user verifies.
    * ═══════════════════════════════════════════════════════════════════ */
-  private async grantEnrollment(userId: string, productType: string, productId: string) {
+  private async grantEnrollment(userId: string, productType: string, productId: string, giftFrom: string | null = null, depth = 0) {
     await this.prisma.enrollment.upsert({
       where: { userId_productType_productId: { userId, productType, productId } },
-      create: { userId, productType, productId, accessFrom: new Date() },
+      create: { userId, productType, productId, accessFrom: new Date(), giftFrom },
       update: {},
     });
+    if (productType === 'course' && depth < 2) {
+      const course = await this.prisma.course.findFirst({
+        where: { OR: [{ id: productId }, { slug: productId }] },
+        select: { title: true, gift: true },
+      });
+      const gifts = Array.isArray(course?.gift) ? (course!.gift as { type?: unknown; id?: unknown }[]) : [];
+      for (const g of gifts) {
+        if (typeof g?.type === 'string' && typeof g?.id === 'string') {
+          await this.grantEnrollment(userId, g.type, g.id, course?.title ?? 'Course', depth + 1);
+        }
+      }
+    }
   }
 
   private async mergeGuestOrders(user: { id: string; phone: string; email?: string | null }) {

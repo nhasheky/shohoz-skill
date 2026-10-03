@@ -205,6 +205,15 @@ export const updateUser = (id: string, dto: Partial<AppUser>) =>
   request<AppUser>(`/users/${id}`, { method: "PUT", body: JSON.stringify(dto) });
 export const deleteUser = (id: string) => request(`/users/${id}`, { method: "DELETE" });
 
+export type UserOverview = {
+  enrollments: { id: string; productType: string; productId: string; title: string; giftFrom?: string | null; viaAdmin?: boolean; createdAt: string }[];
+  orders: { id: string; orderNumber?: number | null; productTitle: string; amount: number; total?: number | null; status: string; createdAt: string }[];
+  attempts: { id: string; exam?: { title: string } | null; score: number; maxMarks: number; passed: boolean; submittedAt: string }[];
+};
+export const getUserOverview = (id: string) => request<UserOverview>(`/users/${id}/overview`);
+export const revokeEnrollment = (userId: string, enrollmentId: string) =>
+  request(`/users/${userId}/enrollments/${enrollmentId}`, { method: "DELETE" });
+
 // ─── Orders ───────────────────────────────────────────────────────────────
 export const listOrders = (status?: string, page = 1, perPage = 20, q?: string) =>
   request<PageResult<Order>>(`/orders${qs({ status, page, perPage, q })}`);

@@ -93,6 +93,9 @@ const AUTO_MIGRATIONS: string[] = [
     CONSTRAINT "CheckoutDraft_pkey" PRIMARY KEY ("id")
   )`,
   `CREATE INDEX IF NOT EXISTS "CheckoutDraft_createdAt_idx" ON "CheckoutDraft"("createdAt")`,
+  // Course gifts + enrollment gift label.
+  `ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS "gift" JSONB`,
+  `ALTER TABLE "Enrollment" ADD COLUMN IF NOT EXISTS "giftFrom" TEXT`,
 ];
 
 @Injectable()

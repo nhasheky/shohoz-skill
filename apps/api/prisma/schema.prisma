@@ -118,6 +118,8 @@ model Course {
   allowedPaymentMethods String[] @default([])
   // Admin-picked "you may also like" items: [{ type, id }]. Empty = auto-suggest.
   suggested             Json?
+  // Free gifts unlocked when this course is purchased: [{ type, id }].
+  gift                  Json?
 
   prices       CoursePrice[]
   curriculum   CurriculumSection[]
@@ -382,6 +384,7 @@ model Enrollment {
   accessFrom    DateTime  @default(now())
   accessExpires DateTime?
   viaAdmin      Boolean   @default(false)
+  giftFrom      String? // course title when this access came as a free gift
   createdAt     DateTime  @default(now())
 
   @@unique([userId, productType, productId])

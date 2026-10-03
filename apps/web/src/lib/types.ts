@@ -67,6 +67,7 @@ export type Course = {
   enrolled?: boolean;
   allowedPaymentMethods?: string[];
   suggested?: SuggestedRef[];
+  gift?: SuggestedRef[];
   published: boolean;
   featured?: boolean;
   isNew?: boolean;

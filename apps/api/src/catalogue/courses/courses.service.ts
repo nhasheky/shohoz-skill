@@ -100,6 +100,13 @@ export class CoursesService {
             .map((s: any) => ({ type: String(s.type), id: String(s.id) }))
         : null;
     }
+    if (scalars.gift !== undefined) {
+      clean.gift = Array.isArray(scalars.gift)
+        ? scalars.gift
+            .filter((s: any) => s && typeof s.type === 'string' && typeof s.id === 'string')
+            .map((s: any) => ({ type: String(s.type), id: String(s.id) }))
+        : null;
+    }
     return clean;
   }
 

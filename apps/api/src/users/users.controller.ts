@@ -1,9 +1,11 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
   Get,
   Param,
+  Post,
   Put,
   Query,
   Req,
@@ -49,10 +51,36 @@ export class UsersController {
     return this.users.myAttempts(req.user.sub);
   }
 
+  @Get('me/course-progress/:courseId')
+  courseProgress(@Req() req: Authed, @Param('courseId') courseId: string) {
+    return this.users.courseProgress(req.user.sub, courseId);
+  }
+
+  @Post('me/course-progress')
+  setLessonProgress(
+    @Req() req: Authed,
+    @Body() body: { courseId: string; lessonId: string; completed?: boolean },
+  ) {
+    if (!body?.courseId || !body?.lessonId) throw new BadRequestException('courseId and lessonId required.');
+    return this.users.setLessonProgress(req.user.sub, body.courseId, body.lessonId, Boolean(body.completed));
+  }
+
   @Get()
   @Roles('ADMIN', 'SUPER_ADMIN')
   findAll(@Query('q') q?: string, @Query('page') page?: string, @Query('perPage') perPage?: string) {
     return this.users.findAll(q, Number(page) || 1, Number(perPage) || 20);
+  }
+
+  @Get(':id/overview')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  overview(@Param('id') id: string) {
+    return this.users.adminOverview(id);
+  }
+
+  @Delete(':id/enrollments/:enrollmentId')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  revokeEnrollment(@Param('id') id: string, @Param('enrollmentId') enrollmentId: string) {
+    return this.users.revokeEnrollment(id, enrollmentId);
   }
 
   @Get(':id')

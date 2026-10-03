@@ -72,6 +72,7 @@ type ApiCourse = {
   thumbnailUrl?: string | null;
   allowedPaymentMethods?: string[];
   suggested?: unknown;
+  gift?: unknown;
   learningOutcomes?: string[];
   requirements?: string[];
   whoIsFor?: string[];
@@ -116,7 +117,7 @@ type ApiOrder = {
 };
 type ApiEnrollment = {
   id: string; userId: string; productType: string; productId: string; accessFrom: string;
-  accessExpires?: string | null; viaAdmin: boolean | null; createdAt: string;
+  accessExpires?: string | null; viaAdmin: boolean | null; giftFrom?: string | null; createdAt: string;
   title?: string | null; slug?: string | null; thumbnailUrl?: string | null; progress?: number | null;
 };
 type ApiAttempt = {
@@ -220,6 +221,7 @@ function mapCourse(raw: ApiCourse): Course {
     videos: firstYt ? { youtube: firstYt.sourceId ?? "" } : firstDir ? { direct: firstDir.sourceId ?? "" } : {},
     allowedPaymentMethods: raw.allowedPaymentMethods ?? [],
     suggested: normalizeSuggested(raw.suggested),
+    gift: normalizeSuggested(raw.gift),
     published: raw.published ?? false,
     featured: raw.featured ?? false,
     createdAt: raw.createdAt,
@@ -393,6 +395,7 @@ function mapEnrollment(raw: ApiEnrollment): DemoEnrollment {
     accessFrom: raw.accessFrom,
     accessExpires: raw.accessExpires ?? undefined,
     viaAdmin: raw.viaAdmin ?? false,
+    giftFrom: raw.giftFrom ?? null,
   };
 }
 

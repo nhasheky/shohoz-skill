@@ -417,6 +417,11 @@ function ContinueCard({ item }: { item: DemoEnrollment }) {
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-bold text-foreground group-hover:text-accent">{item.title}</p>
         <p className="text-xs text-muted-foreground">Enrolled {formatDate(item.accessFrom)}</p>
+        {item.giftFrom && (
+          <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-bold text-accent">
+            🎁 Gift — “{item.giftFrom}” কোর্সের জন্য
+          </span>
+        )}
         <div className="mt-2 flex items-center gap-3">
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
             <div className="h-full rounded-full bg-accent" style={{ width: `${item.progress}%` }} />

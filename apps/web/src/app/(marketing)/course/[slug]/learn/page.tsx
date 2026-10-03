@@ -32,7 +32,7 @@ export default async function CourseLearnPage(props: PageProps<"/course/[slug]/l
       </div>
       <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <Suspense fallback={<div className="py-20 text-center text-sm text-muted-foreground">Loading…</div>}>
-          <CoursePlayer title={course.title} sections={course.curriculum} enrolled={enrolled} />
+          <CoursePlayer courseId={course.id} title={course.title} sections={course.curriculum} enrolled={enrolled} />
         </Suspense>
       </div>
     </main>

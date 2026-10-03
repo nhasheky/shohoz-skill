@@ -60,6 +60,7 @@ const courseFields: FieldDef[] = [
   { name: "featured", label: "Featured", type: "checkbox" },
   { name: "published", label: "Published", type: "checkbox" },
   { name: "suggested", label: "Suggested products", type: "suggested", span2: true, help: "Pick which books/exams show as suggestions under this course. Empty = auto." },
+  { name: "gift", label: "🎁 Gift products (free with this course)", type: "suggested", span2: true, help: "এই কোর্স কিনলে যেসব book/exam/course ফ্রি হিসেবে অ্যাকাউন্টে যোগ হবে।" },
 ];
 
 const bookFields: FieldDef[] = [
@@ -610,6 +611,8 @@ export function UsersPage() {
   const [deleting, setDeleting] = useState<AppUser | null>(null);
   const [busy, setBusy] = useState(false);
   const [demoUsers, setDemoUsers] = useState<AppUser[]>(seedUsers);
+  const [overviewUser, setOverviewUser] = useState<AppUser | null>(null);
+  const [overview, setOverview] = useState<api.UserOverview | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -682,6 +685,28 @@ export function UsersPage() {
     }
   }
 
+  async function openOverview(u: AppUser) {
+    setOverviewUser(u);
+    setOverview(null);
+    try {
+      setOverview(await api.getUserOverview(u.id));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Load failed");
+    }
+  }
+
+  async function revokeAccess(enrollmentId: string) {
+    if (!overviewUser) return;
+    if (typeof window !== "undefined" && !window.confirm("এই access টা বাতিল করবেন?")) return;
+    try {
+      await api.revokeEnrollment(overviewUser.id, enrollmentId);
+      toast.success("Access revoked");
+      setOverview(await api.getUserOverview(overviewUser.id));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Revoke failed");
+    }
+  }
+
   const roleTone = (r: string): "danger" | "sky" | "muted" => (r === "ADMIN" || r === "SUPER_ADMIN" ? "danger" : r === "TEACHER" ? "sky" : "muted");
 
   return (
@@ -736,6 +761,7 @@ export function UsersPage() {
                   <td className="px-5 py-3">{u.verified ? <Badge tone="success">Yes</Badge> : <Badge tone="muted">No</Badge>}</td>
                   <td className="px-5 py-3">
                     <div className="flex justify-end gap-1.5">
+                      <button type="button" onClick={() => openOverview(u)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-foreground transition-colors hover:border-accent hover:text-accent">Dashboard</button>
                       <button type="button" onClick={() => setEditing(u)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-foreground transition-colors hover:border-accent hover:text-accent">Edit</button>
                       <button type="button" onClick={() => setConfirm(u)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-danger transition-colors hover:border-danger">
                         {u.status === "ACTIVE" ? "Suspend" : "Activate"}
@@ -754,6 +780,72 @@ export function UsersPage() {
       {editing && (
         <AdminModal open onClose={() => setEditing(null)} title="Edit user">
           <UserFields user={editing} onSave={saveUser} busy={busy} onClose={() => setEditing(null)} />
+        </AdminModal>
+      )}
+      {overviewUser && (
+        <AdminModal open onClose={() => setOverviewUser(null)} title={`Dashboard — ${overviewUser.name}`} wide>
+          {!overview ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>
+          ) : (
+            <div className="space-y-5">
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Access / Enrollments ({overview.enrollments.length})</p>
+                {overview.enrollments.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No access yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {overview.enrollments.map((e) => (
+                      <div key={e.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface/50 px-3 py-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-bold text-foreground">{e.title}</p>
+                          <p className="text-xs text-muted-foreground">
+                            <span className="uppercase">{e.productType}</span>
+                            {e.giftFrom ? ` · 🎁 gift from ${e.giftFrom}` : e.viaAdmin ? " · admin" : ""}
+                          </p>
+                        </div>
+                        <button type="button" onClick={() => revokeAccess(e.id)} className="rounded-lg border border-danger/40 px-3 py-1.5 text-xs font-bold text-danger hover:bg-danger/10">Revoke</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recent orders ({overview.orders.length})</p>
+                {overview.orders.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No orders.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {overview.orders.slice(0, 10).map((o) => (
+                      <div key={o.id} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm">
+                        <span className="font-mono text-xs text-muted-foreground">#{o.orderNumber ?? "—"}</span>
+                        <span className="min-w-0 flex-1 truncate text-foreground">{o.productTitle}</span>
+                        <Badge tone={o.status === "PAID" ? "success" : o.status === "CANCELLED" || o.status === "FAILED" ? "danger" : "muted"}>{o.status}</Badge>
+                        <span className="font-bold text-foreground">{formatBdt(o.total ?? o.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Exam attempts ({overview.attempts.length})</p>
+                {overview.attempts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No attempts.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {overview.attempts.slice(0, 10).map((a) => (
+                      <div key={a.id} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm">
+                        <span className="min-w-0 flex-1 truncate text-foreground">{a.exam?.title ?? "Exam"}</span>
+                        <span className="text-muted-foreground">{a.score}/{a.maxMarks}</span>
+                        <Badge tone={a.passed ? "success" : "danger"}>{a.passed ? "PASS" : "FAIL"}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </AdminModal>
       )}
       <ConfirmDialog

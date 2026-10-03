@@ -34,6 +34,7 @@ export type DemoEnrollment = {
   accessExpires?: string;
   downloadPdf?: boolean;
   viaAdmin?: boolean;
+  giftFrom?: string | null;
 };
 
 export const demoEnrollments: DemoEnrollment[] = [

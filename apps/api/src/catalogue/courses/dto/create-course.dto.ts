@@ -209,4 +209,7 @@ export class CreateCourseDto {
 
   @IsOptional()
   suggested?: Prisma.InputJsonValue; // [{ type, id }]
+
+  @IsOptional()
+  gift?: Prisma.InputJsonValue; // [{ type, id }] free gifts on purchase
 }
