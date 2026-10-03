@@ -75,6 +75,15 @@ export class AuthController {
     return this.auth.adminLogin(body.email, body.password);
   }
 
+  /** Signed-in user sets/changes their own password (PIN). */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Post('set-password')
+  @Roles('STUDENT', 'ADMIN', 'SUPER_ADMIN', 'TEACHER')
+  setPassword(@Req() req: Request & { user: { sub: string } }, @Body() body: { password?: string }) {
+    if (!body?.password) throw new BadRequestException('password is required.');
+    return this.auth.setPassword(req.user.sub, body.password);
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Get('sessions')
   @Roles('STUDENT', 'ADMIN', 'SUPER_ADMIN', 'TEACHER')

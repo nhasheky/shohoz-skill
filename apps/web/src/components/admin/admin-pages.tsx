@@ -1035,7 +1035,7 @@ export function OrdersPage() {
     }
   }
 
-  const statusTone = (s: string): "success" | "accent" | "danger" | "muted" => (s === "PAID" ? "success" : s === "REFUNDED" ? "accent" : s === "FAILED" ? "danger" : "muted");
+  const statusTone = (s: string): "success" | "accent" | "danger" | "muted" => (s === "PAID" ? "success" : s === "REFUNDED" ? "accent" : s === "FAILED" || s === "CANCELLED" ? "danger" : "muted");
   const editCls = "w-full rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-accent";
 
   const customerName = (o: Order) => o.user?.name ?? o.guestName ?? "Guest";
@@ -1066,6 +1066,7 @@ export function OrdersPage() {
             <option value="PAID">Paid</option>
             <option value="FAILED">Failed</option>
             <option value="REFUNDED">Refunded</option>
+            <option value="CANCELLED">Cancelled</option>
           </select>
           <label className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
             From
@@ -1111,6 +1112,7 @@ export function OrdersPage() {
                 <th className="px-4 py-3 font-bold">Qty</th>
                 <th className="px-4 py-3 font-bold">Payment</th>
                 <th className="px-4 py-3 font-bold">Status</th>
+                <th className="px-4 py-3 text-right font-bold">Delivery</th>
                 <th className="px-4 py-3 text-right font-bold">Total</th>
                 <th className="px-4 py-3 font-bold">Date</th>
               </tr>
@@ -1147,6 +1149,7 @@ export function OrdersPage() {
                   <td className="px-4 py-3 text-muted-foreground">{o.productType === "book" ? o.quantity ?? 1 : "—"}</td>
                   <td className="px-4 py-3 text-xs font-semibold text-muted-foreground">{o.paymentMethod ?? o.method}</td>
                   <td className="px-4 py-3"><Badge tone={statusTone(o.status)}>{o.status}</Badge></td>
+                  <td className="px-4 py-3 text-right text-xs text-muted-foreground">{o.isPhysical ? formatBdt(o.deliveryCharge ?? 0) : "—"}</td>
                   <td className="px-4 py-3 text-right font-bold text-foreground">{formatBdt(o.total ?? o.amount)}</td>
                   <td className="px-4 py-3 text-muted-foreground">{new Date(o.createdAt).toLocaleDateString("en-BD")}</td>
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
@@ -1215,7 +1218,7 @@ export function OrdersPage() {
           <div className="mt-6 border-t border-border pt-4">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Update status</p>
             <div className="flex flex-wrap gap-2">
-              {(["PENDING", "PAID", "FAILED", "REFUNDED"] as const).map((s) => (
+              {(["PENDING", "PAID", "FAILED", "REFUNDED", "CANCELLED"] as const).map((s) => (
                 <button
                   key={s}
                   type="button"

@@ -67,6 +67,38 @@ export function DashboardShell({
     }
   }
 
+  const [pin, setPin] = useState("");
+  const [pin2, setPin2] = useState("");
+  const [savingPin, setSavingPin] = useState(false);
+
+  async function savePin() {
+    if (pin.trim().length < 4) {
+      window.alert("পাসওয়ার্ড / PIN অন্তত ৪ অক্ষরের হতে হবে।");
+      return;
+    }
+    if (pin !== pin2) {
+      window.alert("দুইবার একই পাসওয়ার্ড লিখুন।");
+      return;
+    }
+    const token = typeof window !== "undefined" ? localStorage.getItem("shohoz_token") : null;
+    setSavingPin(true);
+    try {
+      const res = await fetch(`${API_URL}/api/auth/set-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ password: pin }),
+      });
+      if (!res.ok) throw new Error(((await res.json()) as { message?: string })?.message || "সেভ হয়নি।");
+      window.alert("পাসওয়ার্ড সেভ হয়েছে ✅");
+      setPin("");
+      setPin2("");
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "সেভ হয়নি।");
+    } finally {
+      setSavingPin(false);
+    }
+  }
+
   const courses = enrollments.filter((e) => e.type === "course");
   const books = enrollments.filter((e) => e.type === "book");
   const exams = enrollments.filter((e) => e.type === "exam");
@@ -241,7 +273,8 @@ export function DashboardShell({
                       <th className="px-5 py-3 font-bold">Item</th>
                       <th className="px-5 py-3 font-bold">Method</th>
                       <th className="px-5 py-3 font-bold">Status</th>
-                      <th className="px-5 py-3 text-right font-bold">Amount</th>
+                      <th className="px-5 py-3 text-right font-bold">Delivery</th>
+                      <th className="px-5 py-3 text-right font-bold">Total</th>
                       <th className="px-5 py-3 font-bold" />
                     </tr>
                   </thead>
@@ -264,7 +297,8 @@ export function DashboardShell({
                             {o.status}
                           </span>
                         </td>
-                        <td className="px-5 py-3 text-right font-bold text-foreground">{formatBdt(o.amount)}</td>
+                        <td className="px-5 py-3 text-right text-xs text-muted-foreground">{o.isPhysical ? formatBdt(o.deliveryCharge ?? 0) : "—"}</td>
+                        <td className="px-5 py-3 text-right font-bold text-foreground">{formatBdt(o.total ?? o.amount)}</td>
                         <td className="px-5 py-3 text-right">
                           {o.status === "PENDING" ? (
                             <button type="button" onClick={() => cancelOrder(o.id)} className="rounded-lg border border-danger/40 px-3 py-1.5 text-xs font-bold text-danger hover:bg-danger/10">
@@ -334,10 +368,10 @@ export function DashboardShell({
                 <IconKey width={18} height={18} className="text-accent" /> Change password
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">We use OTP login, but you can still set a PIN for quick access.</p>
-              <form className="mt-4 space-y-3" onSubmit={(e) => e.preventDefault()}>
-                <input type="password" placeholder="New PIN (4 digits)" className="w-full rounded-xl border border-border bg-card px-4 py-3 text-base text-foreground outline-none focus:border-accent" />
-                <input type="password" placeholder="Confirm PIN" className="w-full rounded-xl border border-border bg-card px-4 py-3 text-base text-foreground outline-none focus:border-accent" />
-                <Button variant="accent">Save PIN</Button>
+              <form className="mt-4 space-y-3" onSubmit={(e) => { e.preventDefault(); void savePin(); }}>
+                <input type="password" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="New PIN / password (4+ characters)" className="w-full rounded-xl border border-border bg-card px-4 py-3 text-base text-foreground outline-none focus:border-accent" />
+                <input type="password" value={pin2} onChange={(e) => setPin2(e.target.value)} placeholder="Confirm PIN / password" className="w-full rounded-xl border border-border bg-card px-4 py-3 text-base text-foreground outline-none focus:border-accent" />
+                <Button type="submit" variant="accent" disabled={savingPin}>{savingPin ? "Saving…" : "Save PIN"}</Button>
               </form>
             </div>
             <div className="rounded-3xl border border-danger/30 bg-danger/5 p-6">

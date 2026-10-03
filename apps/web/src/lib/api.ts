@@ -112,6 +112,7 @@ type ApiUser = {
 type ApiOrder = {
   id: string; orderNumber?: number | null; userId: string; productType: string; productId: string; productTitle: string; amount: number;
   method: string; status: string; txId?: string | null; createdAt: string;
+  deliveryCharge?: number | null; total?: number | null; isPhysical?: boolean | null;
 };
 type ApiEnrollment = {
   id: string; userId: string; productType: string; productId: string; accessFrom: string;
@@ -362,6 +363,9 @@ function mapOrder(raw: ApiOrder): Order {
     productId: raw.productId,
     productTitle: raw.productTitle,
     amount: raw.amount,
+    deliveryCharge: raw.deliveryCharge ?? 0,
+    total: raw.total ?? raw.amount,
+    isPhysical: raw.isPhysical ?? false,
     method: raw.method as Order["method"],
     status: raw.status as Order["status"],
     createdAt: raw.createdAt,

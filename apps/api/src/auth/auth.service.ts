@@ -368,6 +368,17 @@ export class AuthService {
     return { merged: orders.length };
   }
 
+  /** Signed-in user sets/changes their password (PIN). */
+  async setPassword(userId: string, password: string) {
+    if (!password || String(password).trim().length < 4) {
+      throw new BadRequestException('পাসওয়ার্ড অন্তত ৪ অক্ষরের হতে হবে।');
+    }
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!user) throw new BadRequestException('ইউজার পাওয়া যায়নি।');
+    await this.prisma.user.update({ where: { id: userId }, data: { password: hashPassword(password), verified: true } });
+    return { message: 'পাসওয়ার্ড সেভ হয়েছে।' };
+  }
+
   async adminLogin(email: string, password?: string) {
     if (!password) {
       throw new UnauthorizedException('Password is required.');
