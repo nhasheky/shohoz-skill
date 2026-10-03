@@ -34,4 +34,27 @@ export class MailService {
       return false;
     }
   }
+
+  /** Send an arbitrary HTML email through the shared Vercel SMTP route. */
+  async sendRaw(to: string, subject: string, html: string): Promise<boolean> {
+    try {
+      if (!to) return false;
+      const secret = process.env.EMAIL_API_SECRET;
+      if (!secret) {
+        this.logger.error('EMAIL_API_SECRET is not set; cannot send email.');
+        return false;
+      }
+      const res = await fetch('https://shohozskill.com.bd/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to, subject, html, secret }),
+      });
+      if (!res.ok) throw new Error(`Email API returned ${res.status}`);
+      this.logger.log(`Email "${subject}" sent to ${to}`);
+      return true;
+    } catch (err) {
+      this.logger.error(`Failed to send email to ${to}: ${(err as Error)?.message}`);
+      return false;
+    }
+  }
 }

@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CouponsService } from '../coupons/coupons.service.js';
 import { BlockedService } from '../blocked/blocked.service.js';
+import { MailService } from '../auth/mail.service.js';
 import { SteadfastService } from './steadfast.service.js';
 import { normalizePhone } from '../common/phone.js';
 import type { SaveDraftDto } from './dto/draft.dto.js';
@@ -39,6 +40,7 @@ export class OrdersService {
     private readonly coupons: CouponsService,
     private readonly steadfast: SteadfastService,
     private readonly blocked: BlockedService,
+    private readonly mail: MailService,
   ) {}
 
   // ─── Guest / authenticated checkout ────────────────────────────────────────
@@ -118,6 +120,7 @@ export class OrdersService {
     });
 
     await this.deleteDraft(dto.draftId);
+    void this.sendOrderEmails(order, 'placed');
     if (discount > 0 && couponCode) await this.coupons.markUsed(couponCode);
     if (isFree) await this.grantAccessForOrder(order);
 
@@ -245,6 +248,7 @@ export class OrdersService {
     });
 
     await this.deleteDraft(dto.draftId);
+    void this.sendOrderEmails(order, 'placed');
     if (discount > 0 && couponCode) await this.coupons.markUsed(couponCode);
     if (isFree) await this.grantAccessForOrder(order);
 
@@ -886,6 +890,74 @@ export class OrdersService {
     await this.prisma.checkoutDraft.delete({ where: { id } }).catch(() => null);
   }
 
+  private async customerEmailOf(order: { guestEmail: string | null; userId: string | null }): Promise<string | null> {
+    if (order.guestEmail) return order.guestEmail;
+    if (order.userId) {
+      const u = await this.prisma.user.findUnique({ where: { id: order.userId }, select: { email: true } });
+      return u?.email ?? null;
+    }
+    return null;
+  }
+
+  /** Fire-and-forget emails: admin on every order, customer when we have an email. */
+  private async sendOrderEmails(
+    order: {
+      orderNumber: number | null;
+      guestName: string | null;
+      guestPhone: string | null;
+      guestEmail: string | null;
+      userId: string | null;
+      productTitle: string;
+      productType: string;
+      quantity: number;
+      amount: number;
+      discount: number;
+      deliveryCharge: number;
+      total: number;
+      paymentMethod: string;
+      address: string | null;
+      region: string | null;
+      isPhysical: boolean;
+      items: unknown;
+    },
+    kind: 'placed' | 'paid',
+  ) {
+    try {
+      const admin = this.config.get<string>('ADMIN_EMAIL') || 'nazmulhasanasheky@gmail.com';
+      const items = Array.isArray(order.items) ? (order.items as Record<string, unknown>[]) : [];
+      const itemsHtml = items.length
+        ? items.map((i) => `<li>${i.title ?? order.productTitle} ×${i.quantity ?? 1}${i.variant ? ` (${i.variant})` : ""}</li>`).join("")
+        : `<li>${order.productTitle} ×${order.quantity}</li>`;
+      const money = (n: number) => `৳${Number(n || 0).toLocaleString("en-IN")}`;
+      const cust = order.guestName || "Customer";
+      const wrap = (title: string, body: string) =>
+        `<!doctype html><html><body style="margin:0;background:#0a0e1a;font-family:Arial,sans-serif;color:#e2e8f0"><div style="max-width:560px;margin:32px auto;background:#111827;border:1px solid #1e293b;border-radius:16px;overflow:hidden"><div style="padding:24px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#0a0e1a"><h1 style="margin:0;font-size:20px">Shohoz Skill</h1><p style="margin:4px 0 0;font-size:12px">Learn to Earn</p></div><div style="padding:24px"><h2 style="margin:0 0 8px;font-size:18px;color:#f8fafc">${title}</h2>${body}</div><div style="padding:14px 24px;border-top:1px solid #1e293b;color:#475569;font-size:11px">সহজ স্কিল · shohozskill.com.bd</div></div></body></html>`;
+
+      const adminBody = `<p style="color:#94a3b8;font-size:14px">${kind === "paid" ? "পেমেন্ট সম্পন্ন হয়েছে" : "নতুন অর্ডার এসেছে"}।</p>
+        <table style="width:100%;font-size:14px;color:#e2e8f0"><tr><td style="color:#94a3b8">Order No</td><td style="text-align:right;font-weight:bold">#${order.orderNumber ?? "-"}</td></tr>
+        <tr><td style="color:#94a3b8">Name</td><td style="text-align:right">${cust}</td></tr>
+        <tr><td style="color:#94a3b8">Phone</td><td style="text-align:right">${order.guestPhone || "-"}</td></tr>
+        <tr><td style="color:#94a3b8">Payment</td><td style="text-align:right">${order.paymentMethod}</td></tr>
+        <tr><td style="color:#94a3b8">Items</td><td style="text-align:right">${order.productTitle}</td></tr>
+        <tr><td style="color:#94a3b8">Total</td><td style="text-align:right;font-weight:bold;color:#f59e0b">${money(order.total ?? order.amount)}</td></tr>
+        <tr><td style="color:#94a3b8">Address</td><td style="text-align:right">${order.address || "-"}${order.region ? ` (${order.region})` : ""}</td></tr></table>`;
+      void this.mail.sendRaw(admin, `নতুন অর্ডার #${order.orderNumber ?? ""} (${kind === "paid" ? "PAID" : "placed"})`, wrap("নতুন অর্ডার", adminBody));
+
+      const custEmail = await this.customerEmailOf(order);
+      if (custEmail) {
+        const digital = items.length ? items.some((i) => !i.isPhysical) : !order.isPhysical;
+        const custBody = `<p style="color:#94a3b8;font-size:14px">প্রিয় <strong style="color:#f8fafc">${cust}</strong>, আপনার অর্ডারটি ${kind === "paid" ? "সফলভাবে পরিশোধিত হয়েছে" : "গৃহীত হয়েছে"}।</p>
+          <ul style="color:#e2e8f0;font-size:14px">${itemsHtml}</ul>
+          <p style="color:#e2e8f0;font-size:15px">সর্বমোট: <strong style="color:#f59e0b">${money(order.total ?? order.amount)}</strong></p>
+          ${digital ? `<p style="color:#94a3b8;font-size:13px">ডিজিটাল কোর্স / PDF / Exam পেতে <a href="https://shohozskill.com.bd/login" style="color:#f59e0b">লগইন</a> করুন — অ্যাক্সেস আপনার একাউন্টে যোগ হয়েছে।</p>` : `<p style="color:#94a3b8;font-size:13px">আগামী ২-৩ দিনের মধ্যে বইটি হাতে পেয়ে যাবেন। ডেলিভারি ম্যানের কলটি ধরবেন।</p>`}
+          <p style="color:#64748b;font-size:12px">Order No: #${order.orderNumber ?? "-"}</p>`;
+        void this.mail.sendRaw(custEmail, `অর্ডার #${order.orderNumber ?? ""} — Shohoz Skill`, wrap("আপনার অর্ডার গৃহীত হয়েছে", custBody));
+      }
+    } catch (err) {
+      void err;
+    }
+  }
+
   /** Public: save/update an incomplete checkout draft. */
   async saveDraft(dto: SaveDraftDto, meta: CheckoutMeta = {}) {
     const data: Prisma.CheckoutDraftUncheckedCreateInput = {
@@ -1070,6 +1142,7 @@ export class OrdersService {
               data: { status: 'PAID', txId: body.bank_tran_id || body.tran_id || order.txId },
             });
             await this.grantAccessForOrder(order);
+            void this.sendOrderEmails(order, 'paid');
             return `${frontendUrl}/checkout/success?orderId=${order.id}&method=SSLCOMMERZ&status=PAID&digital=${digital}`;
           }
         }

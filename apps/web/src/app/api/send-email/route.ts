@@ -3,7 +3,7 @@ import { createTransport } from "nodemailer";
 
 export async function POST(request: Request) {
   try {
-    const { to, code, userName, secret } = await request.json();
+    const { to, code, userName, secret, subject, html } = await request.json();
 
     // Verify secret to prevent abuse
     const expectedSecret = process.env.EMAIL_API_SECRET;
@@ -11,7 +11,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    if (!to || !code) {
+    if (!to) {
       return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
     }
 
@@ -31,6 +31,21 @@ export async function POST(request: Request) {
         pass: smtpPass,
       },
     });
+
+    // Generic mode: caller supplies the subject + HTML (order emails, alerts…).
+    if (typeof html === "string" && html.trim()) {
+      await transporter.sendMail({
+        from: `"Shohoz Skill" <${smtpUser}>`,
+        to,
+        subject: typeof subject === "string" && subject ? subject : "Shohoz Skill",
+        html,
+      });
+      return NextResponse.json({ success: true });
+    }
+
+    if (!code) {
+      return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
+    }
 
     const htmlContent = `
 <!DOCTYPE html>
