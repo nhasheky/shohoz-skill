@@ -663,7 +663,44 @@ export class OrdersService {
         orderBy: { createdAt: 'desc' },
       }),
     ]);
-    return { total, page, perPage, items };
+
+    const history = await this.customerHistories(items);
+    const withHistory = items.map((o) => ({
+      ...o,
+      customerHistory: history[this.phoneKey(o.guestPhone || o.user?.phone)] ?? emptyHistory(),
+    }));
+    return { total, page, perPage, items: withHistory };
+  }
+
+  /** Last 11 digits of a phone — the shared key between guests and registered users. */
+  private phoneKey(phone?: string | null): string {
+    if (!phone) return '';
+    const digits = phone.replace(/\D/g, '');
+    return digits.length > 11 ? digits.slice(-11) : digits;
+  }
+
+  /** Steadfast delivery record for each customer on the current page. */
+  private async customerHistories(
+    items: { guestPhone?: string | null; user?: { phone?: string | null } | null }[],
+  ): Promise<Record<string, CourierHistory>> {
+    const keys = [...new Set(items.map((o) => this.phoneKey(o.guestPhone || o.user?.phone)).filter(Boolean))];
+    if (!keys.length) return {};
+    const phones = keys.map((k) => `+88${k}`);
+    const related = await this.prisma.order.findMany({
+      where: {
+        OR: [{ guestPhone: { in: phones } }, { user: { is: { phone: { in: phones } } } }],
+      },
+      select: { guestPhone: true, trackingCode: true, courierStatus: true, user: { select: { phone: true } } },
+    });
+    const grouped: Record<string, typeof related> = {};
+    for (const r of related) {
+      const k = this.phoneKey(r.guestPhone || r.user?.phone);
+      if (!k) continue;
+      (grouped[k] ??= []).push(r);
+    }
+    const out: Record<string, CourierHistory> = {};
+    for (const [k, rows] of Object.entries(grouped)) out[k] = summarizeCourier(rows);
+    return out;
   }
 
   async findOne(orderId: string) {
@@ -805,6 +842,34 @@ export class OrdersService {
     const status = (data.delivery_status as string) ?? order.courierStatus ?? null;
     const updated = await this.prisma.order.update({ where: { id: orderId }, data: { courierStatus: status } });
     return { delivery_status: status, order: updated };
+  }
+
+  /** Admin: refresh courier status for all non-final Steadfast orders. */
+  async refreshAllCouriers() {
+    const orders = await this.prisma.order.findMany({
+      where: {
+        trackingCode: { not: null },
+        courierStatus: { notIn: ['delivered', 'returned', 'cancelled', 'partial_delivered'] },
+      },
+      select: { id: true, trackingCode: true, courierStatus: true },
+      orderBy: { createdAt: 'desc' },
+      take: 60,
+    });
+    let updated = 0;
+    for (const o of orders) {
+      if (!o.trackingCode) continue;
+      try {
+        const data = await this.steadfast.statusByTracking(o.trackingCode);
+        const status = (data.delivery_status as string) ?? null;
+        if (status && status !== o.courierStatus) {
+          await this.prisma.order.update({ where: { id: o.id }, data: { courierStatus: status } });
+          updated++;
+        }
+      } catch {
+        /* ignore per-order failures */
+      }
+    }
+    return { checked: orders.length, updated };
   }
 
   private async grantAccess(userId: string, productType: string, productId: string) {
@@ -998,4 +1063,32 @@ function normalizePhone(phone?: string): string | undefined {
   if (digits.length === 11 && digits.startsWith('01')) return '+88' + digits;
   if (digits.length === 13 && digits.startsWith('8801')) return '+88' + digits.slice(2);
   return phone;
+}
+
+type CourierHistory = {
+  total: number;
+  sent: number;
+  delivered: number;
+  cancelled: number;
+  returned: number;
+  inProgress: number;
+};
+
+function emptyHistory(): CourierHistory {
+  return { total: 0, sent: 0, delivered: 0, cancelled: 0, returned: 0, inProgress: 0 };
+}
+
+function summarizeCourier(rows: { trackingCode: string | null; courierStatus: string | null }[]): CourierHistory {
+  const h = emptyHistory();
+  h.total = rows.length;
+  for (const r of rows) {
+    if (!r.trackingCode) continue;
+    h.sent++;
+    const st = (r.courierStatus ?? 'in_review').toLowerCase();
+    if (st.includes('cancel')) h.cancelled++;
+    else if (st.includes('return')) h.returned++;
+    else if (st.includes('deliver')) h.delivered++;
+    else h.inProgress++;
+  }
+  return h;
 }

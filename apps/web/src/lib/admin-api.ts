@@ -223,6 +223,8 @@ export const sendToSteadfast = (id: string) =>
   request<{ trackingCode?: string | null; consignmentId?: string | null; status?: string | null }>(`/orders/${id}/steadfast`, { method: "POST" });
 export const refreshCourier = (id: string) =>
   request<{ delivery_status?: string | null }>(`/orders/${id}/steadfast/refresh`, { method: "POST" });
+export const refreshAllCouriers = () =>
+  request<{ checked: number; updated: number }>("/orders/steadfast/refresh-all", { method: "POST" });
 
 // ─── Reviews ──────────────────────────────────────────────────────────────
 export type AdminReview = {

@@ -174,6 +174,14 @@ export class OrdersController {
     return this.orders.courierBalance();
   }
 
+  /** Admin: refresh courier status for all open Steadfast orders. */
+  @Post('steadfast/refresh-all')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  refreshAllCouriers() {
+    return this.orders.refreshAllCouriers();
+  }
+
   /** Admin: push a hardcopy order to Steadfast. */
   @Post(':id/steadfast')
   @UseGuards(JwtAuthGuard, RolesGuard)

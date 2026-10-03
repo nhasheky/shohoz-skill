@@ -320,6 +320,16 @@ export type Order = {
   consignmentId?: string | null;
   trackingCode?: string | null;
   courierStatus?: string | null;
+  customerHistory?: CourierHistory;
+};
+
+export type CourierHistory = {
+  total: number;
+  sent: number;
+  delivered: number;
+  cancelled: number;
+  returned: number;
+  inProgress: number;
 };
 
 export type Category = {

@@ -848,6 +848,7 @@ export function OrdersPage() {
   const [editDraft, setEditDraft] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [courierBalance, setCourierBalance] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -1009,6 +1010,19 @@ export function OrdersPage() {
     }
   }
 
+  async function refreshAll() {
+    setRefreshing(true);
+    try {
+      const res = await api.refreshAllCouriers();
+      toast.success(`${res.checked} ta checked, ${res.updated} ta update holo`);
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Refresh failed");
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   const statusTone = (s: string): "success" | "accent" | "danger" | "muted" => (s === "PAID" ? "success" : s === "REFUNDED" ? "accent" : s === "FAILED" ? "danger" : "muted");
   const editCls = "w-full rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-accent";
 
@@ -1049,6 +1063,9 @@ export function OrdersPage() {
             To
             <input type="date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} className="rounded-lg border border-border bg-card px-2 py-2 text-xs text-foreground outline-none focus:border-accent" />
           </label>
+          <button type="button" onClick={refreshAll} disabled={refreshing} className="rounded-xl border border-border px-3 py-2.5 text-xs font-bold text-foreground hover:bg-muted disabled:opacity-50">
+            {refreshing ? "Refreshing…" : "Refresh courier statuses"}
+          </button>
         </div>
       </div>
       {mode === "demo" && <p className="mt-2 text-xs text-muted-foreground">API unreachable — showing demo orders.</p>}
@@ -1078,6 +1095,7 @@ export function OrdersPage() {
                 <th className="px-4 py-3 font-bold">Product</th>
                 <th className="px-4 py-3 font-bold">Phone</th>
                 <th className="px-4 py-3 font-bold">Email</th>
+                <th className="px-4 py-3 font-bold">History</th>
                 <th className="px-4 py-3 font-bold">Qty</th>
                 <th className="px-4 py-3 font-bold">Payment</th>
                 <th className="px-4 py-3 font-bold">Status</th>
@@ -1099,13 +1117,34 @@ export function OrdersPage() {
                   <td className="max-w-[24ch] truncate px-4 py-3 text-muted-foreground">{o.productTitle}</td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">{customerPhone(o)}</td>
                   <td className="max-w-[20ch] truncate px-4 py-3 text-xs text-muted-foreground">{customerEmail(o)}</td>
+                  <td className="px-4 py-3 text-xs">
+                    {o.customerHistory && o.customerHistory.sent > 0 ? (
+                      <>
+                        <span className="font-bold text-success">{o.customerHistory.delivered} delivered</span>
+                        <span className="text-muted-foreground"> · {o.customerHistory.cancelled} cancel</span>
+                        <span className="block text-[11px] text-muted-foreground">
+                          sent {o.customerHistory.sent}
+                          {o.customerHistory.inProgress ? ` · ${o.customerHistory.inProgress} active` : ""}
+                          {o.customerHistory.returned ? ` · ${o.customerHistory.returned} returned` : ""}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">No Steadfast record</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground">{o.productType === "book" ? o.quantity ?? 1 : "—"}</td>
                   <td className="px-4 py-3 text-xs font-semibold text-muted-foreground">{o.paymentMethod ?? o.method}</td>
                   <td className="px-4 py-3"><Badge tone={statusTone(o.status)}>{o.status}</Badge></td>
                   <td className="px-4 py-3 text-right font-bold text-foreground">{formatBdt(o.total ?? o.amount)}</td>
                   <td className="px-4 py-3 text-muted-foreground">{new Date(o.createdAt).toLocaleDateString("en-BD")}</td>
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
+                      {o.isPhysical && !o.trackingCode && (
+                        <button type="button" onClick={() => sendCourier(o)} disabled={busyId === o.id} className="rounded-lg bg-accent px-2.5 py-1 text-xs font-bold text-accent-foreground hover:bg-accent-hover disabled:opacity-50">
+                          {busyId === o.id ? "…" : "Send"}
+                        </button>
+                      )}
+                      {o.trackingCode && <span className="font-mono text-[10px] text-muted-foreground">{o.trackingCode}</span>}
                       <button type="button" onClick={() => openEdit(o)} className="rounded-lg border border-border px-2.5 py-1 text-xs font-bold text-foreground hover:bg-muted">Edit</button>
                       <button type="button" onClick={() => removeOrder(o)} className="rounded-lg border border-border px-2.5 py-1 text-xs font-bold text-danger hover:bg-danger/10">Delete</button>
                     </div>
