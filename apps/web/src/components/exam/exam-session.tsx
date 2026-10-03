@@ -7,6 +7,8 @@ import type { Exam, Question } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { IconCheckCircle, IconChevronLeft, IconChevronRight, IconCircleX, IconClock, IconFlag, IconTarget } from "@/components/ui/icons";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.shohozskill.com.bd";
+
 type AttemptQuestion = Question & { topicTitle: string; subjectId: string; marks: number; negative: number };
 
 type Result = {
@@ -38,6 +40,7 @@ export function ExamSession({
   const [current, setCurrent] = useState(0);
   const [seconds, setSeconds] = useState(input.totalMinutes * 60);
   const [submitted, setSubmitted] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
@@ -63,7 +66,7 @@ export function ExamSession({
           ...q,
           topicTitle: t.title,
           subjectId: s.id,
-          marks: 1,
+          marks: t.marksPerQuestion ?? 1,
           negative: t.negativeMarks ?? exam.defaultNegativeMarks ?? 0,
         })),
       ),
@@ -87,10 +90,23 @@ export function ExamSession({
     });
   }
 
-  // Persist result to localStorage so the session survives refresh
+  // Persist the finished attempt to the account (dashboard results / admin).
+  useEffect(() => {
+    if (!submitted || saved) return;
+    setSaved(true);
+    const token = typeof window !== "undefined" ? localStorage.getItem("shohoz_token") : null;
+    if (!token) return;
+    const res = computeResult(exam, flat, answers, input.subjectId);
+    void fetch(`${API_URL}/api/exams/${exam.id}/attempts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ ...res, answers }),
+    }).catch(() => {});
+  }, [submitted, saved, exam, flat, answers, input.subjectId]);
+
   const result = submitted ? computeResult(exam, flat, answers, input.subjectId) : null;
 
-  if (submitted && result) return <ResultView result={result} flat={flat} answers={answers} examTitle={exam.title} onRetry={() => { setAnswers({}); setFlags(new Set()); setCurrent(0); setSeconds(input.totalMinutes * 60); setSubmitted(false); }} onExitHref="/exams" />;
+  if (submitted && result) return <ResultView result={result} flat={flat} answers={answers} examTitle={exam.title} onRetry={() => { setAnswers({}); setFlags(new Set()); setCurrent(0); setSeconds(input.totalMinutes * 60); setSubmitted(false); setSaved(false); }} onExitHref="/exams" />;
 
   return (
     <div className="flex min-h-screen flex-col bg-surface dark:bg-background">

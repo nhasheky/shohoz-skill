@@ -179,6 +179,29 @@ export class ExamsService {
     return { deleted: id };
   }
 
+  /** Save a completed exam attempt for the signed-in user. */
+  async saveAttempt(userId: string, examIdOrSlug: string, dto: { score: number; maxMarks: number; correct: number; wrong: number; unanswered: number; passed: boolean; topicId?: string; answers?: unknown }) {
+    const exam = await this.prisma.exam.findFirst({
+      where: { OR: [{ id: examIdOrSlug }, { slug: examIdOrSlug }] },
+      select: { id: true },
+    });
+    if (!exam) throw new NotFoundException('Exam not found.');
+    return this.prisma.examAttempt.create({
+      data: {
+        userId,
+        examId: exam.id,
+        topicId: dto.topicId ?? null,
+        score: dto.score,
+        maxMarks: dto.maxMarks,
+        correct: dto.correct,
+        wrong: dto.wrong,
+        unanswered: dto.unanswered,
+        passed: dto.passed,
+        answers: (dto.answers ?? {}) as object,
+      },
+    });
+  }
+
   private async ensureExists(id: string) {
     const exists = await this.prisma.exam.findUnique({ where: { id }, select: { id: true } });
     if (!exists) throw new NotFoundException('Exam not found.');
