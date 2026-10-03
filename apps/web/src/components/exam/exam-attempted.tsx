@@ -31,7 +31,7 @@ export function ExamAttempted({
   const [isPending, setIsPending] = useState(pending);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
-  const [showAnswers, setShowAnswers] = useState(false);
+  const [showAnswers, setShowAnswers] = useState(true);
 
   const answers = attempt?.answers ?? {};
   const flat: FlatQ[] = exam.subjects.flatMap((s) =>

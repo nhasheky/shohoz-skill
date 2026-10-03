@@ -120,7 +120,17 @@ export function ExamSession({
     void fetch(`${API_URL}/api/exams/${exam.id}/attempts`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ ...res, answers }),
+      // Only the fields the API DTO accepts (ValidationPipe rejects extras).
+      body: JSON.stringify({
+        subjectId: res.subjectId,
+        score: res.score,
+        maxMarks: res.maxMarks,
+        correct: res.correct,
+        wrong: res.wrong,
+        unanswered: res.unanswered,
+        passed: res.passed,
+        answers,
+      }),
     }).catch(() => {});
   }, [submitted, saved, exam, flat, answers, input.subjectId]);
 
@@ -338,7 +348,7 @@ function ResultView({
   onExitHref: string;
 }) {
   const pct = Math.round((result.score / Math.max(1, result.maxMarks)) * 100);
-  const [showExplanations, setShowExplanations] = useState(false);
+  const [showExplanations, setShowExplanations] = useState(true);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
