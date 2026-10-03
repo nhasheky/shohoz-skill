@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import type { ComponentType } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getExam, getExams, getRelatedExams } from "@/lib/api";
-import { getReviews } from "@/lib/data/reviews";
+import { getExam, getExams, getProductReviews, getSuggestions, getSiteSettings } from "@/lib/api";
 import { formatCount, formatDurationLabel } from "@/lib/format";
 import { ProductCover } from "@/components/ui/product-cover";
 import { Stars } from "@/components/ui/rating";
@@ -11,8 +10,7 @@ import { BackgroundOrbs } from "@/components/layout/background";
 import { ButtonLink } from "@/components/ui/button";
 import { PurchasePanel, type PurchasePlan } from "@/components/product/purchase-panel";
 import { ReviewSection } from "@/components/product/review-section";
-import { ExamCard } from "@/components/ui/product-card";
-import { SectionHeader } from "@/components/marketing/section-header";
+import { SuggestedSection } from "@/components/product/suggested-section";
 import {
   IconBrain,
   IconChevronRight,
@@ -69,9 +67,11 @@ export default async function ExamDetailPage(props: PageProps<"/exam/[slug]">) {
     "Unlimited retakes on every topic",
   ];
 
-  const reviews = getReviews({ id: exam.id, count: 5, baseRating: exam.rating });
-
-  const relatedExams = await getRelatedExams(exam, 3);
+  const [reviews, suggestions, settings] = await Promise.all([
+    getProductReviews("exam", exam.id),
+    getSuggestions("exam", exam.suggested, 3),
+    getSiteSettings(),
+  ]);
 
   return (
     <main>
@@ -245,20 +245,18 @@ export default async function ExamDetailPage(props: PageProps<"/exam/[slug]">) {
             </section>
           )}
 
-          <ReviewSection id={`exam-${exam.id}`} title="User reviews" rating={exam.rating} count={exam.attemptCount} reviews={reviews} />
+          <ReviewSection
+            productType="exam"
+            productId={exam.id}
+            initialReviews={reviews}
+            rating={exam.rating}
+            count={exam.attemptCount}
+            scrollSeconds={settings.reviewScrollSeconds}
+          />
         </article>
       </div>
 
-      <section className="border-t border-border bg-card/40 py-14">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <SectionHeader eyebrow="More practice" title="Other exams you may like" />
-          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {relatedExams.map((e) => (
-              <ExamCard key={e.id} exam={e} />
-            ))}
-          </div>
-        </div>
-      </section>
+      <SuggestedSection cards={suggestions} eyebrow="More practice" title="আপনার ভালো লাগতে পারে" />
     </main>
   );
 }

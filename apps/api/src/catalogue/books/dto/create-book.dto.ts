@@ -115,4 +115,7 @@ export class CreateBookDto {
 
   @IsOptional()
   seo?: Prisma.InputJsonValue;
+
+  @IsOptional()
+  suggested?: Prisma.InputJsonValue; // [{ type, id }]
 }

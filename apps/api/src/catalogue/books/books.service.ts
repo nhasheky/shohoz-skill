@@ -112,6 +112,13 @@ export class BooksService {
     if (dto.seo !== undefined) {
       clean.seo = dto.seo && typeof dto.seo === 'object' ? dto.seo : null;
     }
+    if (dto.suggested !== undefined) {
+      clean.suggested = Array.isArray(dto.suggested)
+        ? dto.suggested
+            .filter((s: any) => s && typeof s.type === 'string' && typeof s.id === 'string')
+            .map((s: any) => ({ type: String(s.type), id: String(s.id) }))
+        : null;
+    }
 
     // Format exclusivity: a book is either an online PDF or a printed hardcopy.
     if (clean.pdfPrice !== undefined || clean.hardcopyPrice !== undefined) {

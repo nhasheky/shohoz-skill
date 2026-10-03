@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { MyReviewsPanel } from "@/components/dashboard/my-reviews-panel";
 import { getMe, getMyEnrollments, getMyOrders, getMyAttempts, hasSession } from "@/lib/api";
 import { BackgroundOrbs } from "@/components/layout/background";
 
@@ -30,6 +31,7 @@ export default async function DashboardPage() {
       </div>
       <div className="relative">
         <DashboardShell user={user} enrollments={enrollments} orders={orders} results={results} />
+        <MyReviewsPanel />
       </div>
     </main>
   );

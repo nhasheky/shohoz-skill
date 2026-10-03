@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 import { IconChevronLeft, IconChevronRight, IconSearch, IconX } from "@/components/ui/icons";
 import { RichTextEditor } from "./rich-text-editor";
 import { FileUploadField } from "./file-upload-field";
+import { SuggestedProductsEditor, type SuggestedRef } from "./suggested-products-editor";
 
 export function AdminModal({
   open,
@@ -142,7 +143,7 @@ export function Pagination({
 export type FieldDef = {
   name: string;
   label: string;
-  type?: "text" | "number" | "textarea" | "checkbox" | "select" | "richtext" | "image" | "file";
+  type?: "text" | "number" | "textarea" | "checkbox" | "select" | "richtext" | "image" | "file" | "suggested";
   options?: string[];
   placeholder?: string;
   help?: string;
@@ -197,6 +198,11 @@ export function FieldInput({ field, value, onChange }: { field: FieldDef; value:
           placeholder={field.placeholder ?? "URL to image or file..."} 
           accept={field.type === "image" ? "image/*" : field.type === "file" ? "application/pdf" : undefined}
           className="w-full"
+        />
+      ) : field.type === "suggested" ? (
+        <SuggestedProductsEditor
+          value={Array.isArray(value) ? (value as SuggestedRef[]) : []}
+          onChange={onChange}
         />
       ) : (
         <input value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} placeholder={field.placeholder} className={cls} />

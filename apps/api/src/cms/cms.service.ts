@@ -26,6 +26,7 @@ export const DEFAULT_SITE_SETTINGS = {
   deliveryChargeOutside: 120,
   codEnabled: true,
   sslcommerzEnabled: true,
+  reviewScrollSeconds: 6,
 };
 
 const VALID_PAGES = ['home', 'about', 'contact'];

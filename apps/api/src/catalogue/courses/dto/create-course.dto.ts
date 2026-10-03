@@ -206,4 +206,7 @@ export class CreateCourseDto {
   @ValidateNested({ each: true })
   @Type(() => CurriculumSectionDto)
   curriculum?: CurriculumSectionDto[];
+
+  @IsOptional()
+  suggested?: Prisma.InputJsonValue; // [{ type, id }]
 }

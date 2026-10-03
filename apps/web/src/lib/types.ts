@@ -66,6 +66,7 @@ export type Course = {
   videos: { youtube?: string; direct?: string };
   enrolled?: boolean;
   allowedPaymentMethods?: string[];
+  suggested?: SuggestedRef[];
   published: boolean;
   featured?: boolean;
   isNew?: boolean;
@@ -95,6 +96,7 @@ export type Book = {
   pdfPrice?: Price | null;
   hardcopyPrice?: Price | null;
   allowedPaymentMethods?: string[];
+  suggested?: SuggestedRef[];
   tableOfContents: { title: string; pages: string }[];
   samplePages: number;
   students: number;
@@ -172,11 +174,26 @@ export type Exam = {
   subjects: ExamSubject[];
   accessDuration: AccessDuration;
   allowedPaymentMethods?: string[];
+  suggested?: SuggestedRef[];
   featured?: boolean;
   isNew?: boolean;
   published: boolean;
   createdAt: string;
   seo: Seo;
+};
+
+export type SuggestedRef = { type: "course" | "book" | "exam"; id: string };
+
+export type ProductReview = {
+  id: string;
+  productType: "course" | "book" | "exam";
+  productId: string;
+  rating: number;
+  text: string;
+  imageUrl?: string | null;
+  name: string;
+  userId?: string | null;
+  createdAt: string;
 };
 
 export type BlogPost = {
@@ -325,6 +342,7 @@ export type SiteSetting = {
   deliveryChargeOutside: number;
   codEnabled?: boolean;
   sslcommerzEnabled?: boolean;
+  reviewScrollSeconds?: number;
 };
 
 export type PageContent = {

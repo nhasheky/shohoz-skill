@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getBook, getBooks, getRelatedBooks, getSiteSettings } from "@/lib/api";
-import { getReviews } from "@/lib/data/reviews";
+import { getBook, getBooks, getSiteSettings, getProductReviews, getSuggestions } from "@/lib/api";
 import { formatCount } from "@/lib/format";
 import { Stars } from "@/components/ui/rating";
 import { BookPreview } from "@/components/product/book-preview";
@@ -10,16 +9,12 @@ import { BackgroundOrbs } from "@/components/layout/background";
 import { ButtonLink } from "@/components/ui/button";
 import { PurchasePanel, type PurchasePlan } from "@/components/product/purchase-panel";
 import { ReviewSection } from "@/components/product/review-section";
-import { BookCard } from "@/components/ui/product-card";
-import { SectionHeader } from "@/components/marketing/section-header";
+import { SuggestedSection } from "@/components/product/suggested-section";
 import {
-  IconBookOpen,
   IconChevronRight,
-  IconDownload,
   IconEye,
   IconFileText,
   IconGlobe,
-  IconLock,
   IconUsers,
 } from "@/components/ui/icons";
 
@@ -83,9 +78,11 @@ export default async function BookDetailPage(props: PageProps<"/book/[slug]">) {
         : "বাংলা ও ইংরেজি মিলিয়ে লেখা।",
   ];
 
-  const reviews = getReviews({ id: book.id, count: 5, baseRating: book.rating });
-
-  const [relatedBooks, settings] = await Promise.all([getRelatedBooks(book, 3), getSiteSettings()]);
+  const [reviews, suggestions, settings] = await Promise.all([
+    getProductReviews("book", book.id),
+    getSuggestions("book", book.suggested, 3),
+    getSiteSettings(),
+  ]);
 
   return (
     <main>
@@ -156,9 +153,6 @@ export default async function BookDetailPage(props: PageProps<"/book/[slug]">) {
                     <IconEye width={16} height={16} className="mr-2" /> একটু পড়ে দেখুন
                   </ButtonLink>
                 )}
-                <ButtonLink href="#contents" variant="outline">
-                  <IconBookOpen width={16} height={16} className="mr-2" /> View contents
-                </ButtonLink>
               </div>
             </div>
 
@@ -179,69 +173,19 @@ export default async function BookDetailPage(props: PageProps<"/book/[slug]">) {
       </section>
 
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-10">
-        <article className="min-w-0 space-y-14">
-          <section>
-            <h2 className="font-display text-2xl font-extrabold text-foreground">How the reader works</h2>
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              {[
-                { icon: IconLock, t: "Watermarked pages", d: "Your name + order ID are watermarked on every page. Sharing a screenshot gets you caught, so we keep it readable but traceable." },
-                { icon: IconDownload, t: "No download, ever", d: "Pages render in the browser like a real book. Right-click, save and print are all disabled." },
-                { icon: IconBookOpen, t: "Any device", d: "Continue where you left off on phone, tablet or laptop. Your progress syncs across devices." },
-              ].map((c) => (
-                <div key={c.t} className="rounded-2xl border border-border bg-card p-5 shadow-card">
-                  <c.icon width={20} height={20} className="text-accent" />
-                  <p className="mt-3 font-display text-sm font-bold text-foreground">{c.t}</p>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{c.d}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section id="contents">
-            <h2 className="font-display text-2xl font-extrabold text-foreground">Table of contents</h2>
-            <div className="mt-5 space-y-2">
-              {book.tableOfContents.map((c, i) => (
-                <div key={i} className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-card px-5 py-3.5 shadow-card">
-                  <div className="flex items-center gap-3">
-                    <span className="font-display text-sm font-extrabold text-accent/70">{String(i + 1).padStart(2, "0")}</span>
-                    <span className="text-sm font-semibold text-foreground">{c.title}</span>
-                  </div>
-                  <span className="shrink-0 text-xs text-muted-foreground">{c.pages}</span>
-                </div>
-              ))}
-            </div>
-            <ButtonLink href={`/book/${book.slug}/read`} variant="outline" className="mt-5">
-              <IconEye width={16} height={16} className="mr-2" /> একটু পড়ে দেখুন
-            </ButtonLink>
-          </section>
-
-          <section className="rounded-3xl border border-border bg-card p-6 shadow-card sm:p-8">
-            <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-accent to-accent-hover font-display text-3xl font-extrabold text-accent-foreground">
-                {book.author.name.charAt(0)}
-              </div>
-              <div className="min-w-0">
-                <h3 className="font-display text-xl font-extrabold text-foreground">{book.author.name}</h3>
-                <p className="text-sm text-muted-foreground">{book.author.title} · {book.publisher}</p>
-                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{book.author.bio}</p>
-              </div>
-            </div>
-          </section>
-
-          <ReviewSection id={`book-${book.id}`} title="Reader reviews" rating={book.rating} count={book.reviewCount} reviews={reviews} />
+        <article className="min-w-0">
+          <ReviewSection
+            productType="book"
+            productId={book.id}
+            initialReviews={reviews}
+            rating={book.rating}
+            count={book.reviewCount}
+            scrollSeconds={settings.reviewScrollSeconds}
+          />
         </article>
       </div>
 
-      <section className="border-t border-border bg-card/40 py-14">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <SectionHeader eyebrow="Keep reading" title="Books you may like" />
-          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {relatedBooks.map((b) => (
-              <BookCard key={b.id} book={b} />
-            ))}
-          </div>
-        </div>
-      </section>
+      <SuggestedSection cards={suggestions} eyebrow="Keep exploring" title="আপনার ভালো লাগতে পারে" />
     </main>
   );
 }

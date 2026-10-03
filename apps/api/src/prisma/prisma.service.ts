@@ -41,6 +41,17 @@ const AUTO_MIGRATIONS: string[] = [
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "Coupon_code_key" ON "Coupon"("code")`,
   `CREATE INDEX IF NOT EXISTS "Coupon_active_idx" ON "Coupon"("active")`,
+  // Reviews: admin-authored entries (nullable user), photos, edited timestamps.
+  `ALTER TABLE "Review" ALTER COLUMN "userId" DROP NOT NULL`,
+  `ALTER TABLE "Review" ADD COLUMN IF NOT EXISTS "authorName" TEXT`,
+  `ALTER TABLE "Review" ADD COLUMN IF NOT EXISTS "imageUrl" TEXT`,
+  `ALTER TABLE "Review" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
+  // Admin-controllable reviews carousel speed.
+  `ALTER TABLE "SiteSetting" ADD COLUMN IF NOT EXISTS "reviewScrollSeconds" INTEGER NOT NULL DEFAULT 6`,
+  // Admin-picked suggested products (course/book/exam).
+  `ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS "suggested" JSONB`,
+  `ALTER TABLE "Book" ADD COLUMN IF NOT EXISTS "suggested" JSONB`,
+  `ALTER TABLE "Exam" ADD COLUMN IF NOT EXISTS "suggested" JSONB`,
 ];
 
 @Injectable()

@@ -207,4 +207,7 @@ export class CreateExamDto {
   @ValidateNested({ each: true })
   @Type(() => ExamSubjectDto)
   subjects?: ExamSubjectDto[];
+
+  @IsOptional()
+  suggested?: Prisma.InputJsonValue; // [{ type, id }]
 }

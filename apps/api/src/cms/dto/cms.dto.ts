@@ -73,6 +73,11 @@ export class UpdateSiteSettingDto {
   @IsOptional()
   @IsBoolean()
   sslcommerzEnabled?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  reviewScrollSeconds?: number;
 }
 
 export class UpdatePageContentDto {

@@ -93,6 +93,13 @@ export class CoursesService {
     if (scalars.seo !== undefined) {
       clean.seo = scalars.seo && typeof scalars.seo === 'object' ? scalars.seo : null;
     }
+    if (scalars.suggested !== undefined) {
+      clean.suggested = Array.isArray(scalars.suggested)
+        ? scalars.suggested
+            .filter((s: any) => s && typeof s.type === 'string' && typeof s.id === 'string')
+            .map((s: any) => ({ type: String(s.type), id: String(s.id) }))
+        : null;
+    }
     return clean;
   }
 

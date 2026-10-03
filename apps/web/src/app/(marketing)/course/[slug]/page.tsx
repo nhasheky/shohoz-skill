@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCourse, getCourses, getRelatedCourses } from "@/lib/api";
-import { getReviews } from "@/lib/data/reviews";
+import { getCourse, getCourses, getProductReviews, getSuggestions, getSiteSettings } from "@/lib/api";
 import { formatBdt, formatCount, formatDate, formatDurationLabel } from "@/lib/format";
 import { ProductCover } from "@/components/ui/product-cover";
 import { Stars } from "@/components/ui/rating";
@@ -12,8 +11,7 @@ import { VideoPlayer } from "@/components/product/video-player";
 import { PurchasePanel, type PurchasePlan } from "@/components/product/purchase-panel";
 import { CurriculumAccordion } from "@/components/product/curriculum-accordion";
 import { ReviewSection } from "@/components/product/review-section";
-import { CourseCard } from "@/components/ui/product-card";
-import { SectionHeader } from "@/components/marketing/section-header";
+import { SuggestedSection } from "@/components/product/suggested-section";
 import {
   IconAward,
   IconCheck,
@@ -77,9 +75,11 @@ export default async function CourseDetailPage(props: PageProps<"/course/[slug]"
       { type: "direct" as const, hlsUrl: course.videos.direct }
     : null;
 
-  const reviews = getReviews({ id: course.id, count: Math.min(6, Math.max(4, Math.round(course.reviewCount / 400))), baseRating: course.rating });
-
-  const relatedCourses = await getRelatedCourses(course, 3);
+  const [reviews, suggestions, settings] = await Promise.all([
+    getProductReviews("course", course.id),
+    getSuggestions("course", course.suggested, 3),
+    getSiteSettings(),
+  ]);
 
   const features = [
     `${course.lectures} video lessons + ${course.quizzes} quizzes`,
@@ -276,11 +276,12 @@ export default async function CourseDetailPage(props: PageProps<"/course/[slug]"
 
           {/* Reviews */}
           <ReviewSection
-            id={`course-${course.id}`}
-            title="Student reviews"
+            productType="course"
+            productId={course.id}
+            initialReviews={reviews}
             rating={course.rating}
             count={course.reviewCount}
-            reviews={reviews}
+            scrollSeconds={settings.reviewScrollSeconds}
           />
 
           {/* FAQ */}
@@ -320,16 +321,7 @@ export default async function CourseDetailPage(props: PageProps<"/course/[slug]"
       </div>
 
       {/* Related */}
-      <section className="border-t border-border bg-card/40 py-14">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <SectionHeader eyebrow="Keep learning" title="Related courses" />
-          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {relatedCourses.map((c) => (
-              <CourseCard key={c.id} course={c} />
-            ))}
-          </div>
-        </div>
-      </section>
+      <SuggestedSection cards={suggestions} eyebrow="Keep learning" title="আপনার ভালো লাগতে পারে" />
 
       {/* Anchor for enroll (mobile) */}
       <div id="enroll" className="scroll-mt-24 lg:hidden" data-enroll-anchor />

@@ -212,10 +212,28 @@ export const setOrderStatus = (id: string, status: Order["status"]) =>
   request(`/orders/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) });
 
 // ─── Reviews ──────────────────────────────────────────────────────────────
-export const listReviews = (status = "PENDING", page = 1, perPage = 20) =>
-  request<PageResult<Record<string, unknown>>>(`/reviews${qs({ status, page, perPage })}`);
-export const approveReview = (id: string) => request(`/reviews/${id}/approve`, { method: "PUT" });
-export const rejectReview = (id: string) => request(`/reviews/${id}/reject`, { method: "PUT" });
+export type AdminReview = {
+  id: string;
+  productType: string;
+  productId: string;
+  rating: number;
+  text: string;
+  imageUrl?: string | null;
+  status: string;
+  authorName?: string | null;
+  createdAt: string;
+  user?: { name?: string | null; nameBn?: string | null; phone?: string | null } | null;
+};
+
+export const listReviews = (status = "ALL", page = 1, perPage = 200) =>
+  request<PageResult<AdminReview>>(`/admin/reviews${qs({ status, page, perPage })}`);
+export const createReview = (dto: Record<string, unknown>) =>
+  request<AdminReview>("/admin/reviews", { method: "POST", body: JSON.stringify(dto) });
+export const updateReview = (id: string, dto: Record<string, unknown>) =>
+  request<AdminReview>(`/admin/reviews/${id}`, { method: "PUT", body: JSON.stringify(dto) });
+export const deleteReview = (id: string) => request(`/admin/reviews/${id}`, { method: "DELETE" });
+export const approveReview = (id: string) => request(`/admin/reviews/${id}/approve`, { method: "PUT" });
+export const rejectReview = (id: string) => request(`/admin/reviews/${id}/reject`, { method: "PUT" });
 
 // ─── CMS: site settings ───────────────────────────────────────────────────
 export const getSiteSettings = () => request<SiteSetting>("/admin/site-settings");

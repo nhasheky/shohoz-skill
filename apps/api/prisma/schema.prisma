@@ -116,6 +116,8 @@ model Course {
   faq                   Json?
   // Payment methods this product may override (empty = platform default).
   allowedPaymentMethods String[] @default([])
+  // Admin-picked "you may also like" items: [{ type, id }]. Empty = auto-suggest.
+  suggested             Json?
 
   prices       CoursePrice[]
   curriculum   CurriculumSection[]
@@ -206,6 +208,7 @@ model Book {
   demoPdfUrl            String? // short sample PDF (public — opened from the cover)
   pdfFileUrl            String? // full book PDF (owner-only, read in the secure viewer)
   allowedPaymentMethods String[] @default([])
+  suggested             Json? // [{ type, id }] — empty = auto-suggest
 }
 
 // Exam package or standalone exam; hierarchy: package → subject → topic → questions
@@ -237,6 +240,7 @@ model Exam {
   seo                   Json?
   thumbnailUrl          String?
   allowedPaymentMethods String[] @default([])
+  suggested             Json? // [{ type, id }] — empty = auto-suggest
 
   subjects ExamSubject[]
   attempts ExamAttempt[]
@@ -412,14 +416,17 @@ model ExamAttempt {
 
 model Review {
   id          String   @id @default(cuid())
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId      String
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String? // null for admin-authored testimonials
+  authorName  String? // display name when there is no linked user
   productType String // course | book | exam
   productId   String
   rating      Int
   text        String   @db.Text
+  imageUrl    String? // optional photo attached to the review
   status      String   @default("PENDING") // PENDING | APPROVED | REJECTED
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([userId, productType, productId])
   @@index([productType, productId, status])
@@ -445,6 +452,7 @@ model SiteSetting {
   deliveryChargeOutside Int      @default(120)
   codEnabled            Boolean  @default(true)
   sslcommerzEnabled     Boolean  @default(true)
+  reviewScrollSeconds   Int      @default(6) // auto-scroll interval for the reviews carousel
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }

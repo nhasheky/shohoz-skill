@@ -59,6 +59,7 @@ const courseFields: FieldDef[] = [
   { name: "certificate", label: "Certificate", type: "checkbox" },
   { name: "featured", label: "Featured", type: "checkbox" },
   { name: "published", label: "Published", type: "checkbox" },
+  { name: "suggested", label: "Suggested products", type: "suggested", span2: true, help: "Pick which books/exams show as suggestions under this course. Empty = auto." },
 ];
 
 const bookFields: FieldDef[] = [
@@ -85,6 +86,7 @@ const bookFields: FieldDef[] = [
   { name: "reviewCount", label: "Review count", type: "number" },
   { name: "featured", label: "Featured", type: "checkbox" },
   { name: "published", label: "Published", type: "checkbox" },
+  { name: "suggested", label: "Suggested products", type: "suggested", span2: true, help: "Pick which courses/exams show as suggestions under this book. Empty = auto." },
 ];
 
 const examFields: FieldDef[] = [
@@ -110,6 +112,7 @@ const examFields: FieldDef[] = [
   { name: "rating", label: "Rating", type: "number" },
   { name: "featured", label: "Featured", type: "checkbox" },
   { name: "published", label: "Published", type: "checkbox" },
+  { name: "suggested", label: "Suggested products", type: "suggested", span2: true, help: "Pick which books/courses show as suggestions under this exam. Empty = auto." },
 ];
 
 const blogFields: FieldDef[] = [
@@ -1014,98 +1017,261 @@ export function OrdersPage() {
 }
 
 // ─── Reviews ───────────────────────────────────────────────────────────────
-const demoReviews = [
-  { id: "rv1", user: { name: "Rafiqul Islam" }, productType: "course", productId: "crs-bcs-prelim", rating: 5, text: "Exactly the same pattern as the board paper.", status: "PENDING", createdAt: "2026-01-29" },
-  { id: "rv2", user: { name: "Nusrat Jahan" }, productType: "book", productId: "bk-bcs-bangla", rating: 4, text: "Explanations are in easy Bangla — very readable.", status: "PENDING", createdAt: "2026-01-28" },
-  { id: "rv3", user: { name: "Sabbir Hossain" }, productType: "exam", productId: "exam-pkg-ntrca", rating: 5, text: "Negative-marking simulator is the best feature.", status: "APPROVED", createdAt: "2026-01-25" },
-];
+type ReviewDraft = {
+  id?: string;
+  productType: "course" | "book" | "exam";
+  productId: string;
+  authorName: string;
+  rating: number;
+  text: string;
+  imageUrl: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+};
+
+const EMPTY_REVIEW: ReviewDraft = { productType: "book", productId: "", authorName: "", rating: 5, text: "", imageUrl: "", status: "APPROVED" };
+
+async function resizeReviewImage(file: File): Promise<string> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = dataUrl;
+  });
+  const scale = Math.min(1, 900 / img.width);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(img.width * scale);
+  canvas.height = Math.round(img.height * scale);
+  canvas.getContext("2d")?.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.75);
+}
 
 export function ReviewsPage() {
   useAdminTitle("Reviews");
   const toast = useToast();
-  const [filter, setFilter] = useState("PENDING");
-  const [rows, setRows] = useState<typeof demoReviews>([]);
-  const [mode, setMode] = useState<"live" | "demo">("demo");
-  const [demoState, setDemoState] = useState(demoReviews);
+  const [filter, setFilter] = useState("ALL");
+  const [rows, setRows] = useState<api.AdminReview[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [draft, setDraft] = useState<ReviewDraft | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [options, setOptions] = useState<{ type: string; id: string; title: string }[]>([]);
 
   const load = useCallback(async () => {
+    setLoading(true);
     try {
-      const res = await api.listReviews(filter, 1, 50);
-      setRows(res.items as typeof demoReviews);
-      setMode("live");
+      const res = await api.listReviews(filter, 1, 200);
+      setRows(res.items);
     } catch {
-      setRows(demoState.filter((r) => filter === "ALL" || r.status === filter));
-      setMode("demo");
+      setRows([]);
+    } finally {
+      setLoading(false);
     }
-  }, [filter, demoState]);
+  }, [filter]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, [load]);
 
-  async function moderate(id: string, approve: boolean) {
-    if (mode === "demo") {
-      setDemoState((r) => r.map((x) => (x.id === id ? { ...x, status: approve ? "APPROVED" : "REJECTED" } : x)));
-      toast.success(approve ? "Review approved" : "Review rejected");
-      load();
+  useEffect(() => {
+    Promise.all([api.listCourses("", 1, 200), api.listBooks("", 1, 200), api.listExams("", 1, 200)])
+      .then(([c, b, e]) => {
+        setOptions([
+          ...c.items.map((x) => ({ type: "course", id: String(x.id), title: String(x.title) })),
+          ...b.items.map((x) => ({ type: "book", id: String(x.id), title: String(x.title) })),
+          ...e.items.map((x) => ({ type: "exam", id: String(x.id), title: String(x.title) })),
+        ]);
+      })
+      .catch(() => {});
+  }, []);
+
+  function openEdit(r: api.AdminReview) {
+    setDraft({
+      id: r.id,
+      productType: (r.productType as ReviewDraft["productType"]) ?? "book",
+      productId: r.productId,
+      authorName: r.authorName ?? r.user?.name ?? "",
+      rating: r.rating,
+      text: r.text,
+      imageUrl: r.imageUrl ?? "",
+      status: (r.status as ReviewDraft["status"]) ?? "APPROVED",
+    });
+  }
+
+  async function save() {
+    if (!draft) return;
+    if (!draft.text.trim()) {
+      toast.error("Review text is required.");
       return;
     }
+    if (!draft.productId) {
+      toast.error("Choose a product.");
+      return;
+    }
+    const dto: Record<string, unknown> = {
+      productType: draft.productType,
+      productId: draft.productId,
+      authorName: draft.authorName.trim() || undefined,
+      rating: draft.rating,
+      text: draft.text.trim(),
+      imageUrl: draft.imageUrl || undefined,
+      status: draft.status,
+    };
+    setBusy(true);
     try {
-      if (approve) await api.approveReview(id);
-      else await api.rejectReview(id);
-      toast.success(approve ? "Review approved" : "Review rejected");
+      if (draft.id) await api.updateReview(draft.id, dto);
+      else await api.createReview(dto);
+      toast.success("Review saved");
+      setDraft(null);
       load();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Action failed");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setBusy(false);
     }
   }
+
+  async function remove(r: api.AdminReview) {
+    if (typeof window !== "undefined" && !window.confirm("Delete this review?")) return;
+    try {
+      await api.deleteReview(r.id);
+      toast.success("Deleted");
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Delete failed");
+    }
+  }
+
+  async function moderate(r: api.AdminReview, approve: boolean) {
+    try {
+      if (approve) await api.approveReview(r.id);
+      else await api.rejectReview(r.id);
+      toast.success(approve ? "Approved" : "Rejected");
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Action failed");
+    }
+  }
+
+  const productOptions = options.filter((o) => o.type === draft?.productType);
+  const inputCls = "w-full rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-accent";
 
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-extrabold text-foreground">Reviews</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Moderate learner reviews</p>
+          <p className="mt-1 text-sm text-muted-foreground">Add, edit, moderate and delete reviews for any book, course or exam.</p>
         </div>
-        <div className="flex gap-1.5">
-          {["PENDING", "APPROVED", "REJECTED", "ALL"].map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setFilter(s)}
-              className={cn("rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors", filter === s ? "bg-accent text-accent-foreground" : "border border-border text-muted-foreground hover:text-foreground")}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
+        <button type="button" onClick={() => setDraft({ ...EMPTY_REVIEW })} className="rounded-xl bg-accent px-4 py-2.5 text-sm font-bold text-accent-foreground hover:bg-accent-hover">+ Add review</button>
       </div>
+
+      <div className="mt-3 flex gap-1.5">
+        {["ALL", "PENDING", "APPROVED", "REJECTED"].map((s) => (
+          <button key={s} type="button" onClick={() => setFilter(s)} className={cn("rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors", filter === s ? "bg-accent text-accent-foreground" : "border border-border text-muted-foreground hover:text-foreground")}>{s}</button>
+        ))}
+      </div>
+
       <div className="mt-4 space-y-3">
-        {rows.length === 0 ? (
+        {loading ? (
+          <p className="py-10 text-center text-sm text-muted-foreground">Loading…</p>
+        ) : rows.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-border py-16 text-center text-sm text-muted-foreground">No reviews here.</div>
         ) : (
           rows.map((r) => (
             <div key={r.id} className="rounded-3xl border border-border bg-card p-5 shadow-card">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-bold text-foreground">{r.user?.name ?? "Unknown"}</p>
-                  <p className="text-xs text-muted-foreground">{r.productType} · {r.productId} · {r.rating}★ · {new Date(r.createdAt ?? "").toLocaleDateString("en-BD")}</p>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex gap-3">
+                  {r.imageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={r.imageUrl} alt="" className="h-16 w-16 rounded-xl object-cover" />
+                  )}
+                  <div>
+                    <p className="text-sm font-bold text-foreground">{r.user?.name ?? r.authorName ?? "Admin"}</p>
+                    <p className="text-xs text-muted-foreground">{r.productType} · {r.productId} · {r.rating}★ · {new Date(r.createdAt).toLocaleDateString("en-BD")}</p>
+                  </div>
                 </div>
                 <Badge tone={r.status === "APPROVED" ? "success" : r.status === "REJECTED" ? "danger" : "accent"}>{r.status}</Badge>
               </div>
               <p className="mt-3 text-sm text-muted-foreground">“{r.text}”</p>
-              {r.status === "PENDING" && (
-                <div className="mt-4 flex gap-2">
-                  <button type="button" onClick={() => moderate(r.id, true)} className="rounded-lg bg-success px-4 py-2 text-xs font-bold text-success-foreground transition-colors hover:opacity-90">Approve</button>
-                  <button type="button" onClick={() => moderate(r.id, false)} className="rounded-lg bg-danger px-4 py-2 text-xs font-bold text-danger-foreground transition-colors hover:opacity-90">Reject</button>
-                </div>
-              )}
+              <div className="mt-4 flex flex-wrap gap-2">
+                {r.status !== "APPROVED" && <button type="button" onClick={() => moderate(r, true)} className="rounded-lg bg-success px-3 py-1.5 text-xs font-bold text-success-foreground hover:opacity-90">Approve</button>}
+                {r.status !== "REJECTED" && <button type="button" onClick={() => moderate(r, false)} className="rounded-lg bg-danger px-3 py-1.5 text-xs font-bold text-danger-foreground hover:opacity-90">Reject</button>}
+                <button type="button" onClick={() => openEdit(r)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted">Edit</button>
+                <button type="button" onClick={() => remove(r)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-danger hover:bg-danger/10">Delete</button>
+              </div>
             </div>
           ))
         )}
       </div>
-      {mode === "demo" && <p className="mt-3 text-xs text-muted-foreground">API unreachable — moderation is demo-only.</p>}
+
+      <AdminModal open={Boolean(draft)} title={draft?.id ? "Edit review" : "Add review"} onClose={() => setDraft(null)} wide>
+        {draft && (
+          <div className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Product type</span>
+                <select value={draft.productType} onChange={(e) => setDraft({ ...draft, productType: e.target.value as ReviewDraft["productType"], productId: "" })} className={inputCls}>
+                  <option value="course">Course</option>
+                  <option value="book">Book</option>
+                  <option value="exam">Exam</option>
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Product</span>
+                <select value={draft.productId} onChange={(e) => setDraft({ ...draft, productId: e.target.value })} className={inputCls}>
+                  <option value="">— select —</option>
+                  {productOptions.map((o) => (<option key={o.id} value={o.id}>{o.title}</option>))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Author name</span>
+                <input value={draft.authorName} onChange={(e) => setDraft({ ...draft, authorName: e.target.value })} placeholder="Learner name" className={inputCls} />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rating</span>
+                <select value={draft.rating} onChange={(e) => setDraft({ ...draft, rating: Number(e.target.value) })} className={inputCls}>
+                  {[5, 4, 3, 2, 1].map((n) => (<option key={n} value={n}>{n} ★</option>))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</span>
+                <select value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value as ReviewDraft["status"] })} className={inputCls}>
+                  <option value="APPROVED">APPROVED</option>
+                  <option value="PENDING">PENDING</option>
+                  <option value="REJECTED">REJECTED</option>
+                </select>
+              </label>
+            </div>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Review text *</span>
+              <textarea value={draft.text} onChange={(e) => setDraft({ ...draft, text: e.target.value })} rows={4} className={cn(inputCls, "resize-y")} />
+            </label>
+            <div>
+              {draft.imageUrl ? (
+                <div className="relative w-max">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={draft.imageUrl} alt="" className="h-24 rounded-xl object-cover" />
+                  <button type="button" onClick={() => setDraft({ ...draft, imageUrl: "" })} className="absolute -right-2 -top-2 rounded-full bg-danger p-1 text-danger-foreground" aria-label="Remove photo">✕</button>
+                </div>
+              ) : (
+                <label className="inline-flex cursor-pointer items-center rounded-xl border border-dashed border-border px-4 py-2 text-xs font-bold text-muted-foreground hover:text-foreground">
+                  📷 Add photo (optional)
+                  <input type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) setDraft({ ...draft, imageUrl: await resizeReviewImage(f) }); }} />
+                </label>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 border-t border-border pt-3">
+              <button type="button" onClick={() => setDraft(null)} className="rounded-xl border border-border px-5 py-2.5 text-sm font-bold text-foreground hover:bg-muted">Cancel</button>
+              <button type="button" onClick={save} disabled={busy} className="rounded-xl bg-accent px-6 py-2.5 text-sm font-bold text-accent-foreground hover:bg-accent-hover disabled:opacity-60">{busy ? "Saving…" : "Save review"}</button>
+            </div>
+          </div>
+        )}
+      </AdminModal>
     </div>
   );
 }
@@ -1154,6 +1320,7 @@ const SETTINGS_DEFAULTS = {
   deliveryChargeOutside: "120",
   codEnabled: true,
   sslcommerzEnabled: true,
+  reviewScrollSeconds: "6",
 };
 
 type SettingsForm = typeof SETTINGS_DEFAULTS;
@@ -1187,6 +1354,7 @@ export function SettingsPage() {
           deliveryChargeOutside: String(s.deliveryChargeOutside ?? 120),
           codEnabled: s.codEnabled ?? true,
           sslcommerzEnabled: s.sslcommerzEnabled ?? true,
+          reviewScrollSeconds: String(s.reviewScrollSeconds ?? 6),
         });
         setMode("live");
       } catch {
@@ -1219,6 +1387,7 @@ export function SettingsPage() {
       deliveryChargeOutside: Number(form.deliveryChargeOutside) || 0,
       codEnabled: form.codEnabled,
       sslcommerzEnabled: form.sslcommerzEnabled,
+      reviewScrollSeconds: Number(form.reviewScrollSeconds) || 6,
     };
     try {
       await api.updateSiteSettings(payload);
@@ -1240,6 +1409,7 @@ export function SettingsPage() {
     { key: "supportPhone", label: "Support phone" },
     { key: "deliveryChargeDhaka", label: "Delivery charge — inside Dhaka (৳)" },
     { key: "deliveryChargeOutside", label: "Delivery charge — outside Dhaka (৳)" },
+    { key: "reviewScrollSeconds", label: "Reviews auto-scroll interval (seconds)", span2: true },
   ];
 
   return (

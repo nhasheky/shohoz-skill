@@ -16,7 +16,9 @@ import type {
   Exam,
   FaqItem,
   Order,
+  ProductReview,
   SiteSetting,
+  SuggestedRef,
   TestimonialReview,
   VideoSource,
 } from "@/lib/types";
@@ -69,6 +71,7 @@ type ApiCourse = {
   prices?: ApiPrice[]; curriculum?: ApiSection[];
   thumbnailUrl?: string | null;
   allowedPaymentMethods?: string[];
+  suggested?: unknown;
   learningOutcomes?: string[];
   requirements?: string[];
   whoIsFor?: string[];
@@ -81,6 +84,7 @@ type ApiBook = {
   reviewCount?: number | null; featured?: boolean | null; published: boolean; createdAt: string;
   thumbnailUrl?: string | null; demoPdfUrl?: string | null; hasDemo?: boolean;
   allowedPaymentMethods?: string[];
+  suggested?: unknown;
 };
 type ApiQuestion = { id: string; text: string; options: string[] | string; answerIndex: number; explanation?: string | null; sortOrder?: number | null };
 type ApiTopic = { id: string; title: string; slug: string; questionsCount?: number | null; durationMinutes?: number | null; marksPerQuestion?: number | null; negativeMarks?: number | null; sortOrder?: number | null; questions?: ApiQuestion[] };
@@ -93,6 +97,7 @@ type ApiExam = {
   rating?: number | null; featured?: boolean | null; published: boolean; createdAt: string; subjects?: ApiSubject[];
   thumbnailUrl?: string | null;
   allowedPaymentMethods?: string[];
+  suggested?: unknown;
 };
 type ApiBlog = {
   id: string; slug: string; title: string; excerpt?: string | null; category?: string | null; categoryBn?: string | null;
@@ -122,6 +127,21 @@ type ApiAttempt = {
 // ─── Mappers: API → domain ────────────────────────────────────────────────
 function seo(title: string, description: string) {
   return { title: `${title} — Shohoz Skill`, description };
+}
+
+function normalizeSuggested(raw: unknown): SuggestedRef[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter(
+      (s): s is { type: string; id: string } =>
+        Boolean(
+          s &&
+            typeof s === "object" &&
+            typeof (s as { type?: unknown }).type === "string" &&
+            typeof (s as { id?: unknown }).id === "string",
+        ),
+    )
+    .map((s) => ({ type: s.type as SuggestedRef["type"], id: s.id }));
 }
 
 function mapLessonSource(l: ApiLesson): VideoSource {
@@ -189,6 +209,7 @@ function mapCourse(raw: ApiCourse): Course {
     faq: (raw.faq as FaqItem[]) ?? [],
     videos: firstYt ? { youtube: firstYt.sourceId ?? "" } : firstDir ? { direct: firstDir.sourceId ?? "" } : {},
     allowedPaymentMethods: raw.allowedPaymentMethods ?? [],
+    suggested: normalizeSuggested(raw.suggested),
     published: raw.published ?? false,
     featured: raw.featured ?? false,
     createdAt: raw.createdAt,
@@ -226,6 +247,7 @@ function mapBook(raw: ApiBook): Book {
     rating: raw.rating ?? 0,
     reviewCount: raw.reviewCount ?? 0,
     allowedPaymentMethods: raw.allowedPaymentMethods ?? [],
+    suggested: normalizeSuggested(raw.suggested),
     published: raw.published ?? false,
     featured: raw.featured ?? false,
     createdAt: raw.createdAt,
@@ -259,6 +281,7 @@ function mapExam(raw: ApiExam): Exam {
     rating: raw.rating ?? 0,
     accessDuration: "LIFETIME",
     allowedPaymentMethods: raw.allowedPaymentMethods ?? [],
+    suggested: normalizeSuggested(raw.suggested),
     subjects: (raw.subjects ?? []).map((s) => ({
       id: s.id,
       title: s.title,
@@ -471,6 +494,96 @@ export async function getRelatedExams(current: Exam, limit = 3): Promise<Exam[]>
   return [...byCat, ...rest.filter((e) => e.category !== current.category)].slice(0, limit);
 }
 
+// ─── Reviews (real API) ────────────────────────────────────────────────────
+type ApiReview = {
+  id: string;
+  productType: string;
+  productId: string;
+  rating: number;
+  text: string;
+  imageUrl?: string | null;
+  createdAt: string;
+  userId?: string | null;
+  authorName?: string | null;
+  user?: { name?: string | null; nameBn?: string | null } | null;
+};
+
+export async function getProductReviews(productType: string, productId: string): Promise<ProductReview[]> {
+  return withFallback(
+    `/reviews/${encodeURIComponent(productType)}/${encodeURIComponent(productId)}`,
+    (raw) =>
+      (raw as ApiReview[]).map((r) => ({
+        id: r.id,
+        productType: r.productType as ProductReview["productType"],
+        productId: r.productId,
+        rating: r.rating,
+        text: r.text,
+        imageUrl: r.imageUrl ?? null,
+        name: r.user?.name || r.authorName || "Shohoz Skill Learner",
+        userId: r.userId ?? null,
+        createdAt: r.createdAt,
+      })),
+    async () => [],
+  );
+}
+
+// ─── Suggested products (cross-type) ───────────────────────────────────────
+export type SuggestionCard =
+  | { type: "course"; course: Course }
+  | { type: "book"; book: Book }
+  | { type: "exam"; exam: Exam };
+
+function suggestionId(card: SuggestionCard): string {
+  if (card.type === "course") return `course:${card.course.id}`;
+  if (card.type === "book") return `book:${card.book.id}`;
+  return `exam:${card.exam.id}`;
+}
+
+function suggestionRating(card: SuggestionCard): number {
+  if (card.type === "course") return card.course.rating;
+  if (card.type === "book") return card.book.rating;
+  return card.exam.rating;
+}
+
+/**
+ * Resolve the "you may also like" list for a product. Uses the admin-picked
+ * suggestions first, then fills the rest with cross-type relevant items.
+ */
+export async function getSuggestions(
+  sourceType: "course" | "book" | "exam",
+  suggested: SuggestedRef[] | undefined,
+  limit = 3,
+): Promise<SuggestionCard[]> {
+  const [courses, books, exams] = await Promise.all([getCourses(), getBooks(), getExams()]);
+  const all: SuggestionCard[] = [
+    ...courses.map((c) => ({ type: "course" as const, course: c })),
+    ...books.map((b) => ({ type: "book" as const, book: b })),
+    ...exams.map((e) => ({ type: "exam" as const, exam: e })),
+  ];
+  const byId = new Map(all.map((c) => [suggestionId(c), c]));
+  const out: SuggestionCard[] = [];
+  const seen = new Set<string>();
+  for (const ref of suggested ?? []) {
+    const card = byId.get(`${ref.type}:${ref.id}`);
+    if (card && !seen.has(suggestionId(card))) {
+      out.push(card);
+      seen.add(suggestionId(card));
+    }
+    if (out.length >= limit) break;
+  }
+  if (out.length < limit) {
+    const pool = all
+      .filter((c) => c.type !== sourceType && !seen.has(suggestionId(c)))
+      .sort((a, b) => suggestionRating(b) - suggestionRating(a));
+    for (const card of pool) {
+      if (out.length >= limit) break;
+      out.push(card);
+      seen.add(suggestionId(card));
+    }
+  }
+  return out.slice(0, limit);
+}
+
 export async function getBlogs(): Promise<BlogPost[]> {
   return withFallback(
     "/blogs",
@@ -599,6 +712,7 @@ export const FALLBACK_SITE_SETTINGS: SiteSetting = {
   deliveryChargeOutside: 120,
   codEnabled: true,
   sslcommerzEnabled: true,
+  reviewScrollSeconds: 6,
 };
 
 function mapSiteSetting(raw: Record<string, unknown>): SiteSetting {
@@ -620,6 +734,7 @@ function mapSiteSetting(raw: Record<string, unknown>): SiteSetting {
     deliveryChargeOutside: typeof raw.deliveryChargeOutside === "number" ? raw.deliveryChargeOutside : 120,
     codEnabled: typeof raw.codEnabled === "boolean" ? raw.codEnabled : true,
     sslcommerzEnabled: typeof raw.sslcommerzEnabled === "boolean" ? raw.sslcommerzEnabled : true,
+    reviewScrollSeconds: typeof raw.reviewScrollSeconds === "number" ? raw.reviewScrollSeconds : 6,
   };
 }
 
