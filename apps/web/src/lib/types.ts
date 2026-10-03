@@ -293,6 +293,7 @@ export type OrderCustomer = {
 
 export type Order = {
   id: string;
+  orderNumber?: number | null;
   userId?: string | null;
   guestName?: string | null;
   guestPhone?: string | null;

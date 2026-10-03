@@ -206,8 +206,8 @@ export const updateUser = (id: string, dto: Partial<AppUser>) =>
 export const deleteUser = (id: string) => request(`/users/${id}`, { method: "DELETE" });
 
 // ─── Orders ───────────────────────────────────────────────────────────────
-export const listOrders = (status?: string, page = 1, perPage = 20) =>
-  request<PageResult<Order>>(`/orders${qs({ status, page, perPage })}`);
+export const listOrders = (status?: string, page = 1, perPage = 20, q?: string) =>
+  request<PageResult<Order>>(`/orders${qs({ status, page, perPage, q })}`);
 export const setOrderStatus = (id: string, status: Order["status"]) =>
   request(`/orders/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) });
 

@@ -92,8 +92,25 @@ export class OrdersController {
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
-  findAll(@Query('page') page?: string, @Query('perPage') perPage?: string, @Query('status') status?: string) {
-    return this.orders.findAll(Number(page) || 1, Number(perPage) || 20, status);
+  findAll(
+    @Query('page') page?: string,
+    @Query('perPage') perPage?: string,
+    @Query('status') status?: string,
+    @Query('q') q?: string,
+  ) {
+    return this.orders.findAll(Number(page) || 1, Number(perPage) || 20, status, q);
+  }
+
+  /** Public: confirmation page summary (order number, items, totals, address). */
+  @Get(':id/summary')
+  summary(@Param('id') id: string) {
+    return this.orders.summary(id);
+  }
+
+  /** Public: suggested products shown under the confirmation page. */
+  @Get(':id/suggestions')
+  suggestions(@Param('id') id: string) {
+    return this.orders.suggestions(id);
   }
 
   @Get(':id')

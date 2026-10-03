@@ -835,6 +835,7 @@ export function OrdersPage() {
   const [rows, setRows] = useState<Order[]>([]);
   const [total, setTotal] = useState(0);
   const [status, setStatus] = useState("");
+  const [q, setQ] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
@@ -845,7 +846,7 @@ export function OrdersPage() {
 
   const load = useCallback(async () => {
     try {
-      const res = await api.listOrders(status || undefined, page, perPage);
+      const res = await api.listOrders(status || undefined, page, perPage, q || undefined);
       setRows(res.items);
       setTotal(res.total);
       setMode("live");
@@ -861,7 +862,7 @@ export function OrdersPage() {
       setRows(all.slice((page - 1) * perPage, page * perPage));
       setMode("demo");
     }
-  }, [status, from, to, page, demoOrdersState]);
+  }, [status, q, from, to, page, demoOrdersState]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -905,6 +906,12 @@ export function OrdersPage() {
           <p className="mt-1 text-sm text-muted-foreground">Track and update order payments</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <input
+            value={q}
+            onChange={(e) => { setQ(e.target.value); setPage(1); }}
+            placeholder="Order no / mobile / gmail / name"
+            className="w-64 rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground outline-none focus:border-accent"
+          />
           <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground outline-none focus:border-accent">
             <option value="">All statuses</option>
             <option value="PENDING">Pending</option>
@@ -929,7 +936,7 @@ export function OrdersPage() {
           <table className="w-full min-w-[1100px] text-left text-sm">
             <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th className="px-4 py-3 font-bold">Order ID</th>
+                <th className="px-4 py-3 font-bold">Order No</th>
                 <th className="px-4 py-3 font-bold">Customer</th>
                 <th className="px-4 py-3 font-bold">Product</th>
                 <th className="px-4 py-3 font-bold">Phone</th>
@@ -944,7 +951,7 @@ export function OrdersPage() {
             <tbody className="divide-y divide-border">
               {rows.map((o) => (
                 <tr key={o.id} className="cursor-pointer transition-colors hover:bg-muted/40" onClick={() => setDetails(o)}>
-                  <td className="px-4 py-3 font-mono text-xs font-bold text-foreground">{o.id.slice(-10)}</td>
+                  <td className="px-4 py-3 font-mono text-xs font-bold text-foreground">{o.orderNumber ?? o.id.slice(-10)}</td>
                   <td className="px-4 py-3">
                     <p className="font-bold text-foreground">{customerName(o)}</p>
                     <p className="text-[11px] text-muted-foreground">{isGuest(o) ? "Guest" : "Registered"}</p>
@@ -969,6 +976,7 @@ export function OrdersPage() {
         <AdminModal open onClose={() => setDetails(null)} title={`Order ${details.id}`} wide>
           <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
             {[
+              ["Order no", String(details.orderNumber ?? "—")],
               ["Customer", customerName(details)],
               ["Customer type", isGuest(details) ? "Guest checkout" : "Registered"],
               ["Phone", customerPhone(details)],

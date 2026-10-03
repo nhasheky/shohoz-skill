@@ -97,6 +97,7 @@ export class OrdersService {
         status,
         address: dto.address?.trim() || null,
         region: dto.region ?? null,
+        orderNumber: await this.nextOrderNumber(),
         txId,
       },
     });
@@ -206,6 +207,7 @@ export class OrdersService {
         status,
         address: dto.address?.trim() || null,
         region: dto.region ?? null,
+        orderNumber: await this.nextOrderNumber(),
         txId,
         items: itemsJson,
       },
@@ -506,9 +508,139 @@ export class OrdersService {
     return { refunded: order.id };
   }
 
-  /** Admin: paginated order listing with customer + product relations. */
-  async findAll(page = 1, perPage = 20, status?: string) {
-    const where = status ? { status } : {};
+  /** Next human-friendly order number (starts at 34586). */
+  private async nextOrderNumber(): Promise<number> {
+    try {
+      const rows = await this.prisma.$queryRaw<{ nextval: bigint }[]>`SELECT nextval('"OrderNumber_seq"') AS nextval`;
+      return Number(rows[0]?.nextval);
+    } catch {
+      const max = await this.prisma.order.aggregate({ _max: { orderNumber: true } });
+      return (max._max.orderNumber ?? 34585) + 1;
+    }
+  }
+
+  /** Public: everything the confirmation page needs. */
+  async summary(orderId: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Order not found.');
+    return {
+      id: order.id,
+      orderNumber: order.orderNumber,
+      createdAt: order.createdAt,
+      status: order.status,
+      paymentMethod: order.paymentMethod,
+      productType: order.productType,
+      productId: order.productId,
+      productTitle: order.productTitle,
+      variant: order.variant,
+      quantity: order.quantity,
+      amount: order.amount,
+      discount: order.discount,
+      deliveryCharge: order.deliveryCharge,
+      total: order.total,
+      isPhysical: order.isPhysical,
+      address: order.address,
+      region: order.region,
+      items: order.items,
+      guestName: order.guestName,
+      guestPhone: order.guestPhone,
+      guestEmail: order.guestEmail,
+    };
+  }
+
+  /** Public: suggested products (admin-picked, else cross-type by rating). */
+  async suggestions(orderId: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Order not found.');
+    const items = Array.isArray(order.items) ? (order.items as Record<string, unknown>[]) : [];
+    const first = items[0] ?? { productType: order.productType, productId: order.productId };
+    const sourceType = String(first.productType ?? order.productType);
+    const sourceId = String(first.productId ?? order.productId);
+
+    type Card = { type: string; slug: string; title: string; thumbnailUrl: string | null; category: string; rating: number };
+    const out: Card[] = [];
+    const seen = new Set<string>();
+    const push = (card: Card | null) => {
+      if (card && !seen.has(`${card.type}:${card.slug}`) && out.length < 3) {
+        out.push(card);
+        seen.add(`${card.type}:${card.slug}`);
+      }
+    };
+
+    const resolve = async (type: string, id: string): Promise<Card | null> => {
+      if (type === 'course') {
+        const r = await this.prisma.course.findFirst({ where: { OR: [{ id }, { slug: id }], published: true }, select: { slug: true, title: true, thumbnailUrl: true, category: true, rating: true } });
+        return r ? { type: 'course', ...r } : null;
+      }
+      if (type === 'exam') {
+        const r = await this.prisma.exam.findFirst({ where: { OR: [{ id }, { slug: id }], published: true }, select: { slug: true, title: true, thumbnailUrl: true, rating: true } });
+        return r ? { type: 'exam', slug: r.slug, title: r.title, thumbnailUrl: r.thumbnailUrl, category: 'Exam', rating: r.rating } : null;
+      }
+      const r = await this.prisma.book.findFirst({ where: { OR: [{ id }, { slug: id }], published: true }, select: { slug: true, title: true, thumbnailUrl: true, category: true, rating: true } });
+      return r ? { type: 'book', ...r } : null;
+    };
+
+    // Admin-picked suggestions for the ordered product.
+    let picked: { type?: unknown; id?: unknown }[] = [];
+    if (sourceType === 'book') {
+      const src = await this.prisma.book.findFirst({ where: { OR: [{ id: sourceId }, { slug: sourceId }] }, select: { suggested: true } });
+      picked = Array.isArray(src?.suggested) ? (src!.suggested as { type?: unknown; id?: unknown }[]) : [];
+    } else if (sourceType === 'course') {
+      const src = await this.prisma.course.findFirst({ where: { OR: [{ id: sourceId }, { slug: sourceId }] }, select: { suggested: true } });
+      picked = Array.isArray(src?.suggested) ? (src!.suggested as { type?: unknown; id?: unknown }[]) : [];
+    } else if (sourceType === 'exam') {
+      const src = await this.prisma.exam.findFirst({ where: { OR: [{ id: sourceId }, { slug: sourceId }] }, select: { suggested: true } });
+      picked = Array.isArray(src?.suggested) ? (src!.suggested as { type?: unknown; id?: unknown }[]) : [];
+    }
+    for (const ref of picked) {
+      if (typeof ref?.type === 'string' && typeof ref?.id === 'string') push(await resolve(ref.type, ref.id));
+    }
+
+    // Default: cross-type, highest rated.
+    if (out.length < 3) {
+      if (sourceType !== 'course') {
+        const rs = await this.prisma.course.findMany({ where: { published: true }, orderBy: { rating: 'desc' }, take: 6, select: { slug: true, title: true, thumbnailUrl: true, category: true, rating: true } });
+        for (const r of rs) push({ type: 'course', ...r });
+      }
+      if (sourceType !== 'exam' && out.length < 3) {
+        const rs = await this.prisma.exam.findMany({ where: { published: true }, orderBy: { rating: 'desc' }, take: 6, select: { slug: true, title: true, thumbnailUrl: true, rating: true } });
+        for (const r of rs) push({ type: 'exam', slug: r.slug, title: r.title, thumbnailUrl: r.thumbnailUrl, category: 'Exam', rating: r.rating });
+      }
+      if (sourceType !== 'book' && out.length < 3) {
+        const rs = await this.prisma.book.findMany({ where: { published: true }, orderBy: { rating: 'desc' }, take: 6, select: { slug: true, title: true, thumbnailUrl: true, category: true, rating: true } });
+        for (const r of rs) push({ type: 'book', ...r });
+      }
+    }
+    return out;
+  }
+
+  /** Admin: paginated order listing with optional status + search (order no / phone / email / name). */
+  async findAll(page = 1, perPage = 20, status?: string, q?: string) {
+    const where: Record<string, unknown> = {};
+    if (status) where.status = status;
+    if (q && q.trim()) {
+      const term = q.trim();
+      const or: Record<string, unknown>[] = [
+        { guestName: { contains: term, mode: 'insensitive' } },
+        { guestPhone: { contains: term } },
+        { guestEmail: { contains: term, mode: 'insensitive' } },
+        { productTitle: { contains: term, mode: 'insensitive' } },
+        {
+          user: {
+            is: {
+              OR: [
+                { name: { contains: term, mode: 'insensitive' } },
+                { phone: { contains: term } },
+                { email: { contains: term, mode: 'insensitive' } },
+              ],
+            },
+          },
+        },
+      ];
+      const num = Number(term.replace(/\D/g, ''));
+      if (!Number.isNaN(num) && num > 0) or.push({ orderNumber: num });
+      where.OR = or;
+    }
     const [total, items] = await Promise.all([
       this.prisma.order.count({ where }),
       this.prisma.order.findMany({

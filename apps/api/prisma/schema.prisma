@@ -309,6 +309,7 @@ model BlogPost {
 // ─── Commerce ──────────────────────────────────────────────────────
 model Order {
   id               String    @id @default(cuid())
+  orderNumber      Int?      @unique // human-friendly, starts at 34586
   // Guest checkout: userId is null until the guest registers and is merged.
   user             User?     @relation(fields: [userId], references: [id])
   userId           String?
