@@ -186,11 +186,7 @@ export default function CartPage() {
     <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
       <h1 className="font-display text-2xl font-extrabold text-foreground">Your cart</h1>
       <p className="mt-1 text-sm text-muted-foreground">{cart.count} item{cart.count > 1 ? "s" : ""} ready to check out</p>
-      {anyPhysical ? (
-        <p className="mt-2 rounded-xl border border-accent/30 bg-accent/5 px-4 py-2.5 text-xs font-semibold text-foreground">
-          হার্ডকপি বই — ডেলিভারির সময় টাকা দিন (Cash on Delivery), অথবা অনলাইনে পরিশোধ করুন। PDF/Exam এর সাথে একসাথে অর্ডার করা যাবে না।
-        </p>
-      ) : (
+      {!anyPhysical && (
         <p className="mt-2 rounded-xl border border-accent/30 bg-accent/5 px-4 py-2.5 text-xs font-semibold text-foreground">
           অনলাইন PDF / Exam — পেমেন্ট SSLCOMMERZ দিয়ে করতে হবে।
         </p>
