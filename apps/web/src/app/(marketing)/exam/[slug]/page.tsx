@@ -150,17 +150,28 @@ export default async function ExamDetailPage(props: PageProps<"/exam/[slug]">) {
 
             <aside className="mt-8 lg:mt-0">
               <div className="lg:sticky lg:top-24">
-                <PurchasePanel
-                  kind="Exam"
-                  title={exam.title}
-                  productId={exam.id}
-                  productType="exam"
-                  allowedPaymentMethods={exam.allowedPaymentMethods}
-                  plans={plans}
-                  planNote={exam.isFree ? "No payment required" : "One-time payment · lifetime access"}
-                  features={features}
-                  owned={enrolled}
-                />
+                {exam.isFree || enrolled ? (
+                  <div className="rounded-3xl border border-border bg-card p-6 text-center shadow-card">
+                    <p className="font-display text-lg font-extrabold text-foreground">পরীক্ষা দিতে প্রস্তুত?</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {exam.isFree ? "এই exam সম্পূর্ণ ফ্রি — এখনই শুরু করুন।" : "আপনার access চালু আছে — এখনই শুরু করুন।"}
+                    </p>
+                    <ButtonLink href={`/exam/${exam.slug}/take`} variant="accent" className="mt-4 w-full">
+                      পরীক্ষা শুরু করুন
+                    </ButtonLink>
+                  </div>
+                ) : (
+                  <PurchasePanel
+                    kind="Exam"
+                    title={exam.title}
+                    productId={exam.id}
+                    productType="exam"
+                    allowedPaymentMethods={exam.allowedPaymentMethods}
+                    plans={plans}
+                    planNote="One-time payment · lifetime access"
+                    features={features}
+                  />
+                )}
               </div>
             </aside>
           </div>
