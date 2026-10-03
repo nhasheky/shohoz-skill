@@ -517,6 +517,7 @@ export type MyExamAttempt = {
     unanswered: number;
     passed: boolean;
     submittedAt: string;
+    answers?: Record<string, number> | null;
   } | null;
 };
 
