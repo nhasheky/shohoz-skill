@@ -35,6 +35,14 @@ export class ExamsController {
     return this.exams.myAttempt(id, req.user.sub);
   }
 
+  /** Start (or resume) the exam countdown. */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('STUDENT', 'ADMIN', 'SUPER_ADMIN', 'TEACHER')
+  @Post(':id/start')
+  startExam(@Req() req: Authed, @Param('id') id: string) {
+    return this.exams.startExam(id, req.user.sub);
+  }
+
   /** Signed-in user requests a re-exam (admin approval needed). */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('STUDENT', 'ADMIN', 'SUPER_ADMIN', 'TEACHER')

@@ -228,6 +228,38 @@ export class ExamsService {
     return { examId: exam.id, attempted: Boolean(attempt), attempt, reExamPending: Boolean(pending) };
   }
 
+  private async examDurationSeconds(examId: string): Promise<number> {
+    const exam = await this.prisma.exam.findUnique({
+      where: { id: examId },
+      include: { subjects: { include: { topics: true } } },
+    });
+    if (!exam) return 0;
+    const topicMinutes = exam.subjects.reduce(
+      (n, s) => n + s.topics.reduce((m, t) => m + (t.durationMinutes || 0), 0),
+      0,
+    );
+    const minutes = topicMinutes > 0 ? topicMinutes : exam.durationMinutes || 0;
+    return minutes * 60;
+  }
+
+  /** Start (or resume) an exam session; the countdown persists across reloads. */
+  async startExam(examIdOrSlug: string, userId: string) {
+    const exam = await this.resolveExam(examIdOrSlug);
+    const duration = await this.examDurationSeconds(exam.id);
+    const now = Date.now();
+    let start = await this.prisma.examStart.findUnique({
+      where: { userId_examId: { userId, examId: exam.id } },
+    });
+    if (!start) {
+      start = await this.prisma.examStart.create({
+        data: { userId, examId: exam.id, startedAt: new Date(now), expiresAt: new Date(now + duration * 1000) },
+      });
+    }
+    const timed = duration > 0;
+    const remainingSeconds = timed ? Math.max(0, Math.floor((start.expiresAt.getTime() - now) / 1000)) : 0;
+    return { timed, startedAt: start.startedAt, expiresAt: start.expiresAt, remainingSeconds, durationSeconds: duration };
+  }
+
   /** Student asks for a retake; admin must approve. */
   async requestReExam(examIdOrSlug: string, userId: string, note?: string) {
     const exam = await this.resolveExam(examIdOrSlug);
@@ -261,6 +293,7 @@ export class ExamsService {
     if (!req) throw new NotFoundException('Request not found.');
     if (approve) {
       await this.prisma.examAttempt.deleteMany({ where: { userId: req.userId, examId: req.examId } });
+      await this.prisma.examStart.deleteMany({ where: { userId: req.userId, examId: req.examId } });
     }
     return this.prisma.reExamRequest.update({
       where: { id },

@@ -39,17 +39,37 @@ export function ExamSession({
   const [flags, setFlags] = useState<Set<string>>(() => new Set());
   const [current, setCurrent] = useState(0);
   const [seconds, setSeconds] = useState(input.totalMinutes * 60);
+  const [timed, setTimed] = useState(input.totalMinutes > 0);
   const [submitted, setSubmitted] = useState(false);
   const [saved, setSaved] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  // Start (or resume) the exam on the server so the countdown survives reloads.
   useEffect(() => {
-    if (submitted) return;
+    const t = typeof window !== "undefined" ? localStorage.getItem("shohoz_token") : null;
+    if (!t) return;
+    let cancelled = false;
+    void fetch(`${API_URL}/api/exams/${exam.id}/start`, { method: "POST", headers: { Authorization: `Bearer ${t}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { timed?: boolean; remainingSeconds?: number } | null) => {
+        if (cancelled || !d) return;
+        setTimed(Boolean(d.timed));
+        if (typeof d.remainingSeconds === "number") setSeconds(d.remainingSeconds);
+        if (d.timed && (d.remainingSeconds ?? 0) <= 0) setSubmitted(true);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [exam.id]);
+
+  useEffect(() => {
+    if (submitted || !timed) return;
     const t = setInterval(() => {
       setSeconds((s) => {
         if (s <= 1) {
           clearInterval(t);
-          // auto-submit
+          // auto-submit when time is over
           setTimeout(() => setSubmitted(true), 0);
           return 0;
         }
@@ -57,7 +77,7 @@ export function ExamSession({
       });
     }, 1000);
     return () => clearInterval(t);
-  }, [submitted]);
+  }, [submitted, timed]);
 
   const flat: AttemptQuestion[] = useMemo(() => {
     return input.subjects.flatMap((s) =>
@@ -120,10 +140,12 @@ export function ExamSession({
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <span className={cn("flex items-center gap-1.5 rounded-full px-3 py-1.5 font-mono text-sm font-bold", seconds < 60 ? "bg-danger/10 text-danger" : "bg-muted text-foreground")}>
-              <IconClock width={14} height={14} />
-              {mmss(seconds)}
-            </span>
+            {timed && (
+              <span className={cn("flex items-center gap-1.5 rounded-full px-3 py-1.5 font-mono text-sm font-bold", seconds < 60 ? "bg-danger/10 text-danger" : "bg-muted text-foreground")}>
+                <IconClock width={14} height={14} />
+                {mmss(seconds)}
+              </span>
+            )}
             <Button variant="accent" size="sm" onClick={() => setConfirmOpen(true)} disabled={submitted}>
               Submit
             </Button>

@@ -289,6 +289,18 @@ model Question {
   @@index([topicId])
 }
 
+// When a student opened an exam (so the countdown survives page reloads).
+model ExamStart {
+  id        String   @id @default(cuid())
+  userId    String
+  examId    String
+  startedAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@unique([userId, examId])
+  @@index([examId])
+}
+
 // Student request to retake an exam after the first attempt.
 model ReExamRequest {
   id        String    @id @default(cuid())

@@ -1,6 +1,6 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { getExam, getMyExamAttempt } from "@/lib/api";
+import { getExam, getMyExamAttempt, hasSession } from "@/lib/api";
 import { ExamSession } from "@/components/exam/exam-session";
 import { ExamAttempted } from "@/components/exam/exam-attempted";
 
@@ -14,6 +14,9 @@ export default async function ExamTakePage(props: PageProps<"/exam/[slug]/take">
   const searchParams = await props.searchParams;
   const exam = await getExam(params.slug);
   if (!exam) notFound();
+
+  // One attempt per exam (free exams included) — needs a signed-in account.
+  if (!(await hasSession())) redirect("/login");
 
   const subject = typeof searchParams.subject === "string" ? searchParams.subject : undefined;
   const topic = typeof searchParams.topic === "string" ? searchParams.topic : undefined;

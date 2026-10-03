@@ -109,6 +109,17 @@ const AUTO_MIGRATIONS: string[] = [
   )`,
   `CREATE INDEX IF NOT EXISTS "ReExamRequest_status_idx" ON "ReExamRequest"("status")`,
   `CREATE INDEX IF NOT EXISTS "ReExamRequest_userId_examId_idx" ON "ReExamRequest"("userId","examId")`,
+  // Exam start times (persistent countdown).
+  `CREATE TABLE IF NOT EXISTS "ExamStart" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "examId" TEXT NOT NULL,
+    "startedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "ExamStart_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "ExamStart_userId_examId_key" ON "ExamStart"("userId","examId")`,
+  `CREATE INDEX IF NOT EXISTS "ExamStart_examId_idx" ON "ExamStart"("examId")`,
 ];
 
 @Injectable()
