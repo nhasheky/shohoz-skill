@@ -74,7 +74,7 @@ export function PurchasePanel({
         </div>
 
         <Button className="mt-5 w-full" variant="accent" size="lg" onClick={() => setOpen(true)}>
-          {plan.price === 0 ? "Start Free" : kind === "Book" ? "Buy Now" : "Enroll Now"}
+          {plan.price === 0 ? "Start Free" : kind === "Book" ? "এক্ষুনি অর্ডার করুন" : "Enroll Now"}
         </Button>
         {plan.originalPrice && plan.originalPrice > plan.price ? (
           <p className="mt-2 text-center text-xs font-semibold text-accent">
@@ -107,7 +107,7 @@ export function PurchasePanel({
               </p>
             </div>
             <Button variant="accent" onClick={() => setOpen(true)} className="px-6">
-              {plan.price === 0 ? "Start Free" : kind === "Book" ? "Buy Now" : "Enroll Now"}
+              {plan.price === 0 ? "Start Free" : kind === "Book" ? "এক্ষুনি অর্ডার করুন" : "Enroll Now"}
             </Button>
           </div>
         </div>

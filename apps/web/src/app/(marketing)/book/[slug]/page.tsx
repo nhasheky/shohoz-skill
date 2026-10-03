@@ -47,24 +47,25 @@ export default async function BookDetailPage(props: PageProps<"/book/[slug]">) {
   const methodsFor = (base: string[]) =>
     book.allowedPaymentMethods?.length ? base.filter((m) => book.allowedPaymentMethods!.includes(m)) : base;
 
+  const hardcopyNote =
+    "বই হাতে পেয়ে টাকা দিন। অগ্রিম এক টাকা লাগবে না। আমরা আপনাদের বিশ্বাস করেই বই পাঠাই। আশা করি, ফেইক অর্ডার করে আমাদের ঠকাবেন না।";
   const plans: PurchasePlan[] = [];
   if (book.pdfPrice) {
     plans.push({
       id: "pdf",
-      label: "Online PDF (read-only)",
+      label: "PDF Copy",
       price: book.pdfPrice.amount,
       originalPrice: book.pdfPrice.originalAmount,
-      note: "Watermarked · read on any device · no download",
       allowedPaymentMethods: methodsFor(["SSLCOMMERZ"]),
     });
   }
   if (book.hardcopyPrice) {
     plans.push({
       id: "hardcopy",
-      label: "Hardcopy (printed)",
+      label: "",
       price: book.hardcopyPrice.amount,
       originalPrice: book.hardcopyPrice.originalAmount,
-      note: "Nationwide shipping · pay online or cash on delivery",
+      note: hardcopyNote,
       allowedPaymentMethods: methodsFor(["COD", "SSLCOMMERZ"]),
     });
   }
@@ -164,7 +165,7 @@ export default async function BookDetailPage(props: PageProps<"/book/[slug]">) {
             <aside className="lg:col-span-2 xl:col-span-1">
               <div className="xl:sticky xl:top-24">
                 {plans.length ? (
-                  <PurchasePanel kind="Book" title={book.title} productId={book.id} productType="book" allowedPaymentMethods={book.allowedPaymentMethods} plans={plans} planNote="Choose your format" features={features} />
+                  <PurchasePanel kind="Book" title={book.title} productId={book.id} productType="book" allowedPaymentMethods={book.allowedPaymentMethods} plans={plans} features={features} />
                 ) : (
                   <div className="rounded-3xl border border-dashed border-border bg-card p-6 text-center shadow-card">
                     <p className="font-display text-lg font-extrabold text-foreground">Coming soon</p>
