@@ -843,6 +843,10 @@ export function OrdersPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [details, setDetails] = useState<Order | null>(null);
   const [demoOrdersState, setDemoOrdersState] = useState<Order[]>(adminOrders);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -891,7 +895,89 @@ export function OrdersPage() {
     }
   }
 
+  const toggleSelect = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  const allSelected = rows.length > 0 && rows.every((r) => selected.includes(r.id));
+  const toggleAll = () => setSelected(allSelected ? [] : rows.map((r) => r.id));
+
+  function openEdit(o: Order) {
+    setEditingId(o.id);
+    setEditDraft({
+      guestName: o.guestName ?? o.user?.name ?? "",
+      guestPhone: o.guestPhone ?? o.user?.phone ?? "",
+      guestEmail: o.guestEmail ?? o.user?.email ?? "",
+      productTitle: o.productTitle ?? "",
+      variant: o.variant ?? "",
+      quantity: String(o.quantity ?? 1),
+      amount: String(o.amount ?? 0),
+      discount: String(o.discount ?? 0),
+      deliveryCharge: String(o.deliveryCharge ?? 0),
+      total: String(o.total ?? o.amount ?? 0),
+      address: o.address ?? "",
+      region: (o.region as string) ?? "",
+      status: o.status,
+      paymentMethod: o.paymentMethod ?? o.method ?? "SSLCOMMERZ",
+      txId: o.txId ?? "",
+    });
+  }
+
+  async function saveEdit() {
+    if (!editingId) return;
+    setSaving(true);
+    try {
+      const dto: Record<string, unknown> = {
+        guestName: editDraft.guestName,
+        guestPhone: editDraft.guestPhone,
+        guestEmail: editDraft.guestEmail,
+        productTitle: editDraft.productTitle,
+        variant: editDraft.variant,
+        quantity: Number(editDraft.quantity) || 0,
+        amount: Number(editDraft.amount) || 0,
+        discount: Number(editDraft.discount) || 0,
+        deliveryCharge: Number(editDraft.deliveryCharge) || 0,
+        total: Number(editDraft.total) || 0,
+        address: editDraft.address,
+        status: editDraft.status,
+        paymentMethod: editDraft.paymentMethod,
+        txId: editDraft.txId,
+      };
+      if (editDraft.region) dto.region = editDraft.region;
+      await api.updateOrder(editingId, dto);
+      toast.success("Order updated");
+      setEditingId(null);
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Update failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function removeOrder(o: Order) {
+    if (typeof window !== "undefined" && !window.confirm(`Order ${o.orderNumber ?? o.id} delete korben?`)) return;
+    try {
+      await api.deleteOrder(o.id);
+      toast.success("Order deleted");
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Delete failed");
+    }
+  }
+
+  async function runBulk(action: "DELETE" | "STATUS", status?: Order["status"]) {
+    if (!selected.length) return;
+    if (action === "DELETE" && typeof window !== "undefined" && !window.confirm(`${selected.length} ta order delete korben?`)) return;
+    try {
+      const res = await api.bulkOrders(selected, action, status);
+      toast.success(`${res.count} ta order update holo`);
+      setSelected([]);
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Bulk action failed");
+    }
+  }
+
   const statusTone = (s: string): "success" | "accent" | "danger" | "muted" => (s === "PAID" ? "success" : s === "REFUNDED" ? "accent" : s === "FAILED" ? "danger" : "muted");
+  const editCls = "w-full rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-accent";
 
   const customerName = (o: Order) => o.user?.name ?? o.guestName ?? "Guest";
   const customerPhone = (o: Order) => o.user?.phone ?? o.guestPhone ?? "—";
@@ -931,11 +1017,26 @@ export function OrdersPage() {
       </div>
       {mode === "demo" && <p className="mt-2 text-xs text-muted-foreground">API unreachable — showing demo orders.</p>}
 
+      {selected.length > 0 && (
+        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-accent/40 bg-accent/5 px-4 py-3">
+          <span className="text-sm font-bold text-foreground">{selected.length} selected</span>
+          <button type="button" onClick={() => runBulk("STATUS", "PAID")} className="rounded-lg bg-success px-3 py-1.5 text-xs font-bold text-success-foreground hover:opacity-90">Mark PAID</button>
+          <button type="button" onClick={() => runBulk("STATUS", "PENDING")} className="rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted">Mark PENDING</button>
+          <button type="button" onClick={() => runBulk("STATUS", "FAILED")} className="rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted">Mark FAILED</button>
+          <button type="button" onClick={() => runBulk("STATUS", "REFUNDED")} className="rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted">Mark REFUNDED</button>
+          <button type="button" onClick={() => runBulk("DELETE")} className="rounded-lg bg-danger px-3 py-1.5 text-xs font-bold text-danger-foreground hover:opacity-90">Delete selected</button>
+          <button type="button" onClick={() => setSelected([])} className="ml-auto text-xs font-bold text-muted-foreground hover:text-foreground">Clear</button>
+        </div>
+      )}
+
       <div className="mt-4 overflow-hidden rounded-3xl border border-border bg-card shadow-card">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1100px] text-left text-sm">
             <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
+                <th className="px-4 py-3">
+                  <input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4 accent-[#F2A93B]" aria-label="Select all" />
+                </th>
                 <th className="px-4 py-3 font-bold">Order No</th>
                 <th className="px-4 py-3 font-bold">Customer</th>
                 <th className="px-4 py-3 font-bold">Product</th>
@@ -951,6 +1052,9 @@ export function OrdersPage() {
             <tbody className="divide-y divide-border">
               {rows.map((o) => (
                 <tr key={o.id} className="cursor-pointer transition-colors hover:bg-muted/40" onClick={() => setDetails(o)}>
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <input type="checkbox" checked={selected.includes(o.id)} onChange={() => toggleSelect(o.id)} className="h-4 w-4 accent-[#F2A93B]" aria-label="Select order" />
+                  </td>
                   <td className="px-4 py-3 font-mono text-xs font-bold text-foreground">{o.orderNumber ?? o.id.slice(-10)}</td>
                   <td className="px-4 py-3">
                     <p className="font-bold text-foreground">{customerName(o)}</p>
@@ -964,6 +1068,12 @@ export function OrdersPage() {
                   <td className="px-4 py-3"><Badge tone={statusTone(o.status)}>{o.status}</Badge></td>
                   <td className="px-4 py-3 text-right font-bold text-foreground">{formatBdt(o.total ?? o.amount)}</td>
                   <td className="px-4 py-3 text-muted-foreground">{new Date(o.createdAt).toLocaleDateString("en-BD")}</td>
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => openEdit(o)} className="rounded-lg border border-border px-2.5 py-1 text-xs font-bold text-foreground hover:bg-muted">Edit</button>
+                      <button type="button" onClick={() => removeOrder(o)} className="rounded-lg border border-border px-2.5 py-1 text-xs font-bold text-danger hover:bg-danger/10">Delete</button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -1017,6 +1127,44 @@ export function OrdersPage() {
                 </button>
               ))}
             </div>
+          </div>
+        </AdminModal>
+      )}
+
+      {editingId && (
+        <AdminModal open onClose={() => setEditingId(null)} title="Edit order" wide>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {(
+              [
+                ["guestName", "Customer name"],
+                ["guestPhone", "Phone"],
+                ["guestEmail", "Email"],
+                ["productTitle", "Product"],
+                ["variant", "Variant (pdf/hardcopy)"],
+                ["quantity", "Quantity"],
+                ["amount", "Amount (৳)"],
+                ["discount", "Discount (৳)"],
+                ["deliveryCharge", "Delivery (৳)"],
+                ["total", "Total (৳)"],
+                ["status", "Status"],
+                ["paymentMethod", "Payment method"],
+                ["region", "Region (DHAKA/OUTSIDE)"],
+                ["txId", "Transaction"],
+              ] as [string, string][]
+            ).map(([k, label]) => (
+              <label key={k} className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
+                <input value={editDraft[k] ?? ""} onChange={(e) => setEditDraft((d) => ({ ...d, [k]: e.target.value }))} className={editCls} />
+              </label>
+            ))}
+            <label className="block sm:col-span-2">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Address</span>
+              <textarea value={editDraft.address ?? ""} onChange={(e) => setEditDraft((d) => ({ ...d, address: e.target.value }))} rows={2} className={cn(editCls, "resize-y")} />
+            </label>
+          </div>
+          <div className="mt-4 flex justify-end gap-2 border-t border-border pt-4">
+            <button type="button" onClick={() => setEditingId(null)} className="rounded-xl border border-border px-5 py-2.5 text-sm font-bold text-foreground hover:bg-muted">Cancel</button>
+            <button type="button" onClick={saveEdit} disabled={saving} className="rounded-xl bg-accent px-6 py-2.5 text-sm font-bold text-accent-foreground hover:bg-accent-hover disabled:opacity-60">{saving ? "Saving…" : "Save order"}</button>
           </div>
         </AdminModal>
       )}

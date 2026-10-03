@@ -306,8 +306,10 @@ export type Order = {
   isPhysical?: boolean;
   quantity?: number;
   amount: number;
+  discount?: number;
   deliveryCharge?: number;
   total?: number;
+  items?: unknown;
   method: PaymentMethod;
   paymentMethod?: string | null;
   status: OrderStatus;

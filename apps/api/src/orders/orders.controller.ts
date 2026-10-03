@@ -1,8 +1,9 @@
-import { All, Body, Controller, Get, Param, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { All, Body, Controller, Delete, Get, Param, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { OrdersService } from './orders.service.js';
 import { CreateOrderDto } from './dto/create-order.dto.js';
 import { CheckoutDto, CheckoutBatchDto } from './dto/checkout.dto.js';
+import { UpdateOrderAdminDto, BulkOrderDto } from './dto/admin-order.dto.js';
 import { ValidateCouponDto } from '../coupons/dto/coupon.dto.js';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
@@ -139,5 +140,29 @@ export class OrdersController {
   @Roles('ADMIN', 'SUPER_ADMIN')
   setStatus(@Param('id') id: string, @Body() dto: UpdateOrderStatusDto) {
     return this.orders.setStatus(id, dto);
+  }
+
+  /** Admin: manually edit an order's details. */
+  @Put(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  adminUpdate(@Param('id') id: string, @Body() dto: UpdateOrderAdminDto) {
+    return this.orders.adminUpdate(id, dto);
+  }
+
+  /** Admin: delete an order. */
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  adminRemove(@Param('id') id: string) {
+    return this.orders.adminRemove(id);
+  }
+
+  /** Admin: bulk delete / bulk status change. */
+  @Post('bulk')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  bulk(@Body() dto: BulkOrderDto) {
+    return this.orders.bulk(dto);
   }
 }

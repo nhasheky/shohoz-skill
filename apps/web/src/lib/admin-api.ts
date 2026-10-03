@@ -210,6 +210,14 @@ export const listOrders = (status?: string, page = 1, perPage = 20, q?: string) 
   request<PageResult<Order>>(`/orders${qs({ status, page, perPage, q })}`);
 export const setOrderStatus = (id: string, status: Order["status"]) =>
   request(`/orders/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) });
+export const updateOrder = (id: string, dto: Record<string, unknown>) =>
+  request(`/orders/${id}`, { method: "PUT", body: JSON.stringify(dto) });
+export const deleteOrder = (id: string) => request(`/orders/${id}`, { method: "DELETE" });
+export const bulkOrders = (ids: string[], action: "DELETE" | "STATUS", status?: string) =>
+  request<{ count: number; action: string; status?: string }>("/orders/bulk", {
+    method: "POST",
+    body: JSON.stringify({ ids, action, status }),
+  });
 
 // ─── Reviews ──────────────────────────────────────────────────────────────
 export type AdminReview = {

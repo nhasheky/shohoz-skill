@@ -5,6 +5,7 @@ import { CouponsService } from '../coupons/coupons.service.js';
 import type { CreateOrderDto } from './dto/create-order.dto.js';
 import type { UpdateOrderStatusDto } from './dto/update-order-status.dto.js';
 import type { CheckoutDto, CheckoutBatchDto } from './dto/checkout.dto.js';
+import type { UpdateOrderAdminDto, BulkOrderDto } from './dto/admin-order.dto.js';
 import type { ValidateCouponDto } from '../coupons/dto/coupon.dto.js';
 // @ts-ignore
 import SSLCommerzPayment from 'sslcommerz-lts';
@@ -679,6 +680,64 @@ export class OrdersService {
         refundedAt: dto.status === 'REFUNDED' ? new Date() : undefined,
       },
     });
+  }
+
+  /** Admin: edit any order field manually. */
+  async adminUpdate(orderId: string, dto: UpdateOrderAdminDto) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Order not found.');
+
+    const data: Record<string, unknown> = {};
+    const nullIfEmpty = (v?: string) => (v !== undefined ? (v.trim() ? v.trim() : null) : undefined);
+    if (dto.guestName !== undefined) data.guestName = nullIfEmpty(dto.guestName);
+    if (dto.guestPhone !== undefined) data.guestPhone = nullIfEmpty(dto.guestPhone);
+    if (dto.guestEmail !== undefined) data.guestEmail = nullIfEmpty(dto.guestEmail);
+    if (dto.productTitle !== undefined) data.productTitle = dto.productTitle.trim() || order.productTitle;
+    if (dto.variant !== undefined) data.variant = nullIfEmpty(dto.variant);
+    if (dto.quantity !== undefined) data.quantity = dto.quantity;
+    if (dto.amount !== undefined) data.amount = dto.amount;
+    if (dto.discount !== undefined) data.discount = dto.discount;
+    if (dto.deliveryCharge !== undefined) data.deliveryCharge = dto.deliveryCharge;
+    if (dto.total !== undefined) data.total = dto.total;
+    if (dto.address !== undefined) data.address = nullIfEmpty(dto.address);
+    if (dto.region !== undefined) data.region = dto.region;
+    if (dto.status !== undefined) data.status = dto.status;
+    if (dto.paymentMethod !== undefined) data.paymentMethod = dto.paymentMethod;
+    if (dto.txId !== undefined) data.txId = nullIfEmpty(dto.txId);
+
+    const updated = await this.prisma.order.update({ where: { id: orderId }, data });
+    if (updated.status === 'PAID' && order.status !== 'PAID') {
+      await this.grantAccessForOrder(updated);
+    }
+    return updated;
+  }
+
+  async adminRemove(orderId: string) {
+    const exists = await this.prisma.order.findUnique({ where: { id: orderId }, select: { id: true } });
+    if (!exists) throw new NotFoundException('Order not found.');
+    await this.prisma.order.delete({ where: { id: orderId } });
+    return { deleted: orderId };
+  }
+
+  /** Admin: bulk delete or bulk status change across multiple orders. */
+  async bulk(dto: BulkOrderDto) {
+    const ids = (dto.ids ?? []).filter(Boolean);
+    if (!ids.length) throw new BadRequestException('No orders selected.');
+
+    if (dto.action === 'DELETE') {
+      const res = await this.prisma.order.deleteMany({ where: { id: { in: ids } } });
+      return { action: 'DELETE', count: res.count };
+    }
+
+    if (!dto.status) throw new BadRequestException('Status is required.');
+    const orders = await this.prisma.order.findMany({ where: { id: { in: ids } } });
+    await this.prisma.order.updateMany({ where: { id: { in: ids } }, data: { status: dto.status } });
+    if (dto.status === 'PAID') {
+      for (const o of orders) {
+        if (o.status !== 'PAID') await this.grantAccessForOrder(o);
+      }
+    }
+    return { action: 'STATUS', status: dto.status, count: orders.length };
   }
 
   private async grantAccess(userId: string, productType: string, productId: string) {
