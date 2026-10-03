@@ -25,7 +25,7 @@ type CartValue = {
   count: number;
   subtotal: number;
   ready: boolean;
-  add: (item: CartInput) => void;
+  add: (item: CartInput) => { ok: boolean; error?: string };
   remove: (key: string) => void;
   setQuantity: (key: string, qty: number) => void;
   clear: () => void;
@@ -64,17 +64,30 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [items, ready]);
 
-  const add = useCallback((item: CartInput) => {
-    setItems((prev) => {
-      const key = makeKey(item);
-      const existing = prev.find((p) => p.key === key);
-      const qty = item.quantity ?? 1;
-      if (existing) {
-        return prev.map((p) => (p.key === key ? { ...p, quantity: p.quantity + qty } : p));
+  const add = useCallback(
+    (item: CartInput): { ok: boolean; error?: string } => {
+      // Hardcopy books cannot be mixed with online (PDF/exam) items in one cart.
+      const hasPhysical = items.some((i) => i.isPhysical);
+      const hasDigital = items.some((i) => !i.isPhysical);
+      if (item.isPhysical && hasDigital) {
+        return { ok: false, error: "কার্টে PDF/Exam আছে — হার্ডকপির সাথে একসাথে নেওয়া যাবে না।" };
       }
-      return [...prev, { ...item, key, quantity: qty }];
-    });
-  }, []);
+      if (!item.isPhysical && hasPhysical) {
+        return { ok: false, error: "কার্টে হার্ডকপি বই আছে — PDF/Exam আপাতত নেওয়া যাবে না।" };
+      }
+      setItems((prev) => {
+        const key = makeKey(item);
+        const existing = prev.find((p) => p.key === key);
+        const qty = item.quantity ?? 1;
+        if (existing) {
+          return prev.map((p) => (p.key === key ? { ...p, quantity: p.quantity + qty } : p));
+        }
+        return [...prev, { ...item, key, quantity: qty }];
+      });
+      return { ok: true };
+    },
+    [items],
+  );
 
   const remove = useCallback((key: string) => setItems((prev) => prev.filter((p) => p.key !== key)), []);
 

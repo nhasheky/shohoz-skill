@@ -139,6 +139,15 @@ export class OrdersService {
       products.push({ ...resolved, quantity: it.quantity ?? 1 });
     }
 
+    // Hardcopy books are shipped (COD) and cannot be mixed with online items.
+    const hasPhysical = products.some((p) => p.isPhysical);
+    const hasDigital = products.some((p) => !p.isPhysical);
+    if (hasPhysical && hasDigital) {
+      throw new BadRequestException(
+        'হার্ডকপি বইয়ের সাথে PDF/Exam একসাথে অর্ডার করা যাবে না — আলাদা করে অর্ডার করুন।',
+      );
+    }
+
     const settings = await this.prisma.siteSetting.findUnique({ where: { id: 'default' } });
     const chargeDhaka = settings?.deliveryChargeDhaka ?? 60;
     const chargeOutside = settings?.deliveryChargeOutside ?? 120;

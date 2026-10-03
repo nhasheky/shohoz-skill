@@ -33,7 +33,7 @@ export default function CartPage() {
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
   const [region, setRegion] = useState<Region>("OUTSIDE");
-  const [method, setMethod] = useState<Method>("SSLCOMMERZ");
+  const [method, setMethod] = useState<Method | "">("");
   const [coupon, setCoupon] = useState("");
   const [applied, setApplied] = useState<{ code: string; discount: number; description?: string } | null>(null);
   const [couponMsg, setCouponMsg] = useState("");
@@ -70,7 +70,7 @@ export default function CartPage() {
     if (settings.sslcommerzEnabled) methods.push("SSLCOMMERZ");
     return methods;
   }, [anyPhysical, settings.codEnabled, settings.sslcommerzEnabled]);
-  const activeMethod: Method = allowedMethods.includes(method) ? method : (allowedMethods[0] ?? "SSLCOMMERZ");
+  const activeMethod: Method = method && allowedMethods.includes(method) ? method : (allowedMethods[0] ?? "SSLCOMMERZ");
 
   useEffect(() => {
     setApplied(null);
@@ -186,6 +186,15 @@ export default function CartPage() {
     <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
       <h1 className="font-display text-2xl font-extrabold text-foreground">Your cart</h1>
       <p className="mt-1 text-sm text-muted-foreground">{cart.count} item{cart.count > 1 ? "s" : ""} ready to check out</p>
+      {anyPhysical ? (
+        <p className="mt-2 rounded-xl border border-accent/30 bg-accent/5 px-4 py-2.5 text-xs font-semibold text-foreground">
+          হার্ডকপি বই — ডেলিভারির সময় টাকা দিন (Cash on Delivery), অথবা অনলাইনে পরিশোধ করুন। PDF/Exam এর সাথে একসাথে অর্ডার করা যাবে না।
+        </p>
+      ) : (
+        <p className="mt-2 rounded-xl border border-accent/30 bg-accent/5 px-4 py-2.5 text-xs font-semibold text-foreground">
+          অনলাইন PDF / Exam — পেমেন্ট SSLCOMMERZ দিয়ে করতে হবে।
+        </p>
+      )}
 
       <div className="mt-6 grid gap-8 lg:grid-cols-[1.6fr_1fr]">
         {/* Items */}

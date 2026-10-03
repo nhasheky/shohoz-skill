@@ -9,6 +9,7 @@ import { useCart } from "./cart-provider";
 export function AddToCartButton({ book, className }: { book: Book; className?: string }) {
   const { add } = useCart();
   const [added, setAdded] = useState(false);
+  const [error, setError] = useState("");
 
   const format: "pdf" | "hardcopy" | null = book.pdfPrice ? "pdf" : book.hardcopyPrice ? "hardcopy" : null;
 
@@ -23,28 +24,33 @@ export function AddToCartButton({ book, className }: { book: Book; className?: s
   const price = format === "pdf" ? book.pdfPrice!.amount : book.hardcopyPrice!.amount;
 
   return (
-    <button
-      type="button"
-      onClick={() => {
-        add({
-          productType: "book",
-          productId: book.id,
-          slug: book.slug,
-          title: book.titleBn ?? book.title,
-          image: book.thumbnailUrl,
-          variant: format,
-          unitPrice: price,
-          isPhysical: format === "hardcopy",
-        });
-        setAdded(true);
-        setTimeout(() => setAdded(false), 1600);
-      }}
-      className={cn(
-        "flex items-center justify-center gap-1.5 rounded-xl border border-accent bg-accent/10 px-3 py-2 text-xs font-bold text-accent transition-colors hover:bg-accent/20",
-        className,
-      )}
-    >
-      {added ? "Added ✓" : "Add to cart"}
-    </button>
+    <div className={cn("min-w-0", className)}>
+      <button
+        type="button"
+        onClick={() => {
+          const res = add({
+            productType: "book",
+            productId: book.id,
+            slug: book.slug,
+            title: book.titleBn ?? book.title,
+            image: book.thumbnailUrl,
+            variant: format,
+            unitPrice: price,
+            isPhysical: format === "hardcopy",
+          });
+          if (!res.ok) {
+            setError(res.error ?? "কার্টে যোগ করা যায়নি।");
+            setTimeout(() => setError(""), 2800);
+            return;
+          }
+          setAdded(true);
+          setTimeout(() => setAdded(false), 1600);
+        }}
+        className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-accent bg-accent/10 px-3 py-2 text-xs font-bold text-accent transition-colors hover:bg-accent/20"
+      >
+        {added ? "Added ✓" : "Add to cart"}
+      </button>
+      {error && <p className="mt-1 text-center text-[11px] font-semibold leading-tight text-danger">{error}</p>}
+    </div>
   );
 }
