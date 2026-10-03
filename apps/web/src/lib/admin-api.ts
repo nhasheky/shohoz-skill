@@ -218,6 +218,11 @@ export const bulkOrders = (ids: string[], action: "DELETE" | "STATUS", status?: 
     method: "POST",
     body: JSON.stringify({ ids, action, status }),
   });
+export const steadfastBalance = () => request<{ current_balance?: number }>("/orders/steadfast/balance");
+export const sendToSteadfast = (id: string) =>
+  request<{ trackingCode?: string | null; consignmentId?: string | null; status?: string | null }>(`/orders/${id}/steadfast`, { method: "POST" });
+export const refreshCourier = (id: string) =>
+  request<{ delivery_status?: string | null }>(`/orders/${id}/steadfast/refresh`, { method: "POST" });
 
 // ─── Reviews ──────────────────────────────────────────────────────────────
 export type AdminReview = {

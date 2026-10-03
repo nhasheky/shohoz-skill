@@ -336,6 +336,10 @@ model Order {
   couponCode       String?
   discount         Int       @default(0)
   items            Json? // line items for multi-product (cart) orders
+  // Steadfast courier (hardcopy delivery)
+  consignmentId    String?
+  trackingCode     String?
+  courierStatus    String?
   createdAt        DateTime  @default(now())
 
   @@index([userId, createdAt])

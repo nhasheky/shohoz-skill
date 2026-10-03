@@ -57,6 +57,10 @@ const AUTO_MIGRATIONS: string[] = [
   `CREATE UNIQUE INDEX IF NOT EXISTS "Order_orderNumber_key" ON "Order"("orderNumber")`,
   `CREATE SEQUENCE IF NOT EXISTS "OrderNumber_seq" START WITH 34586`,
   `DO $$ DECLARE r RECORD; BEGIN FOR r IN SELECT id FROM "Order" WHERE "orderNumber" IS NULL ORDER BY "createdAt" LOOP UPDATE "Order" SET "orderNumber" = nextval('"OrderNumber_seq"') WHERE id = r.id; END LOOP; END $$`,
+  // Steadfast courier fields.
+  `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "consignmentId" TEXT`,
+  `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "trackingCode" TEXT`,
+  `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "courierStatus" TEXT`,
 ];
 
 @Injectable()

@@ -165,4 +165,28 @@ export class OrdersController {
   bulk(@Body() dto: BulkOrderDto) {
     return this.orders.bulk(dto);
   }
+
+  /** Admin: Steadfast courier balance. */
+  @Get('steadfast/balance')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  steadfastBalance() {
+    return this.orders.courierBalance();
+  }
+
+  /** Admin: push a hardcopy order to Steadfast. */
+  @Post(':id/steadfast')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  sendToSteadfast(@Param('id') id: string) {
+    return this.orders.sendToSteadfast(id);
+  }
+
+  /** Admin: refresh courier delivery status. */
+  @Post(':id/steadfast/refresh')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  refreshCourier(@Param('id') id: string) {
+    return this.orders.refreshCourier(id);
+  }
 }

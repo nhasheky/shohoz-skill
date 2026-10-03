@@ -847,6 +847,7 @@ export function OrdersPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [courierBalance, setCourierBalance] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -872,6 +873,10 @@ export function OrdersPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, [load]);
+
+  useEffect(() => {
+    api.steadfastBalance().then((b) => setCourierBalance(b.current_balance ?? null)).catch(() => {});
+  }, []);
 
   async function changeStatus(order: Order, next: Order["status"]) {
     setBusyId(order.id);
@@ -976,6 +981,34 @@ export function OrdersPage() {
     }
   }
 
+  async function sendCourier(o: Order) {
+    setBusyId(o.id);
+    try {
+      const res = await api.sendToSteadfast(o.id);
+      toast.success(`Steadfast e pathano holo${res.trackingCode ? ` — ${res.trackingCode}` : ""}`);
+      setDetails((d) => (d && d.id === o.id ? { ...d, trackingCode: res.trackingCode ?? d.trackingCode, consignmentId: res.consignmentId ?? d.consignmentId, courierStatus: res.status ?? d.courierStatus } : d));
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Steadfast failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function refreshCourierStatus(o: Order) {
+    setBusyId(o.id);
+    try {
+      const res = await api.refreshCourier(o.id);
+      toast.success(`Courier status: ${res.delivery_status ?? "—"}`);
+      setDetails((d) => (d && d.id === o.id ? { ...d, courierStatus: res.delivery_status ?? d.courierStatus } : d));
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Refresh failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   const statusTone = (s: string): "success" | "accent" | "danger" | "muted" => (s === "PAID" ? "success" : s === "REFUNDED" ? "accent" : s === "FAILED" ? "danger" : "muted");
   const editCls = "w-full rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-accent";
 
@@ -990,6 +1023,9 @@ export function OrdersPage() {
         <div>
           <h1 className="font-display text-2xl font-extrabold text-foreground">Orders</h1>
           <p className="mt-1 text-sm text-muted-foreground">Track and update order payments</p>
+          {courierBalance != null && (
+            <p className="mt-1 text-xs font-semibold text-accent">Steadfast balance: ৳{formatBdt(courierBalance)}</p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <input
@@ -1127,6 +1163,23 @@ export function OrdersPage() {
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="mt-4 border-t border-border pt-4">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Steadfast courier</p>
+            {details.trackingCode ? (
+              <div className="space-y-1 text-sm">
+                <p>Tracking: <span className="font-mono font-bold text-foreground">{details.trackingCode}</span></p>
+                <p className="text-muted-foreground">Consignment: {details.consignmentId ?? "—"} · Status: <span className="font-semibold text-foreground">{details.courierStatus ?? "—"}</span></p>
+                <button type="button" onClick={() => refreshCourierStatus(details)} disabled={busyId === details.id} className="mt-2 rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted disabled:opacity-50">Refresh courier status</button>
+              </div>
+            ) : details.isPhysical ? (
+              <button type="button" onClick={() => sendCourier(details)} disabled={busyId === details.id} className="rounded-lg bg-accent px-4 py-2 text-xs font-bold text-accent-foreground hover:bg-accent-hover disabled:opacity-50">
+                {busyId === details.id ? "Sending…" : "Send to Steadfast"}
+              </button>
+            ) : (
+              <p className="text-xs text-muted-foreground">Only hardcopy orders can be sent to Steadfast.</p>
+            )}
           </div>
         </AdminModal>
       )}

@@ -317,6 +317,9 @@ export type Order = {
   region?: DeliveryRegion | string | null;
   createdAt: string;
   txId?: string | null;
+  consignmentId?: string | null;
+  trackingCode?: string | null;
+  courierStatus?: string | null;
 };
 
 export type Category = {

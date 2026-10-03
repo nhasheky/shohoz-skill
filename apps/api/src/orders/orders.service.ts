@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CouponsService } from '../coupons/coupons.service.js';
+import { SteadfastService } from './steadfast.service.js';
 import type { CreateOrderDto } from './dto/create-order.dto.js';
 import type { UpdateOrderStatusDto } from './dto/update-order-status.dto.js';
 import type { CheckoutDto, CheckoutBatchDto } from './dto/checkout.dto.js';
@@ -30,6 +31,7 @@ export class OrdersService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly coupons: CouponsService,
+    private readonly steadfast: SteadfastService,
   ) {}
 
   // ─── Guest / authenticated checkout ────────────────────────────────────────
@@ -747,6 +749,62 @@ export class OrdersService {
       }
     }
     return { action: 'STATUS', status: dto.status, count: orders.length };
+  }
+
+  // ─── Steadfast courier ─────────────────────────────────────────────────────
+  courierBalance() {
+    return this.steadfast.balance();
+  }
+
+  /** Admin: push a hardcopy order to Steadfast and store the tracking code. */
+  async sendToSteadfast(orderId: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Order not found.');
+    if (order.trackingCode || order.consignmentId) {
+      throw new BadRequestException('This order is already sent to Steadfast.');
+    }
+    if (!order.isPhysical) throw new BadRequestException('Only hardcopy (physical) orders can be sent to Steadfast.');
+
+    let name = order.guestName ?? '';
+    let phone = order.guestPhone ?? '';
+    if ((!name || !phone) && order.userId) {
+      const user = await this.prisma.user.findUnique({ where: { id: order.userId } });
+      name = name || user?.name || '';
+      phone = phone || user?.phone || '';
+    }
+    const address = (order.address ?? '').trim();
+    if (!address) throw new BadRequestException('This order has no delivery address.');
+    if (!phone) throw new BadRequestException('This order has no phone number.');
+
+    const result = await this.steadfast.createConsignment({
+      invoice: String(order.orderNumber ?? order.id),
+      name: name || 'Customer',
+      phone: phone.replace(/^\+88/, ''),
+      address,
+      codAmount: order.total ?? order.amount,
+      note: order.productTitle,
+    });
+
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        consignmentId: result.consignmentId ?? undefined,
+        trackingCode: result.trackingCode ?? undefined,
+        courierStatus: result.status ?? 'in_review',
+      },
+    });
+    return { ...result, order: updated };
+  }
+
+  /** Admin: refresh the courier delivery status from Steadfast. */
+  async refreshCourier(orderId: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Order not found.');
+    if (!order.trackingCode) throw new BadRequestException('No tracking code for this order.');
+    const data = await this.steadfast.statusByTracking(order.trackingCode);
+    const status = (data.delivery_status as string) ?? order.courierStatus ?? null;
+    const updated = await this.prisma.order.update({ where: { id: orderId }, data: { courierStatus: status } });
+    return { delivery_status: status, order: updated };
   }
 
   private async grantAccess(userId: string, productType: string, productId: string) {
