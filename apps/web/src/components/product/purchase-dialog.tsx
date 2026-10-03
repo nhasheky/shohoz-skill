@@ -230,7 +230,7 @@ export function PurchaseDialog({
     if (!loggedIn) {
       body.guestName = name.trim();
       body.guestPhone = phone.replace(/\D/g, "");
-      body.guestEmail = email.trim().toLowerCase();
+      if (email.trim()) body.guestEmail = email.trim().toLowerCase();
     }
     if (physical) {
       body.address = address.trim();

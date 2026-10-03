@@ -143,7 +143,7 @@ export default function CartPage() {
       if (!loggedIn) {
         body.guestName = name.trim();
         body.guestPhone = phone.replace(/\D/g, "");
-        body.guestEmail = email.trim().toLowerCase();
+        if (email.trim()) body.guestEmail = email.trim().toLowerCase();
       }
       if (anyPhysical) {
         body.address = address.trim();

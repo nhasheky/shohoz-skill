@@ -47,11 +47,15 @@ export class CheckoutDto {
   guestName?: string;
 
   @IsOptional()
-  @Transform(({ value }) => cleanPhone(value))
+  @Transform(({ value }) => {
+    const v = cleanPhone(value);
+    return v ? v : undefined;
+  })
   @Matches(/^\+?\d{11,15}$/, { message: 'মোবাইল নম্বর অন্তত ১১ ডিজিটের হতে হবে।' })
   guestPhone?: string;
 
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' && value.trim() === '' ? undefined : value))
   @IsEmail()
   guestEmail?: string;
 
@@ -108,11 +112,15 @@ export class CheckoutBatchDto {
   guestName?: string;
 
   @IsOptional()
-  @Transform(({ value }) => cleanPhone(value))
+  @Transform(({ value }) => {
+    const v = cleanPhone(value);
+    return v ? v : undefined;
+  })
   @Matches(/^\+?\d{11,15}$/, { message: 'মোবাইল নম্বর অন্তত ১১ ডিজিটের হতে হবে।' })
   guestPhone?: string;
 
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' && value.trim() === '' ? undefined : value))
   @IsEmail()
   guestEmail?: string;
 
