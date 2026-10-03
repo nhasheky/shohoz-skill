@@ -1,8 +1,14 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CouponsService } from '../coupons/coupons.service.js';
+import { BlockedService } from '../blocked/blocked.service.js';
 import { SteadfastService } from './steadfast.service.js';
+import { normalizePhone } from '../common/phone.js';
+import type { SaveDraftDto } from './dto/draft.dto.js';
+
+export type CheckoutMeta = { ip?: string; device?: string; userAgent?: string };
 import type { CreateOrderDto } from './dto/create-order.dto.js';
 import type { UpdateOrderStatusDto } from './dto/update-order-status.dto.js';
 import type { CheckoutDto, CheckoutBatchDto } from './dto/checkout.dto.js';
@@ -32,6 +38,7 @@ export class OrdersService {
     private readonly config: ConfigService,
     private readonly coupons: CouponsService,
     private readonly steadfast: SteadfastService,
+    private readonly blocked: BlockedService,
   ) {}
 
   // ─── Guest / authenticated checkout ────────────────────────────────────────
@@ -40,11 +47,13 @@ export class OrdersService {
    * the database — the client cannot dictate the amount. Supports guest users
    * (userId = null) and enforces per-product payment-method rules.
    */
-  async checkout(userId: string | null, dto: CheckoutDto) {
+  async checkout(userId: string | null, dto: CheckoutDto, meta: CheckoutMeta = {}) {
     const product = await this.resolveProduct(dto);
 
     const quantity = dto.quantity ?? 1;
     const amount = product.unitPrice * quantity;
+    const guestPhone = userId ? null : normalizePhone(dto.guestPhone) ?? null;
+    await this.assertNotBlocked(userId, guestPhone ?? dto.guestPhone ?? null, meta.ip);
 
     const settings = await this.prisma.siteSetting.findUnique({ where: { id: 'default' } });
     const chargeDhaka = settings?.deliveryChargeDhaka ?? 60;
@@ -82,7 +91,7 @@ export class OrdersService {
       data: {
         userId: userId ?? null,
         guestName: userId ? null : dto.guestName?.trim() || null,
-        guestPhone: userId ? null : normalizePhone(dto.guestPhone) ?? null,
+        guestPhone,
         guestEmail: userId ? null : dto.guestEmail?.toLowerCase().trim() || null,
         productType: product.productType,
         productId: product.productId,
@@ -101,10 +110,14 @@ export class OrdersService {
         address: dto.address?.trim() || null,
         region: dto.region ?? null,
         orderNumber: await this.nextOrderNumber(),
+        ipAddress: meta.ip ?? null,
+        device: meta.device ?? null,
+        userAgent: meta.userAgent ?? null,
         txId,
       },
     });
 
+    await this.deleteDraft(dto.draftId);
     if (discount > 0 && couponCode) await this.coupons.markUsed(couponCode);
     if (isFree) await this.grantAccessForOrder(order);
 
@@ -131,9 +144,12 @@ export class OrdersService {
    * Multi-product cart checkout. Creates ONE order holding every line item and
    * a single SSLCOMMERZ payment for the grand total (shared delivery charge).
    */
-  async checkoutBatch(userId: string | null, dto: CheckoutBatchDto) {
+  async checkoutBatch(userId: string | null, dto: CheckoutBatchDto, meta: CheckoutMeta = {}) {
     const rawItems = dto.items ?? [];
     if (!rawItems.length) throw new BadRequestException('Your cart is empty.');
+
+    const guestPhone = userId ? null : normalizePhone(dto.guestPhone) ?? null;
+    await this.assertNotBlocked(userId, guestPhone ?? dto.guestPhone ?? null, meta.ip);
 
     const products: (ResolvedProduct & { quantity: number })[] = [];
     for (const it of rawItems) {
@@ -201,7 +217,7 @@ export class OrdersService {
       data: {
         userId: userId ?? null,
         guestName: userId ? null : dto.guestName?.trim() || null,
-        guestPhone: userId ? null : normalizePhone(dto.guestPhone) ?? null,
+        guestPhone,
         guestEmail: userId ? null : dto.guestEmail?.toLowerCase().trim() || null,
         productType: single ? single.productType : 'cart',
         productId: single ? single.productId : 'cart',
@@ -220,11 +236,15 @@ export class OrdersService {
         address: dto.address?.trim() || null,
         region: dto.region ?? null,
         orderNumber: await this.nextOrderNumber(),
+        ipAddress: meta.ip ?? null,
+        device: meta.device ?? null,
+        userAgent: meta.userAgent ?? null,
         txId,
         items: itemsJson,
       },
     });
 
+    await this.deleteDraft(dto.draftId);
     if (discount > 0 && couponCode) await this.coupons.markUsed(couponCode);
     if (isFree) await this.grantAccessForOrder(order);
 
@@ -844,6 +864,63 @@ export class OrdersService {
     return { delivery_status: status, order: updated };
   }
 
+  // ─── Fraud protection & incomplete (abandoned) orders ──────────────────────
+  private async assertNotBlocked(userId: string | null, phone: string | null, ip?: string) {
+    let p = phone;
+    if (userId) {
+      const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { phone: true } });
+      p = u?.phone ?? null;
+    }
+    const block = await this.blocked.findBlock(p, ip);
+    if (block) {
+      throw new ForbiddenException(
+        block.type === 'PHONE'
+          ? 'এই মোবাইল নম্বর থেকে অর্ডার নেওয়া বন্ধ আছে।'
+          : 'এই আইপি থেকে অর্ডার নেওয়া বন্ধ আছে।',
+      );
+    }
+  }
+
+  private async deleteDraft(id?: string) {
+    if (!id) return;
+    await this.prisma.checkoutDraft.delete({ where: { id } }).catch(() => null);
+  }
+
+  /** Public: save/update an incomplete checkout draft. */
+  async saveDraft(dto: SaveDraftDto, meta: CheckoutMeta = {}) {
+    const data: Prisma.CheckoutDraftUncheckedCreateInput = {
+      name: dto.name?.trim() || null,
+      phone: dto.phone?.trim() || null,
+      email: dto.email?.trim() || null,
+      address: dto.address?.trim() || null,
+      region: dto.region ?? null,
+      paymentMethod: dto.paymentMethod ?? null,
+      items: (dto.items ?? undefined) as Prisma.InputJsonValue | undefined,
+      note: dto.note?.trim() || null,
+      ipAddress: meta.ip ?? null,
+      device: meta.device ?? null,
+      userAgent: meta.userAgent ?? null,
+    };
+    if (dto.id) {
+      const exists = await this.prisma.checkoutDraft.findUnique({ where: { id: dto.id }, select: { id: true } });
+      if (exists) {
+        const updated = await this.prisma.checkoutDraft.update({ where: { id: dto.id }, data });
+        return { id: updated.id };
+      }
+    }
+    const created = await this.prisma.checkoutDraft.create({ data });
+    return { id: created.id };
+  }
+
+  listDrafts() {
+    return this.prisma.checkoutDraft.findMany({ orderBy: { updatedAt: 'desc' }, take: 200 });
+  }
+
+  async removeDraft(id: string) {
+    await this.prisma.checkoutDraft.delete({ where: { id } }).catch(() => null);
+    return { deleted: id };
+  }
+
   /** Admin: refresh courier status for all non-final Steadfast orders. */
   async refreshAllCouriers() {
     const orders = await this.prisma.order.findMany({
@@ -1055,14 +1132,6 @@ export class OrdersService {
 
 function randomRef() {
   return Math.random().toString(36).slice(2, 10).toUpperCase();
-}
-
-function normalizePhone(phone?: string): string | undefined {
-  if (!phone) return undefined;
-  const digits = phone.replace(/\D/g, '');
-  if (digits.length === 11 && digits.startsWith('01')) return '+88' + digits;
-  if (digits.length === 13 && digits.startsWith('8801')) return '+88' + digits.slice(2);
-  return phone;
 }
 
 type CourierHistory = {

@@ -6,6 +6,8 @@ import { cn } from "@/lib/cn";
 import { formatBdt } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { IconCheckCircle, IconLock, IconRefresh, IconShieldCheck, IconX } from "@/components/ui/icons";
+import { cleanPhoneInput, isValidPhone } from "@/lib/phone";
+import { useCheckoutDraft } from "@/hooks/use-checkout-draft";
 
 type Step = "form" | "processing" | "success" | "error";
 type PaymentMethod = "COD" | "SSLCOMMERZ";
@@ -104,6 +106,27 @@ export function PurchaseDialog({
   const couponDiscount = applied?.discount ?? 0;
   const total = Math.max(0, price - couponDiscount) + deliveryCharge;
 
+  const draftRef = useCheckoutDraft(open, () => ({
+    name,
+    phone,
+    email,
+    address,
+    region,
+    paymentMethod: activeMethod,
+    note: title,
+    items: [
+      {
+        productType,
+        productId,
+        variant: productType === "book" ? planId : undefined,
+        duration: productType === "course" ? planId : undefined,
+        title,
+        unitPrice: price,
+        quantity: 1,
+      },
+    ],
+  }));
+
   async function applyCoupon() {
     if (!coupon.trim()) return;
     setCouponBusy(true);
@@ -177,7 +200,7 @@ export function PurchaseDialog({
 
   function validate(): string {
     if (!name.trim()) return "আপনার সম্পূর্ণ নাম লিখুন।";
-    if (!/^01\d{9}$/.test(phone.replace(/\D/g, ""))) return "সঠিক ১১ ডিজিটের মোবাইল নম্বর দিন।";
+    if (!isValidPhone(phone)) return "সঠিক মোবাইল নম্বর দিন (অন্তত ১১ ডিজিট, কান্ট্রি কোডসহ দিতে পারেন)।";
     if (physical) {
       if (!address.trim()) return "আপনার সম্পূর্ণ ঠিকানা লিখুন।";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
@@ -201,6 +224,7 @@ export function PurchaseDialog({
       productId,
       paymentMethod: free ? "SSLCOMMERZ" : activeMethod,
     };
+    if (draftRef.current) body.draftId = draftRef.current;
     if (productType === "book") body.variant = planId;
     if (productType === "course") body.duration = planId;
     if (!loggedIn) {
@@ -369,7 +393,7 @@ export function PurchaseDialog({
               <div className={cn("grid gap-3", physical ? "grid-cols-1" : "sm:grid-cols-2")}>
                 <label className="block">
                   <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">মোবাইল নম্বর *</span>
-                  <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="01XXXXXXXXX" className={inputCls} />
+                  <input value={phone} onChange={(e) => setPhone(cleanPhoneInput(e.target.value))} inputMode="tel" placeholder="01XXXXXXXXX / +88..." className={inputCls} />
                 </label>
                 {!physical && (
                   <label className="block">

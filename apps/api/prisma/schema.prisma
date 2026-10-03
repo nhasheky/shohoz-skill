@@ -340,6 +340,10 @@ model Order {
   consignmentId    String?
   trackingCode     String?
   courierStatus    String?
+  // Fraud / audit info captured at checkout
+  ipAddress        String?
+  device           String?
+  userAgent        String?
   createdAt        DateTime  @default(now())
 
   @@index([userId, createdAt])
@@ -435,6 +439,38 @@ model Review {
 
   @@unique([userId, productType, productId])
   @@index([productType, productId, status])
+}
+
+// Blocked customers — reject orders from a phone number or IP address.
+model BlockedContact {
+  id        String   @id @default(cuid())
+  type      String // PHONE | IP
+  value     String
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@unique([type, value])
+  @@index([type])
+}
+
+// Abandoned checkout — form data saved before the order is submitted.
+model CheckoutDraft {
+  id            String   @id @default(cuid())
+  name          String?
+  phone         String?
+  email         String?
+  address       String?
+  region        String?
+  paymentMethod String?
+  items         Json?
+  note          String?
+  ipAddress     String?
+  device        String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([createdAt])
 }
 
 // ─── Site settings & dynamic content (CMS) ─────────────────────────

@@ -61,6 +61,38 @@ const AUTO_MIGRATIONS: string[] = [
   `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "consignmentId" TEXT`,
   `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "trackingCode" TEXT`,
   `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "courierStatus" TEXT`,
+  // Fraud / audit info.
+  `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "ipAddress" TEXT`,
+  `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "device" TEXT`,
+  `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "userAgent" TEXT`,
+  `CREATE TABLE IF NOT EXISTS "BlockedContact" (
+    "id" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "value" TEXT NOT NULL,
+    "reason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "BlockedContact_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "BlockedContact_type_value_key" ON "BlockedContact"("type","value")`,
+  `CREATE INDEX IF NOT EXISTS "BlockedContact_type_idx" ON "BlockedContact"("type")`,
+  `CREATE TABLE IF NOT EXISTS "CheckoutDraft" (
+    "id" TEXT NOT NULL,
+    "name" TEXT,
+    "phone" TEXT,
+    "email" TEXT,
+    "address" TEXT,
+    "region" TEXT,
+    "paymentMethod" TEXT,
+    "items" JSONB,
+    "note" TEXT,
+    "ipAddress" TEXT,
+    "device" TEXT,
+    "userAgent" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "CheckoutDraft_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "CheckoutDraft_createdAt_idx" ON "CheckoutDraft"("createdAt")`,
 ];
 
 @Injectable()

@@ -226,6 +226,39 @@ export const refreshCourier = (id: string) =>
 export const refreshAllCouriers = () =>
   request<{ checked: number; updated: number }>("/orders/steadfast/refresh-all", { method: "POST" });
 
+// ─── Incomplete (abandoned) checkouts ─────────────────────────────────────
+export type CheckoutDraft = {
+  id: string;
+  name?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  region?: string | null;
+  paymentMethod?: string | null;
+  items?: unknown;
+  note?: string | null;
+  ipAddress?: string | null;
+  device?: string | null;
+  userAgent?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+export const listDrafts = () => request<CheckoutDraft[]>("/orders/drafts");
+export const deleteDraft = (id: string) => request(`/orders/drafts/${id}`, { method: "DELETE" });
+
+// ─── Blocked customers (fraud) ────────────────────────────────────────────
+export type BlockedContact = {
+  id: string;
+  type: "PHONE" | "IP";
+  value: string;
+  reason?: string | null;
+  createdAt: string;
+};
+export const listBlocked = () => request<BlockedContact[]>("/admin/blocked");
+export const addBlocked = (dto: { type: "PHONE" | "IP"; value: string; reason?: string }) =>
+  request<BlockedContact>("/admin/blocked", { method: "POST", body: JSON.stringify(dto) });
+export const removeBlocked = (id: string) => request(`/admin/blocked/${id}`, { method: "DELETE" });
+
 // ─── Reviews ──────────────────────────────────────────────────────────────
 export type AdminReview = {
   id: string;

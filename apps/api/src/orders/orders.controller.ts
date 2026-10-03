@@ -5,7 +5,9 @@ import { CreateOrderDto } from './dto/create-order.dto.js';
 import { CheckoutDto, CheckoutBatchDto } from './dto/checkout.dto.js';
 import { UpdateOrderAdminDto, BulkOrderDto } from './dto/admin-order.dto.js';
 import { ValidateCouponDto } from '../coupons/dto/coupon.dto.js';
+import { SaveDraftDto } from './dto/draft.dto.js';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto.js';
+import { parseDevice } from '../common/phone.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
@@ -23,20 +25,42 @@ export class OrdersController {
   @Post('checkout')
   @UseGuards(OptionalJwtAuthGuard)
   checkout(@Req() req: MaybeAuthed, @Body() dto: CheckoutDto) {
-    return this.orders.checkout(req.user?.sub ?? null, dto);
+    return this.orders.checkout(req.user?.sub ?? null, dto, requestMeta(req));
   }
 
   /** Multi-product cart checkout — one combined order + single payment. */
   @Post('checkout-batch')
   @UseGuards(OptionalJwtAuthGuard)
   checkoutBatch(@Req() req: MaybeAuthed, @Body() dto: CheckoutBatchDto) {
-    return this.orders.checkoutBatch(req.user?.sub ?? null, dto);
+    return this.orders.checkoutBatch(req.user?.sub ?? null, dto, requestMeta(req));
   }
 
   /** Public coupon preview for the cart / checkout. */
   @Post('coupon/validate')
   validateCoupon(@Body() dto: ValidateCouponDto) {
     return this.orders.validateCoupon(dto);
+  }
+
+  /** Public: save an incomplete (not yet submitted) checkout form. */
+  @Post('draft')
+  saveDraft(@Req() req: Request, @Body() dto: SaveDraftDto) {
+    return this.orders.saveDraft(dto, requestMeta(req));
+  }
+
+  /** Admin: list incomplete checkouts. */
+  @Get('drafts')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  listDrafts() {
+    return this.orders.listDrafts();
+  }
+
+  /** Admin: delete an incomplete checkout. */
+  @Delete('drafts/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  removeDraft(@Param('id') id: string) {
+    return this.orders.removeDraft(id);
   }
 
   /** Public mock-gateway poll (guest orders have no session). */
@@ -197,4 +221,11 @@ export class OrdersController {
   refreshCourier(@Param('id') id: string) {
     return this.orders.refreshCourier(id);
   }
+}
+
+function requestMeta(req: Request) {
+  const fwd = req.headers['x-forwarded-for'];
+  const ip = (Array.isArray(fwd) ? fwd[0] : fwd)?.split(',')[0]?.trim() || req.ip || '';
+  const userAgent = String(req.headers['user-agent'] ?? '');
+  return { ip, device: parseDevice(userAgent), userAgent };
 }

@@ -1,4 +1,5 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
+import { cleanPhone } from '../../common/phone.js';
 import {
   IsArray,
   IsEmail,
@@ -46,7 +47,8 @@ export class CheckoutDto {
   guestName?: string;
 
   @IsOptional()
-  @Matches(/^(\+88)?01\d{9}$/)
+  @Transform(({ value }) => cleanPhone(value))
+  @Matches(/^\+?\d{11,15}$/, { message: 'মোবাইল নম্বর অন্তত ১১ ডিজিটের হতে হবে।' })
   guestPhone?: string;
 
   @IsOptional()
@@ -64,6 +66,10 @@ export class CheckoutDto {
   @IsOptional()
   @IsString()
   couponCode?: string;
+
+  @IsOptional()
+  @IsString()
+  draftId?: string;
 
   @IsIn(['COD', 'SSLCOMMERZ'])
   paymentMethod: PaymentMethod;
@@ -102,7 +108,8 @@ export class CheckoutBatchDto {
   guestName?: string;
 
   @IsOptional()
-  @Matches(/^(\+88)?01\d{9}$/)
+  @Transform(({ value }) => cleanPhone(value))
+  @Matches(/^\+?\d{11,15}$/, { message: 'মোবাইল নম্বর অন্তত ১১ ডিজিটের হতে হবে।' })
   guestPhone?: string;
 
   @IsOptional()
@@ -120,6 +127,10 @@ export class CheckoutBatchDto {
   @IsOptional()
   @IsString()
   couponCode?: string;
+
+  @IsOptional()
+  @IsString()
+  draftId?: string;
 
   @IsIn(['COD', 'SSLCOMMERZ'])
   paymentMethod: PaymentMethod;

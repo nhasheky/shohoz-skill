@@ -1023,6 +1023,18 @@ export function OrdersPage() {
     }
   }
 
+  async function blockValue(type: "PHONE" | "IP", value: string, order?: Order) {
+    const v = value.trim();
+    if (!v || v === "—") return;
+    if (typeof window !== "undefined" && !window.confirm(`${v} block korben? Ei ${type === "PHONE" ? "number" : "IP"} theke ar order asbe na.`)) return;
+    try {
+      await api.addBlocked({ type, value: v, reason: order ? `Blocked from order ${order.orderNumber ?? order.id}` : undefined });
+      toast.success(`${type} blocked`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Block failed");
+    }
+  }
+
   const statusTone = (s: string): "success" | "accent" | "danger" | "muted" => (s === "PAID" ? "success" : s === "REFUNDED" ? "accent" : s === "FAILED" ? "danger" : "muted");
   const editCls = "w-full rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-accent";
 
@@ -1166,6 +1178,8 @@ export function OrdersPage() {
               ["Customer type", isGuest(details) ? "Guest checkout" : "Registered"],
               ["Phone", customerPhone(details)],
               ["Email", customerEmail(details)],
+              ["Device", details.device || "—"],
+              ["IP address", details.ipAddress || "—"],
               ["Item", details.productTitle],
               ["Type", `${details.productType}${details.variant ? ` · ${details.variant}` : ""}`],
               ["Quantity", String(details.productType === "book" ? details.quantity ?? 1 : 1)],
@@ -1184,6 +1198,20 @@ export function OrdersPage() {
               </div>
             ))}
           </dl>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {customerPhone(details) !== "—" && (
+              <button type="button" onClick={() => blockValue("PHONE", customerPhone(details), details)} className="rounded-lg border border-danger/40 px-3 py-1.5 text-xs font-bold text-danger hover:bg-danger/10">
+                Block this phone
+              </button>
+            )}
+            {details.ipAddress && (
+              <button type="button" onClick={() => blockValue("IP", details.ipAddress ?? "", details)} className="rounded-lg border border-danger/40 px-3 py-1.5 text-xs font-bold text-danger hover:bg-danger/10">
+                Block this IP
+              </button>
+            )}
+          </div>
+
           <div className="mt-6 border-t border-border pt-4">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Update status</p>
             <div className="flex flex-wrap gap-2">

@@ -320,6 +320,9 @@ export type Order = {
   consignmentId?: string | null;
   trackingCode?: string | null;
   courierStatus?: string | null;
+  ipAddress?: string | null;
+  device?: string | null;
+  userAgent?: string | null;
   customerHistory?: CourierHistory;
 };
 

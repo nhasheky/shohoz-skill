@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException, BadRequestException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomInt } from 'node:crypto';
+import { normalizePhone as normPhone, phoneDigits } from '../common/phone.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MailService } from './mail.service.js';
 import type { RequestOtpDto, VerifyOtpDto, RegisterDto, LoginDto } from './dto/auth.dto.js';
@@ -414,11 +415,13 @@ export class AuthService {
 }
 
 function normalizePhone(phone: string) {
-  const digits = phone.replace(/\D/g, '');
-  if (digits.length !== 11 || !digits.startsWith('01')) {
-    throw new BadRequestException('Phone must be an 11-digit Bangladeshi number (01XXXXXXXXX).');
+  const digits = phoneDigits(phone);
+  if (digits.length < 11) {
+    throw new BadRequestException('মোবাইল নম্বর অন্তত ১১ ডিজিটের হতে হবে (কান্ট্রি কোডসহ দিতে পারেন)।');
   }
-  return '+88' + digits;
+  const normalized = normPhone(phone);
+  if (!normalized) throw new BadRequestException('সঠিক মোবাইল নম্বর দিন।');
+  return normalized;
 }
 
 function hash(value: string) {

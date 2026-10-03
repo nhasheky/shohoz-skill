@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/components/cart/cart-provider";
 import { formatBdt } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { cleanPhoneInput, isValidPhone } from "@/lib/phone";
+import { useCheckoutDraft } from "@/hooks/use-checkout-draft";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.shohozskill.com.bd";
 type Region = "DHAKA" | "OUTSIDE";
@@ -72,6 +74,25 @@ export default function CartPage() {
   }, [anyPhysical, settings.codEnabled, settings.sslcommerzEnabled]);
   const activeMethod: Method = method && allowedMethods.includes(method) ? method : (allowedMethods[0] ?? "SSLCOMMERZ");
 
+  const draftRef = useCheckoutDraft(cart.items.length > 0, () => ({
+    name,
+    phone,
+    email,
+    address,
+    region,
+    paymentMethod: activeMethod,
+    note: "cart",
+    items: cart.items.map((i) => ({
+      productType: i.productType,
+      productId: i.productId,
+      variant: i.variant,
+      duration: i.duration,
+      title: i.title,
+      unitPrice: i.unitPrice,
+      quantity: i.quantity,
+    })),
+  }));
+
   useEffect(() => {
     setApplied(null);
     setCouponMsg("");
@@ -106,7 +127,7 @@ export default function CartPage() {
     setError("");
     if (!cart.items.length) return;
     if (!name.trim()) return setError("আপনার সম্পূর্ণ নাম লিখুন।");
-    if (!/^01\d{9}$/.test(phone.replace(/\D/g, ""))) return setError("সঠিক ১১ ডিজিটের মোবাইল নম্বর দিন।");
+    if (!isValidPhone(phone)) return setError("সঠিক মোবাইল নম্বর দিন (অন্তত ১১ ডিজিট, কান্ট্রি কোডসহ দিতে পারেন)।");
     if (anyPhysical && !address.trim()) return setError("আপনার সম্পূর্ণ ঠিকানা লিখুন।");
     if (anyDigital && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError("সঠিক Gmail / ইমেইল অ্যাড্রেস দিন।");
 
@@ -117,6 +138,7 @@ export default function CartPage() {
         items: cart.items.map((i) => ({ productType: i.productType, productId: i.productId, variant: i.variant, duration: i.duration, quantity: i.quantity })),
         paymentMethod: total === 0 ? "SSLCOMMERZ" : activeMethod,
       };
+      if (draftRef.current) body.draftId = draftRef.current;
       if (applied?.code) body.couponCode = applied.code;
       if (!loggedIn) {
         body.guestName = name.trim();
@@ -290,7 +312,7 @@ export default function CartPage() {
             <div className="mt-3 space-y-3">
               <input value={name} onChange={(e) => setName(e.target.value)} placeholder="আপনার সম্পূর্ণ নাম লিখুন *" className={inputCls} />
               <div className={cn("grid gap-3", anyDigital ? "grid-cols-2" : "grid-cols-1")}>
-                <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="মোবাইল নম্বর *" className={inputCls} />
+                <input value={phone} onChange={(e) => setPhone(cleanPhoneInput(e.target.value))} inputMode="tel" placeholder="মোবাইল নম্বর * (কান্ট্রি কোডসহ)" className={inputCls} />
                 {anyDigital && (
                   <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Gmail address *" className={inputCls} />
                 )}
