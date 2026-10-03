@@ -73,7 +73,18 @@ export function AdminForm({
   children?: (form: Record<string, unknown>, set: (name: string, value: unknown) => void) => ReactNode;
 }) {
   const toast = useToast();
-  const [form, setForm] = useState<Record<string, unknown>>(() => toForm(fields, initial));
+  const [form, setForm] = useState<Record<string, unknown>>(() => {
+    const base = toForm(fields, initial);
+    // Keep editor-managed keys (prices, curriculum, subjects, faq, seo…) that
+    // `toForm` only knows about for declared fields — otherwise edit forms load empty.
+    if (initial) {
+      const fieldNames = new Set(fields.map((f) => f.name));
+      for (const [k, v] of Object.entries(initial)) {
+        if (!fieldNames.has(k) && !(k in base)) base[k] = v;
+      }
+    }
+    return base;
+  });
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
