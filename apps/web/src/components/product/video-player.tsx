@@ -19,12 +19,18 @@ export function VideoPlayer({
   const [ready, setReady] = useState(false);
 
   if (source.type === "youtube") {
+    const id = (() => {
+      const s = (source.youtubeId ?? "").trim();
+      if (!s.includes("/") && !s.includes("?") && !s.includes("=")) return s;
+      const m = s.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([A-Za-z0-9_-]{6,})/);
+      return m ? m[1] : s;
+    })();
     return (
       <div className={cn("relative aspect-video w-full overflow-hidden rounded-2xl bg-black", className)}>
         {(ready || !autoplayable) && (
           <iframe
             className="absolute inset-0 h-full w-full"
-            src={`https://www.youtube-nocookie.com/embed/${source.youtubeId}?rel=0&modestbranding=1`}
+            src={`https://www.youtube-nocookie.com/embed/${id}?rel=0&modestbranding=1`}
             title={title ?? "Video lesson"}
             loading="lazy"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

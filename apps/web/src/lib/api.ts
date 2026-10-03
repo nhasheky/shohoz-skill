@@ -145,10 +145,19 @@ function normalizeSuggested(raw: unknown): SuggestedRef[] {
     .map((s) => ({ type: s.type as SuggestedRef["type"], id: s.id }));
 }
 
+/** Accept either a raw YouTube id or a full URL (watch/youtu.be/embed/shorts). */
+export function youtubeIdFrom(src: string | null | undefined): string {
+  const s = (src ?? "").trim();
+  if (!s) return "";
+  if (!s.includes("/") && !s.includes("?") && !s.includes("=")) return s;
+  const m = s.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([A-Za-z0-9_-]{6,})/);
+  return m ? m[1] : s;
+}
+
 function mapLessonSource(l: ApiLesson): VideoSource {
   return l.sourceKind === "direct"
     ? { type: "direct", hlsUrl: l.sourceId ?? "" }
-    : { type: "youtube", youtubeId: l.sourceId ?? "" };
+    : { type: "youtube", youtubeId: youtubeIdFrom(l.sourceId) };
 }
 
 function mapCourse(raw: ApiCourse): Course {

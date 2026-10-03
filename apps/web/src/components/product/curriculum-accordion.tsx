@@ -1,11 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { cn } from "@/lib/cn";
 import type { CurriculumSection as CurriculumSectionType } from "@/lib/types";
-import { IconChevronDown, IconClock, IconPlay, IconVideo } from "@/components/ui/icons";
+import { IconChevronDown, IconClock, IconLock, IconPlay, IconVideo } from "@/components/ui/icons";
 
-export function CurriculumAccordion({ sections }: { sections: CurriculumSectionType[] }) {
+export function CurriculumAccordion({
+  sections,
+  learnBase,
+  enrolled = false,
+}: {
+  sections: CurriculumSectionType[];
+  learnBase?: string;
+  enrolled?: boolean;
+}) {
   const [open, setOpen] = useState<string | null>(sections[0]?.id ?? null);
 
   const sectionMin = (s: CurriculumSectionType) => s.lessons.reduce((n, l) => n + l.durationMinutes, 0);
@@ -47,30 +56,51 @@ export function CurriculumAccordion({ sections }: { sections: CurriculumSectionT
               </button>
               {isOpen && (
                 <ul className="px-5 pb-4 sm:px-6">
-                  {s.lessons.map((l, i) => (
-                    <li
-                      key={l.id}
-                      className="group flex items-center justify-between gap-4 rounded-xl px-3 py-2.5 transition-colors hover:bg-muted/50"
-                    >
-                      <div className="flex min-w-0 items-start gap-3">
-                        {l.source.type === "youtube" ? (
-                          <IconPlay width={15} height={15} className="mt-0.5 shrink-0 text-accent" />
+                  {s.lessons.map((l) => {
+                    const unlocked = enrolled || Boolean(l.preview);
+                    const inner = (
+                      <>
+                        <div className="flex min-w-0 items-start gap-3">
+                          {unlocked ? (
+                            l.source.type === "youtube" ? (
+                              <IconPlay width={15} height={15} className="mt-0.5 shrink-0 text-accent" />
+                            ) : (
+                              <IconVideo width={15} height={15} className="mt-0.5 shrink-0 text-sky" />
+                            )
+                          ) : (
+                            <IconLock width={15} height={15} className="mt-0.5 shrink-0 text-muted-foreground" />
+                          )}
+                          <p className="truncate text-sm text-foreground">{l.title}</p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-3">
+                          {l.preview && (
+                            <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent">
+                              Free
+                            </span>
+                          )}
+                          {!unlocked && <IconLock width={13} height={13} className="text-muted-foreground" />}
+                          <span className="flex items-center text-xs text-muted-foreground">
+                            <IconClock width={12} height={12} className="mr-1" />
+                            {l.durationMinutes}m
+                          </span>
+                        </div>
+                      </>
+                    );
+                    return (
+                      <li key={l.id}>
+                        {learnBase ? (
+                          <Link
+                            href={`${learnBase}?lesson=${encodeURIComponent(l.id)}`}
+                            className="group flex items-center justify-between gap-4 rounded-xl px-3 py-2.5 transition-colors hover:bg-muted/50"
+                          >
+                            {inner}
+                          </Link>
                         ) : (
-                          <IconVideo width={15} height={15} className="mt-0.5 shrink-0 text-sky" />
+                          <div className="flex items-center justify-between gap-4 rounded-xl px-3 py-2.5">{inner}</div>
                         )}
-                        <p className="truncate text-sm text-foreground">{l.title}</p>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-3">
-                        {l.preview ?? i === 0 ? (
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-accent">Free preview</span>
-                        ) : null}
-                        <span className="flex items-center text-xs text-muted-foreground">
-                          <IconClock width={12} height={12} className="mr-1" />
-                          {l.durationMinutes}m
-                        </span>
-                      </div>
-                    </li>
-                  ))}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>

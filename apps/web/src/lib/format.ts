@@ -7,23 +7,29 @@ export function formatPrice(amount: number, includeSymbol = true): string {
 }
 
 export function formatDate(input: string | Date): string {
+  const d = new Date(input);
+  if (Number.isNaN(d.getTime())) return "";
   return new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",
-  }).format(new Date(input));
+  }).format(d);
 }
 
 export function formatDateBn(input: string | Date): string {
+  const d = new Date(input);
+  if (Number.isNaN(d.getTime())) return "";
   return new Intl.DateTimeFormat("bn-BD", {
     day: "numeric",
     month: "long",
     year: "numeric",
-  }).format(new Date(input));
+  }).format(d);
 }
 
 export function timeAgo(input: string | Date): string {
-  const seconds = Math.floor((Date.now() - new Date(input).getTime()) / 1000);
+  const t = new Date(input).getTime();
+  if (Number.isNaN(t)) return "";
+  const seconds = Math.floor((Date.now() - t) / 1000);
   const intervals: [number, string][] = [
     [31536000, "year"],
     [2592000, "month"],

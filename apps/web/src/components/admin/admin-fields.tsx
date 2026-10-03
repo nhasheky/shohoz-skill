@@ -80,7 +80,7 @@ export function CurriculumEditor({ value, onChange }: { value: SectionRow[] | un
             </div>
             <div className="mt-2 space-y-2 pl-1">
               {s.lessons.map((l, li) => (
-                <div key={li} className="grid grid-cols-[minmax(0,1fr)_5rem_minmax(0,1fr)_auto] items-center gap-2">
+                <div key={li} className="grid grid-cols-[minmax(0,1fr)_5rem_minmax(0,1fr)_auto_auto] items-center gap-2">
                   <input value={l.title} placeholder="Lesson title" onChange={(e) => updLesson(si, li, { ...l, title: e.target.value })} className={adminInputCls} />
                   <input type="number" placeholder="min" value={String(l.durationMinutes)} onChange={(e) => updLesson(si, li, { ...l, durationMinutes: e.target.value === "" ? "" : Number(e.target.value) })} className={adminInputCls} />
                   <div className="flex gap-2">
@@ -88,8 +88,12 @@ export function CurriculumEditor({ value, onChange }: { value: SectionRow[] | un
                       <option value="youtube">YouTube</option>
                       <option value="direct">Direct/HLS</option>
                     </select>
-                    <input value={l.sourceId} placeholder="ID or URL" onChange={(e) => updLesson(si, li, { ...l, sourceId: e.target.value })} className={adminInputCls} />
+                    <input value={l.sourceId} placeholder="Video ID or URL" onChange={(e) => updLesson(si, li, { ...l, sourceId: e.target.value })} className={adminInputCls} />
                   </div>
+                  <label className="flex items-center gap-1 text-[11px] font-bold text-muted-foreground" title="Free preview without buying">
+                    <input type="checkbox" checked={Boolean(l.preview)} onChange={(e) => updLesson(si, li, { ...l, preview: e.target.checked })} className="h-4 w-4 accent-[#F2A93B]" />
+                    Free
+                  </label>
                   <RowRemove onClick={() => updSection(si, { ...s, lessons: s.lessons.filter((_, j) => j !== li) })} />
                 </div>
               ))}

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCourse, getCourses, getProductReviews, getSuggestions, getSiteSettings } from "@/lib/api";
+import { getCourse, getCourses, getMyEnrollments, getProductReviews, getSuggestions, getSiteSettings, hasSession } from "@/lib/api";
 import { formatBdt, formatCount, formatDate, formatDurationLabel } from "@/lib/format";
 import { ProductCover } from "@/components/ui/product-cover";
 import { Stars } from "@/components/ui/rating";
@@ -80,6 +80,16 @@ export default async function CourseDetailPage(props: PageProps<"/course/[slug]"
     getSuggestions("course", course.suggested, 3),
     getSiteSettings(),
   ]);
+
+  let enrolled = false;
+  try {
+    if (await hasSession()) {
+      const list = await getMyEnrollments();
+      enrolled = list.some((e) => e.type === "course" && (e.productId === course.id || e.slug === course.slug));
+    }
+  } catch {
+    enrolled = false;
+  }
 
   const features = [
     `${course.lectures} video lessons + ${course.quizzes} quizzes`,
@@ -215,7 +225,7 @@ export default async function CourseDetailPage(props: PageProps<"/course/[slug]"
 
           {/* Curriculum */}
           <section>
-            <CurriculumAccordion sections={course.curriculum} />
+                <CurriculumAccordion sections={course.curriculum} learnBase={`/course/${course.slug}/learn`} enrolled={enrolled} />
           </section>
 
           {/* Audience + requirements */}
@@ -310,12 +320,6 @@ export default async function CourseDetailPage(props: PageProps<"/course/[slug]"
             <ButtonLink href="#enroll" variant="accent" className="mt-4 w-full">
               Enroll Now
             </ButtonLink>
-            <a
-              href="#enroll"
-              className="mt-2 block rounded-xl px-4 py-3 text-center text-sm font-bold text-accent transition-colors hover:bg-accent/10"
-            >
-              Or start a free mini test →
-            </a>
           </div>
         </aside>
       </div>
