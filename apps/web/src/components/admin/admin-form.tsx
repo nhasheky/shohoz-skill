@@ -26,6 +26,7 @@ export function buildDto(fields: FieldDef[], form: Record<string, unknown>): Rec
   const dto: Record<string, unknown> = {};
   const fieldNames = new Set(fields.map((f) => f.name));
   for (const f of fields) {
+    if (f.showWhen && !f.showWhen(form)) continue; // hidden fields are not submitted
     let v = form[f.name];
     if (f.type === "number") {
       v = v === "" || v === undefined || v === null ? undefined : Number(v);
@@ -80,6 +81,7 @@ export function AdminForm({
 
   function validate(): string {
     for (const f of fields) {
+      if (f.showWhen && !f.showWhen(form)) continue;
       if (f.required) {
         const v = form[f.name];
         if (v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0)) {
@@ -129,7 +131,7 @@ export function AdminForm({
 
       <div className="mt-5 rounded-3xl border border-border bg-card p-6 shadow-card sm:p-8">
         <div className="grid gap-4 sm:grid-cols-2">
-          {fields.map((f) => (
+          {fields.filter((f) => !f.showWhen || f.showWhen(form)).map((f) => (
             <FieldInput key={f.name} field={f} value={form[f.name]} onChange={(v) => set(f.name, v)} />
           ))}
         </div>

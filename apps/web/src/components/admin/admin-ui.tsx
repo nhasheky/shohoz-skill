@@ -149,6 +149,8 @@ export type FieldDef = {
   span2?: boolean;
   json?: boolean;
   required?: boolean;
+  /** Only show this field when the predicate passes (based on current form state). */
+  showWhen?: (form: Record<string, unknown>) => boolean;
 };
 
 const inputCls =

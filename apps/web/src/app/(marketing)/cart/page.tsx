@@ -207,15 +207,11 @@ export default function CartPage() {
                   {item.variant ? ` · ${item.variant === "pdf" ? "Online PDF" : "Hardcopy"}` : ""}
                 </p>
                 <div className="mt-3 flex items-center justify-between gap-3">
-                  {item.isPhysical ? (
-                    <div className="flex items-center rounded-lg border border-border">
-                      <button type="button" onClick={() => cart.setQuantity(item.key, item.quantity - 1)} className="px-2.5 py-1 text-sm font-bold text-muted-foreground hover:text-foreground">−</button>
-                      <span className="w-8 text-center text-sm font-bold text-foreground">{item.quantity}</span>
-                      <button type="button" onClick={() => cart.setQuantity(item.key, item.quantity + 1)} className="px-2.5 py-1 text-sm font-bold text-muted-foreground hover:text-foreground">+</button>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">Qty 1</span>
-                  )}
+                  <div className="flex items-center rounded-lg border border-border">
+                    <button type="button" aria-label="kom" onClick={() => cart.setQuantity(item.key, item.quantity - 1)} disabled={item.quantity <= 1} className="px-2.5 py-1 text-sm font-bold text-muted-foreground hover:text-foreground disabled:opacity-40">−</button>
+                    <span className="w-8 text-center text-sm font-bold text-foreground">{item.quantity}</span>
+                    <button type="button" aria-label="beshi" onClick={() => cart.setQuantity(item.key, item.quantity + 1)} className="px-2.5 py-1 text-sm font-bold text-muted-foreground hover:text-foreground">+</button>
+                  </div>
                   <div className="text-right">
                     <span className="block font-display text-sm font-extrabold text-foreground">{formatBdt(item.unitPrice * item.quantity)}</span>
                     <button type="button" onClick={() => cart.remove(item.key)} className="text-xs font-semibold text-danger hover:underline">Remove</button>

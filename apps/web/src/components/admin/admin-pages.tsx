@@ -75,9 +75,10 @@ const bookFields: FieldDef[] = [
   { name: "edition", label: "Edition" },
   { name: "language", label: "Language", type: "select", options: ["En", "Bn", "Mixture"] },
   { name: "pages", label: "Pages", type: "number", required: true },
-  { name: "pdfPrice", label: "Online PDF price (৳)", type: "number", help: "Set to sell the online PDF (needs demo + full PDF). Leave empty if this book is hardcopy only. A book is EITHER PDF or hardcopy." },
-  { name: "pdfFileUrl", label: "Full PDF (owners only)", type: "file", span2: true, help: "PDF format only. The complete book, read in the secure viewer (no download). Required when a PDF price is set." },
-  { name: "hardcopyPrice", label: "Hardcopy price (৳)", type: "number", help: "Set to sell the printed hardcopy (demo PDF only — no full PDF). Leave empty if this book is an online PDF." },
+  { name: "bookFormat", label: "Format", type: "select", options: ["PDF", "Hardcopy"], required: true, help: "Choose ONE — a book is either an online PDF or a printed hardcopy." },
+  { name: "pdfPrice", label: "Online PDF price (৳)", type: "number", help: "Set the price for the online PDF.", showWhen: (f) => f.bookFormat === "PDF" },
+  { name: "pdfFileUrl", label: "Full PDF (owners only)", type: "file", span2: true, help: "The complete book, read in the secure viewer (no download). Required for the PDF format.", showWhen: (f) => f.bookFormat === "PDF" },
+  { name: "hardcopyPrice", label: "Hardcopy price (৳)", type: "number", help: "Set the price for the printed hardcopy (demo PDF only — no full PDF).", showWhen: (f) => f.bookFormat === "Hardcopy" },
   { name: "samplePages", label: "Sample pages", type: "number" },
   { name: "students", label: "Students", type: "number" },
   { name: "rating", label: "Rating", type: "number" },
@@ -329,16 +330,22 @@ export function BookFormPage({ id }: { id?: string }) {
   const router = useRouter();
   const { initial, loading, notFound } = useAdminRecord(id, api.getBook, () => seedBooks as unknown as Row[]);
   const hasPdfFile = Boolean((initial as Record<string, unknown> | null)?.hasPdfFile);
+  const rec = initial as Record<string, unknown> | null;
+  const hasRealPdf = rec != null && rec.pdfPrice != null && Number(rec.pdfPrice) > 0;
+  const formInitial = rec
+    ? { ...rec, bookFormat: hasRealPdf ? "PDF" : rec.hardcopyPrice != null ? "Hardcopy" : rec.pdfPrice != null ? "PDF" : "" }
+    : rec;
   return (
     <PageSkeleton title="Book" loading={loading} notFound={notFound}>
       <AdminForm
         title={id ? "Edit Book" : "New Book"}
         fields={bookFields}
-        initial={initial}
+        initial={formInitial}
         backHref="/admin/books"
         submitLabel={id ? "Save changes" : "Create book"}
         onSubmit={async (dto) => {
           delete dto.hasPdfFile;
+          delete dto.bookFormat;
           // A blank price means "do not sell this format" → persist an explicit null
           // so an existing price can also be cleared.
           if (dto.pdfPrice === undefined) dto.pdfPrice = null;
