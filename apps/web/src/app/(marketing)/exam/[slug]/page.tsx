@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { ComponentType } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getExam, getExams, getProductReviews, getSuggestions, getSiteSettings } from "@/lib/api";
+import { getExam, getExams, getMyEnrollments, getProductReviews, getSuggestions, getSiteSettings, hasSession } from "@/lib/api";
 import { formatCount, formatDurationLabel } from "@/lib/format";
 import { ProductCover } from "@/components/ui/product-cover";
 import { Stars } from "@/components/ui/rating";
@@ -72,6 +72,16 @@ export default async function ExamDetailPage(props: PageProps<"/exam/[slug]">) {
     getSuggestions("exam", exam.suggested, 3),
     getSiteSettings(),
   ]);
+
+  let enrolled = false;
+  try {
+    if (await hasSession()) {
+      const list = await getMyEnrollments();
+      enrolled = list.some((e) => e.type === "exam" && (e.productId === exam.id || e.slug === exam.slug));
+    }
+  } catch {
+    enrolled = false;
+  }
 
   return (
     <main>
@@ -149,6 +159,7 @@ export default async function ExamDetailPage(props: PageProps<"/exam/[slug]">) {
                   plans={plans}
                   planNote={exam.isFree ? "No payment required" : "One-time payment · lifetime access"}
                   features={features}
+                  owned={enrolled}
                 />
               </div>
             </aside>

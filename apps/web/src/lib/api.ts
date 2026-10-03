@@ -504,6 +504,30 @@ export async function getFreeExams(): Promise<Exam[]> {
   return all.filter((e) => e.isFree);
 }
 
+export type MyExamAttempt = {
+  examId: string;
+  attempted: boolean;
+  reExamPending: boolean;
+  attempt: {
+    id: string;
+    score: number;
+    maxMarks: number;
+    correct: number;
+    wrong: number;
+    unanswered: number;
+    passed: boolean;
+    submittedAt: string;
+  } | null;
+};
+
+export async function getMyExamAttempt(examIdOrSlug: string): Promise<MyExamAttempt> {
+  return withFallback(
+    `/exams/${encodeURIComponent(examIdOrSlug)}/my-attempt`,
+    (raw) => raw as MyExamAttempt,
+    async () => ({ examId: examIdOrSlug, attempted: false, reExamPending: false, attempt: null }),
+  );
+}
+
 export async function getRelatedExams(current: Exam, limit = 3): Promise<Exam[]> {
   const all = await getExams();
   const rest = all.filter((e) => e.id !== current.id);

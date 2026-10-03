@@ -18,6 +18,7 @@ export function PurchasePanel({
   plans,
   planNote,
   features,
+  owned = false,
 }: {
   kind?: "Course" | "Book" | "Exam";
   title: string;
@@ -27,12 +28,25 @@ export function PurchasePanel({
   plans: PurchasePlan[];
   planNote?: string;
   features: string[];
+  owned?: boolean;
 }) {
   const [active, setActive] = useState(plans[0]?.id ?? "");
   const [open, setOpen] = useState(false);
   const [showBar, setShowBar] = useState(false);
 
   const plan = plans.find((p) => p.id === active) ?? plans[0];
+
+  if (owned) {
+    return (
+      <div className="rounded-3xl border border-success/30 bg-success/5 p-6 text-center shadow-card">
+        <p className="font-display text-lg font-extrabold text-foreground">✅ আপনি ইতিমধ্যে এটি কিনেছেন</p>
+        <p className="mt-1 text-sm text-muted-foreground">আপনার dashboard-এ যোগ করা আছে — সেখান থেকে ব্যবহার করুন।</p>
+        <a href="/dashboard" className="mt-4 inline-flex rounded-xl bg-accent px-6 py-3 text-sm font-bold text-accent-foreground transition-colors hover:bg-accent-hover">
+          Dashboard-এ যান
+        </a>
+      </div>
+    );
+  }
 
   useEffect(() => {
     const onScroll = () => setShowBar(window.scrollY > 320);

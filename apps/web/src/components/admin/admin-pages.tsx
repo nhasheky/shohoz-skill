@@ -613,6 +613,9 @@ export function UsersPage() {
   const [demoUsers, setDemoUsers] = useState<AppUser[]>(seedUsers);
   const [overviewUser, setOverviewUser] = useState<AppUser | null>(null);
   const [overview, setOverview] = useState<api.UserOverview | null>(null);
+  const [grantType, setGrantType] = useState<"course" | "book" | "exam">("course");
+  const [grantProductId, setGrantProductId] = useState("");
+  const [grantOptions, setGrantOptions] = useState<{ type: string; id: string; title: string }[]>([]);
 
   const load = useCallback(async () => {
     try {
@@ -637,6 +640,30 @@ export function UsersPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, [load]);
+
+  useEffect(() => {
+    Promise.all([api.listCourses("", 1, 200), api.listBooks("", 1, 200), api.listExams("", 1, 200)])
+      .then(([c, b, e]) =>
+        setGrantOptions([
+          ...c.items.map((x) => ({ type: "course", id: String(x.id), title: String(x.title) })),
+          ...b.items.map((x) => ({ type: "book", id: String(x.id), title: String(x.title) })),
+          ...e.items.map((x) => ({ type: "exam", id: String(x.id), title: String(x.title) })),
+        ]),
+      )
+      .catch(() => {});
+  }, []);
+
+  async function grantAccess() {
+    if (!overviewUser || !grantProductId) return;
+    try {
+      await api.grantEnrollment(overviewUser.id, grantType, grantProductId);
+      toast.success("Access added");
+      setGrantProductId("");
+      setOverview(await api.getUserOverview(overviewUser.id));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Grant failed");
+    }
+  }
 
   async function saveUser(dto: Record<string, unknown>) {
     if (!editing) return;
@@ -788,6 +815,24 @@ export function UsersPage() {
             <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>
           ) : (
             <div className="space-y-5">
+              <div className="rounded-2xl border border-border bg-surface/50 p-4">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Add access (manual)</p>
+                <div className="flex flex-wrap gap-2">
+                  <select value={grantType} onChange={(e) => { setGrantType(e.target.value as "course" | "book" | "exam"); setGrantProductId(""); }} className="rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground outline-none focus:border-accent">
+                    <option value="course">Course</option>
+                    <option value="book">Book</option>
+                    <option value="exam">Exam</option>
+                  </select>
+                  <select value={grantProductId} onChange={(e) => setGrantProductId(e.target.value)} className="min-w-[220px] flex-1 rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground outline-none focus:border-accent">
+                    <option value="">— প্রোডাক্ট বেছে নিন —</option>
+                    {grantOptions.filter((o) => o.type === grantType).map((o) => (
+                      <option key={o.id} value={o.id}>{o.title}</option>
+                    ))}
+                  </select>
+                  <button type="button" onClick={grantAccess} disabled={!grantProductId} className="rounded-xl bg-accent px-5 py-2.5 text-sm font-bold text-accent-foreground hover:bg-accent-hover disabled:opacity-50">Grant</button>
+                </div>
+              </div>
+
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Access / Enrollments ({overview.enrollments.length})</p>
                 {overview.enrollments.length === 0 ? (

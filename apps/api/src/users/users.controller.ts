@@ -77,6 +77,14 @@ export class UsersController {
     return this.users.adminOverview(id);
   }
 
+  /** Admin: manually grant a course/book/exam to a user. */
+  @Post(':id/enrollments')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  grantEnrollment(@Param('id') id: string, @Body() body: { productType: string; productId: string }) {
+    if (!body?.productType || !body?.productId) throw new BadRequestException('productType and productId required.');
+    return this.users.grantEnrollmentAdmin(id, body.productType, body.productId);
+  }
+
   @Delete(':id/enrollments/:enrollmentId')
   @Roles('ADMIN', 'SUPER_ADMIN')
   revokeEnrollment(@Param('id') id: string, @Param('enrollmentId') enrollmentId: string) {

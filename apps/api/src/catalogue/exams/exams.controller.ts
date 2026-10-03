@@ -27,6 +27,22 @@ export class ExamsController {
     return this.exams.saveAttempt(req.user.sub, id, dto);
   }
 
+  /** Signed-in user's attempt status for an exam. */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('STUDENT', 'ADMIN', 'SUPER_ADMIN', 'TEACHER')
+  @Get(':id/my-attempt')
+  myAttempt(@Req() req: Authed, @Param('id') id: string) {
+    return this.exams.myAttempt(id, req.user.sub);
+  }
+
+  /** Signed-in user requests a re-exam (admin approval needed). */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('STUDENT', 'ADMIN', 'SUPER_ADMIN', 'TEACHER')
+  @Post(':id/re-exam')
+  requestReExam(@Req() req: Authed, @Param('id') id: string, @Body() body: { note?: string }) {
+    return this.exams.requestReExam(id, req.user.sub, body?.note);
+  }
+
   @Get(':slug')
   findBySlug(@Param('slug') slug: string) {
     return this.exams.findBySlug(slug);

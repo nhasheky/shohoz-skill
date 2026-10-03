@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { slugify } from '../../common/slug.js';
@@ -186,6 +186,10 @@ export class ExamsService {
       select: { id: true },
     });
     if (!exam) throw new NotFoundException('Exam not found.');
+    const existing = await this.prisma.examAttempt.findFirst({ where: { userId, examId: exam.id }, select: { id: true } });
+    if (existing) {
+      throw new BadRequestException('এই exam আপনি আগে দিয়েছেন। আবার দিতে re-exam request পাঠান।');
+    }
     return this.prisma.examAttempt.create({
       data: {
         userId,
@@ -199,6 +203,68 @@ export class ExamsService {
         passed: dto.passed,
         answers: (dto.answers ?? {}) as object,
       },
+    });
+  }
+
+  private async resolveExam(idOrSlug: string) {
+    const exam = await this.prisma.exam.findFirst({
+      where: { OR: [{ id: idOrSlug }, { slug: idOrSlug }] },
+      select: { id: true, title: true, slug: true },
+    });
+    if (!exam) throw new NotFoundException('Exam not found.');
+    return exam;
+  }
+
+  /** The signed-in user's attempt (if any) + any pending re-exam request. */
+  async myAttempt(examIdOrSlug: string, userId: string) {
+    const exam = await this.resolveExam(examIdOrSlug);
+    const attempt = await this.prisma.examAttempt.findFirst({
+      where: { userId, examId: exam.id },
+      orderBy: { submittedAt: 'desc' },
+    });
+    const pending = await this.prisma.reExamRequest.findFirst({
+      where: { userId, examId: exam.id, status: 'PENDING' },
+    });
+    return { examId: exam.id, attempted: Boolean(attempt), attempt, reExamPending: Boolean(pending) };
+  }
+
+  /** Student asks for a retake; admin must approve. */
+  async requestReExam(examIdOrSlug: string, userId: string, note?: string) {
+    const exam = await this.resolveExam(examIdOrSlug);
+    const attempt = await this.prisma.examAttempt.findFirst({ where: { userId, examId: exam.id }, select: { id: true } });
+    if (!attempt) throw new BadRequestException('আপনি এখনো এই exam দেননি।');
+    const existing = await this.prisma.reExamRequest.findFirst({
+      where: { userId, examId: exam.id, status: { in: ['PENDING', 'APPROVED'] } },
+    });
+    if (existing) return existing;
+    return this.prisma.reExamRequest.create({ data: { userId, examId: exam.id, note: note?.trim() || null } });
+  }
+
+  /** Admin: re-exam requests with user + exam labels. */
+  async listReExamRequests(status = 'PENDING') {
+    const where = status && status !== 'ALL' ? { status } : {};
+    const rows = await this.prisma.reExamRequest.findMany({ where, orderBy: { createdAt: 'desc' }, take: 200 });
+    const userIds = [...new Set(rows.map((r) => r.userId))];
+    const examIds = [...new Set(rows.map((r) => r.examId))];
+    const [users, exams] = await Promise.all([
+      userIds.length ? this.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true, phone: true } }) : [],
+      examIds.length ? this.prisma.exam.findMany({ where: { id: { in: examIds } }, select: { id: true, title: true, slug: true } }) : [],
+    ]);
+    const uMap = new Map(users.map((u) => [u.id, u]));
+    const eMap = new Map(exams.map((e) => [e.id, e]));
+    return rows.map((r) => ({ ...r, user: uMap.get(r.userId) ?? null, exam: eMap.get(r.examId) ?? null }));
+  }
+
+  /** Admin: approve (resets attempts) or reject a re-exam request. */
+  async decideReExam(id: string, approve: boolean) {
+    const req = await this.prisma.reExamRequest.findUnique({ where: { id } });
+    if (!req) throw new NotFoundException('Request not found.');
+    if (approve) {
+      await this.prisma.examAttempt.deleteMany({ where: { userId: req.userId, examId: req.examId } });
+    }
+    return this.prisma.reExamRequest.update({
+      where: { id },
+      data: { status: approve ? 'APPROVED' : 'REJECTED', decidedAt: new Date() },
     });
   }
 

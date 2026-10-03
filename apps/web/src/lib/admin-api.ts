@@ -213,6 +213,25 @@ export type UserOverview = {
 export const getUserOverview = (id: string) => request<UserOverview>(`/users/${id}/overview`);
 export const revokeEnrollment = (userId: string, enrollmentId: string) =>
   request(`/users/${userId}/enrollments/${enrollmentId}`, { method: "DELETE" });
+export const grantEnrollment = (userId: string, productType: string, productId: string) =>
+  request(`/users/${userId}/enrollments`, { method: "POST", body: JSON.stringify({ productType, productId }) });
+
+// ─── Re-exam requests ─────────────────────────────────────────────────────
+export type ReExamRequest = {
+  id: string;
+  userId: string;
+  examId: string;
+  status: string;
+  note?: string | null;
+  createdAt: string;
+  decidedAt?: string | null;
+  user?: { id: string; name: string; phone: string } | null;
+  exam?: { id: string; title: string; slug: string } | null;
+};
+export const listReExamRequests = (status = "PENDING") =>
+  request<ReExamRequest[]>(`/admin/re-exam-requests?status=${status}`);
+export const approveReExam = (id: string) => request(`/admin/re-exam-requests/${id}/approve`, { method: "PUT" });
+export const rejectReExam = (id: string) => request(`/admin/re-exam-requests/${id}/reject`, { method: "PUT" });
 
 // ─── Orders ───────────────────────────────────────────────────────────────
 export const listOrders = (status?: string, page = 1, perPage = 20, q?: string) =>

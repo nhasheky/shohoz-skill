@@ -29,6 +29,7 @@ model User {
   examAttempts  ExamAttempt[]
   reviews       Review[]
   progressItems ProgressItem[]
+  reExamRequests ReExamRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -286,6 +287,21 @@ model Question {
   sortOrder   Int       @default(0)
 
   @@index([topicId])
+}
+
+// Student request to retake an exam after the first attempt.
+model ReExamRequest {
+  id        String    @id @default(cuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  examId    String
+  status    String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  note      String?
+  createdAt DateTime  @default(now())
+  decidedAt DateTime?
+
+  @@index([status])
+  @@index([userId, examId])
 }
 
 // ─── Blog ──────────────────────────────────────────────────────────

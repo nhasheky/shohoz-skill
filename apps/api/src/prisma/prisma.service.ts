@@ -96,6 +96,19 @@ const AUTO_MIGRATIONS: string[] = [
   // Course gifts + enrollment gift label.
   `ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS "gift" JSONB`,
   `ALTER TABLE "Enrollment" ADD COLUMN IF NOT EXISTS "giftFrom" TEXT`,
+  // Re-exam requests.
+  `CREATE TABLE IF NOT EXISTS "ReExamRequest" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "examId" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "note" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "decidedAt" TIMESTAMP(3),
+    CONSTRAINT "ReExamRequest_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "ReExamRequest_status_idx" ON "ReExamRequest"("status")`,
+  `CREATE INDEX IF NOT EXISTS "ReExamRequest_userId_examId_idx" ON "ReExamRequest"("userId","examId")`,
 ];
 
 @Injectable()

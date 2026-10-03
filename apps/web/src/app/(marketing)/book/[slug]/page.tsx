@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getBook, getBooks, getSiteSettings, getProductReviews, getSuggestions } from "@/lib/api";
+import { getBook, getBooks, getMyEnrollments, getSiteSettings, getProductReviews, getSuggestions, hasSession } from "@/lib/api";
 import { formatCount } from "@/lib/format";
 import { Stars } from "@/components/ui/rating";
 import { BookPreview } from "@/components/product/book-preview";
@@ -84,6 +84,16 @@ export default async function BookDetailPage(props: PageProps<"/book/[slug]">) {
     getSiteSettings(),
   ]);
 
+  let enrolled = false;
+  try {
+    if (await hasSession()) {
+      const list = await getMyEnrollments();
+      enrolled = list.some((e) => e.type === "book" && (e.productId === book.id || e.slug === book.slug));
+    }
+  } catch {
+    enrolled = false;
+  }
+
   return (
     <main>
       <section className="relative overflow-hidden border-b border-border">
@@ -159,7 +169,7 @@ export default async function BookDetailPage(props: PageProps<"/book/[slug]">) {
             <aside className="lg:col-span-2 xl:col-span-1">
               <div className="xl:sticky xl:top-24">
                 {plans.length ? (
-                  <PurchasePanel kind="Book" title={book.title} productId={book.id} productType="book" allowedPaymentMethods={book.allowedPaymentMethods} plans={plans} features={features} />
+                  <PurchasePanel kind="Book" title={book.title} productId={book.id} productType="book" allowedPaymentMethods={book.allowedPaymentMethods} plans={plans} features={features} owned={enrolled} />
                 ) : (
                   <div className="rounded-3xl border border-dashed border-border bg-card p-6 text-center shadow-card">
                     <p className="font-display text-lg font-extrabold text-foreground">Coming soon</p>

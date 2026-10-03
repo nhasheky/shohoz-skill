@@ -167,7 +167,7 @@ export default async function CourseDetailPage(props: PageProps<"/course/[slug]"
 
             <aside className="mt-8 lg:mt-0">
               <div className="lg:sticky lg:top-24">
-                <PurchasePanel kind="Course" title={course.title} productId={course.id} productType="course" allowedPaymentMethods={course.allowedPaymentMethods} plans={plans} planNote="One-time payment" features={features} />
+                <PurchasePanel kind="Course" title={course.title} productId={course.id} productType="course" allowedPaymentMethods={course.allowedPaymentMethods} plans={plans} planNote="One-time payment" features={features} owned={enrolled} />
               </div>
             </aside>
           </div>
