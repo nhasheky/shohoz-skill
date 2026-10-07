@@ -59,6 +59,14 @@ are about to edit. If you learn something new and important, append it here.
   from the public site (`shohoz_token`), and `admin-api` clears + redirects to
   `/admin/login` on any 401 — public login/logout can no longer clobber the admin session.
 - `next.config.ts` permanently redirects old plural URLs → singular.
+- **Performance**: `src/lib/api.ts` caches public reads in Next's Data Cache
+  (`next.revalidate`, 60s) and only calls `cookies()`/`no-store` for `{ auth: true }`
+  reads — so `/`, `/about`, `/contact`, blog posts etc. render as static/ISR (only
+  `searchParams`/auth pages stay dynamic). After any admin write, `admin-api` POSTs
+  `/api/revalidate` (verifies the admin token against the API) to bust the cache
+  instantly. **Never store images as base64 `data:` URLs** — they inline into every
+  HTML payload and bloat pages (one homepage was 3.4MB). Uploaders now post to the
+  API `/uploads` and store the returned URL.
 
 **API — NestJS (`apps/api/src`), global prefix `/api`**
 - Modules: `auth`, `users`, `catalogue/{courses,books,exams}`, `orders`, `reviews`,
