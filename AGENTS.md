@@ -98,6 +98,11 @@ MarketingPixel.
 - Answer questions from this file first; open code only when editing a file.
 - Keep this memory current: add new modules/routes/gotchas here as they appear.
 - Use `opencode --continue` / `opencode -s <id>` to resume a previous session.
+- **Never rewrite source files with PowerShell `Get-Content -Raw` + `Set-Content`** —
+  PS 5.1 reads a BOM-less UTF-8 file as ANSI and silently corrupts Bengali/emoji
+  (mojibake). Use the `edit` tool. If a script must write, read AND write with
+  `-Encoding UTF8` (and prefer `-Encoding utf8NoBOM`). Saved CMS rows can inherit
+  mojibake too — re-check `PageContent` after such a mistake.
 
 ## 2. Standing deployment workflow (IMPORTANT)
 
