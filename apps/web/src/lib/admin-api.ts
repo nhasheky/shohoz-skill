@@ -7,8 +7,9 @@
  */
 import type { Order, AppUser, SiteSetting, PageContent, ContactMessage, MarketingPixel } from "@/lib/types";
 
-export const TOKEN_KEY = "shohoz_token";
-export const ROLE_KEY = "shohoz_role";
+export const TOKEN_KEY = "shohoz_admin_token";
+export const ROLE_KEY = "shohoz_admin_role";
+const NAME_KEY = "shohoz_admin_name";
 
 export type AdminSession = { token: string; role: string; name: string };
 
@@ -24,14 +25,22 @@ export function setAdminSession(token: string, role: string, name = "") {
   if (typeof window === "undefined") return;
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(ROLE_KEY, role);
-  localStorage.setItem("shohoz_name", name);
+  localStorage.setItem(NAME_KEY, name);
 }
 
 export function clearAdminSession() {
   if (typeof window === "undefined") return;
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(ROLE_KEY);
-  localStorage.removeItem("shohoz_name");
+  localStorage.removeItem(NAME_KEY);
+}
+
+/** A 401 means the (admin) token is gone/invalid — drop it and go to login. */
+function handleUnauthorized() {
+  clearAdminSession();
+  if (typeof window !== "undefined" && window.location.pathname !== "/admin/login") {
+    window.location.href = "/admin/login";
+  }
 }
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "https://api.shohozskill.com.bd").replace(/\/api\/?$/, "").replace(/\/+$/, "");
@@ -62,6 +71,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       ...(options.headers ?? {}),
     },
   });
+  if (res.status === 401) {
+    handleUnauthorized();
+    throw new ApiError(401, "Session expired — আবার লগইন করুন।");
+  }
   if (!res.ok) {
     throw new ApiError(res.status, `Request failed (${res.status})`);
   }

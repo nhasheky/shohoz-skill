@@ -55,6 +55,9 @@ are about to edit. If you learn something new and important, append it here.
 - `admin/pages` editor (in `admin-pages.tsx`) pre-fills each field with the **live default
   copy** (`HOME_DEFAULTS`/`ABOUT_DEFAULTS`/`CONTACT_DEFAULTS`) and shows a live-preview
   iframe, so the admin sees exactly which text each field maps to.
+- Admin auth uses **separate** localStorage keys (`shohoz_admin_token`/`_role`/`_name`)
+  from the public site (`shohoz_token`), and `admin-api` clears + redirects to
+  `/admin/login` on any 401 — public login/logout can no longer clobber the admin session.
 - `next.config.ts` permanently redirects old plural URLs → singular.
 
 **API — NestJS (`apps/api/src`), global prefix `/api`**

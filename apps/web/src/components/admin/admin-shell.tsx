@@ -108,7 +108,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState(() => getAdminSession());
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const name = typeof window !== "undefined" ? (localStorage.getItem("shohoz_name") ?? "") : "";
+  const name = typeof window !== "undefined" ? (localStorage.getItem("shohoz_admin_name") ?? "") : "";
 
   const isAdmin = Boolean(session && ["ADMIN", "SUPER_ADMIN"].includes(session.role));
   const isLoginRoute = pathname === "/admin/login";
