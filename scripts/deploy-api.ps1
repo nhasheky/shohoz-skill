@@ -67,7 +67,7 @@ function Send-FtpFile([string]$LocalPath, [string]$RemotePath) {
 
 # 1. Build
 if (-not $SkipBuild) {
-  Write-Host '[1/5] npm run build:api ...' -ForegroundColor Cyan
+  Write-Host '[1/6] npm run build:api ...' -ForegroundColor Cyan
   Push-Location $repo
   npm run build:api
   $code = $LASTEXITCODE
@@ -82,13 +82,13 @@ $stamp = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 $zipName = "_deploy.$stamp.tar.gz"
 $zipPath = Join-Path $env:TEMP $zipName
 if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
-Write-Host '[2/5] Packaging dist ...' -ForegroundColor Cyan
+Write-Host '[2/6] Packaging dist ...' -ForegroundColor Cyan
 & tar.exe -czf $zipPath -C $distDir .
 if ($LASTEXITCODE -ne 0) { throw "tar packaging failed (exit $LASTEXITCODE)" }
 
 # 3. Upload zip (FTP root is the user home, so FTP_BASE is home-relative)
 $remoteZip = "$($cfg['FTP_BASE'])/$zipName"
-Write-Host "[3/5] Uploading $zipName ($([math]::Round((Get-Item $zipPath).Length/1MB,2)) MB) ..." -ForegroundColor Cyan
+Write-Host "[3/6] Uploading $zipName ($([math]::Round((Get-Item $zipPath).Length/1MB,2)) MB) ..." -ForegroundColor Cyan
 Send-FtpFile $zipPath $remoteZip
 
 # 4. Extract on server (backup current dist)
@@ -98,7 +98,7 @@ if ($TestOnly) {
 } else {
   $prep = "cd '$dir' && if [ -d dist ]; then mv dist dist.bak.$stamp; fi && mkdir -p dist && tar -xzf '$zipName' -C dist && rm -f '$zipName' && echo EXTRACT_OK && ls dist | head"
 }
-Write-Host '[4/5] Extracting on server ...' -ForegroundColor Cyan
+Write-Host '[4/6] Extracting on server ...' -ForegroundColor Cyan
 $extractOut = (Invoke-Runner $prep | Out-String)
 Write-Host $extractOut
 if ($extractOut -notmatch 'EXTRACT_OK') { throw "Remote extract failed" }
@@ -111,9 +111,23 @@ if ($TestOnly) {
   return
 }
 
-# 5. Restart + health
+# 5. Sync Prisma schema + regenerate the client on the server. Schema changes
+#    are applied by AUTO_MIGRATIONS at boot, but the generated client must be
+#    refreshed or new models are undefined at runtime.
+Write-Host '[5/6] Syncing Prisma schema + generating client ...' -ForegroundColor Cyan
+$schemaLocal = Join-Path $apiDir 'prisma\schema.prisma'
+if (Test-Path -LiteralPath $schemaLocal) {
+  Send-FtpFile $schemaLocal "$($cfg['FTP_BASE'])/prisma/schema.prisma"
+  $genOut = (Invoke-Runner "cd '$dir' && ./node_modules/.bin/prisma generate" | Out-String)
+  Write-Host $genOut
+  if ($genOut -notmatch 'Generated Prisma Client') { throw 'Remote prisma generate failed' }
+} else {
+  Write-Warning "schema.prisma not found at $schemaLocal - skipping client regeneration"
+}
+
+# 6. Restart + health
 if (-not $NoRestart) {
-  Write-Host '[5/5] Restarting PM2 shohoz-api ...' -ForegroundColor Cyan
+  Write-Host '[6/6] Restarting PM2 shohoz-api ...' -ForegroundColor Cyan
   Invoke-Runner "cd '$dir' && ./node_modules/.bin/pm2 restart shohoz-api" | Write-Host
 }
 

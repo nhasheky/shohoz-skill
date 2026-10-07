@@ -186,8 +186,11 @@ live in `AGENTS.local.md`. Use `scripts/deploy-api.ps1`; it does:
 1. `npm run build:api` (prisma generate + nest build) → `apps/api/dist`
 2. Backup the live `dist` on the server, then FTP-upload the new `dist/**`
    to `/home/shohozsk1/api.shohozskill.com.bd/dist/`
-3. Restart via the runner: `./node_modules/.bin/pm2 restart shohoz-api`
-4. Health-check `https://api.shohozskill.com.bd/api/health`
+3. FTP-upload `apps/api/prisma/schema.prisma` and run
+   `./node_modules/.bin/prisma generate` on the server (the generated client
+   lives on the server; `dist/` alone is not enough for new Prisma models)
+4. Restart via the runner: `./node_modules/.bin/pm2 restart shohoz-api`
+5. Health-check `https://api.shohozskill.com.bd/api/health`
 
 If you change `apps/api/.env.production` or server `.env`, upload it too and
 restart PM2 (env is read at boot).
