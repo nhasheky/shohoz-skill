@@ -43,6 +43,17 @@ function handleUnauthorized() {
   }
 }
 
+/** After any admin write, bust the site's ISR/Data Cache so changes show at once. */
+function revalidateSite() {
+  if (typeof window === "undefined") return;
+  const session = getAdminSession();
+  if (!session) return;
+  fetch("/api/revalidate", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${session.token}` },
+  }).catch(() => {});
+}
+
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "https://api.shohozskill.com.bd").replace(/\/api\/?$/, "").replace(/\/+$/, "");
 
 export class ApiError extends Error {
@@ -78,6 +89,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!res.ok) {
     throw new ApiError(res.status, `Request failed (${res.status})`);
   }
+  if (method !== "GET") revalidateSite();
   return (await res.json()) as T;
 }
 

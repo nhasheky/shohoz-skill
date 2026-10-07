@@ -26,6 +26,10 @@ const hindSiliguri = Hind_Siliguri({
   display: "swap",
 });
 
+const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL ?? "https://api.shohozskill.com.bd")
+  .replace(/\/api\/?$/, "")
+  .replace(/\/+$/, "");
+
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSiteSettings();
   const siteName = settings.siteTitle || SITE.name;
@@ -89,6 +93,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
     >
       <head>
+        <link rel="preconnect" href={API_ORIGIN} crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href={API_ORIGIN} />
         <ThemeScript />
       </head>
       <body className="min-h-full flex flex-col">

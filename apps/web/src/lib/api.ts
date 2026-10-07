@@ -30,24 +30,38 @@ import { SITE } from "@/lib/site";
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "https://api.shohozskill.com.bd").replace(/\/api\/?$/, "").replace(/\/+$/, "");
 
 // ─── Low-level request with fallback ──────────────────────────────────────
+type FetchOpts = { auth?: boolean; revalidate?: number; tags?: string[] };
+
+/**
+ * Server-side fetch to the NestJS API with a mock fallback.
+ *
+ * Public reads go through Next's Data Cache (`next.revalidate`, 5 min default)
+ * so pages can be served from Vercel's edge/ISR cache instead of hitting the
+ * API on every request. Authenticated reads opt out and stay dynamic.
+ */
 async function withFallback<T>(
   path: string,
   map: (raw: unknown) => T,
   mock: () => Promise<T>,
+  opts: FetchOpts = {},
 ): Promise<T> {
+  const { auth = false, revalidate = 60, tags } = opts;
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("shohoz_token")?.value;
     const headers: Record<string, string> = { Accept: "application/json" };
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
-    const res = await fetch(`${API_URL}/api${path}${path.includes("?") ? "&" : "?"}_t=${Date.now()}`, {
+    const init: RequestInit & { next?: { revalidate?: number; tags?: string[] } } = {
       headers,
       signal: AbortSignal.timeout(8000),
-      cache: "no-store",
-    });
+    };
+    if (auth) {
+      const cookieStore = await cookies();
+      const token = cookieStore.get("shohoz_token")?.value;
+      if (token) headers.Authorization = `Bearer ${token}`;
+      init.cache = "no-store";
+    } else {
+      init.next = tags ? { revalidate, tags } : { revalidate };
+    }
+
+    const res = await fetch(`${API_URL}/api${path}`, init);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return map(await res.json());
   } catch (err) {
@@ -527,6 +541,7 @@ export async function getMyExamAttempt(examIdOrSlug: string): Promise<MyExamAtte
     `/exams/${encodeURIComponent(examIdOrSlug)}/my-attempt`,
     (raw) => raw as MyExamAttempt,
     async () => ({ examId: examIdOrSlug, attempted: false, reExamPending: false, attempt: null }),
+    { auth: true },
   );
 }
 
@@ -673,6 +688,7 @@ export async function getMe(): Promise<AppUser> {
     "/users/me",
     (raw) => mapUser(raw as ApiUser),
     async () => (await import("@/lib/data/users")).demoUser,
+    { auth: true },
   );
 }
 
@@ -681,6 +697,7 @@ export async function getMyOrders(): Promise<Order[]> {
     "/users/me/orders",
     (raw) => (raw as ApiOrder[]).map(mapOrder),
     async () => (await import("@/lib/data/users")).demoOrders,
+    { auth: true },
   );
 }
 
@@ -689,6 +706,7 @@ export async function getMyEnrollments(): Promise<DemoEnrollment[]> {
     "/users/me/enrollments",
     (raw) => (raw as ApiEnrollment[]).map(mapEnrollment),
     async () => (await import("@/lib/data/users")).demoEnrollments,
+    { auth: true },
   );
 
   const needsResolution = enrollments.some(e => !e.title || e.title === e.productId || !e.slug || e.slug === e.productId);
@@ -728,6 +746,7 @@ export async function getMyAttempts(): Promise<{ id: string; examTitle: string; 
     "/users/me/attempts",
     (raw) => (raw as ApiAttempt[]).map(mapAttempt),
     async () => (await import("@/lib/data/users")).demoResults,
+    { auth: true },
   );
 }
 
@@ -787,6 +806,7 @@ export async function getSiteSettings(): Promise<SiteSetting> {
     "/site-settings",
     (raw) => mapSiteSetting(raw as Record<string, unknown>),
     async () => FALLBACK_SITE_SETTINGS,
+    { revalidate: 60, tags: ["site-settings"] },
   );
 }
 
@@ -796,6 +816,7 @@ export async function getMarketingPixels(): Promise<MarketingPixel[]> {
     "/marketing/pixels",
     (raw) => (Array.isArray(raw) ? (raw as MarketingPixel[]) : []),
     async () => [],
+    { revalidate: 60, tags: ["marketing-pixels"] },
   );
 }
 
@@ -890,6 +911,7 @@ export async function getPageContent<T = Record<string, unknown>>(page: string):
     `/pages/${page}`,
     (raw) => (((raw as { data?: unknown }).data ?? {}) as Partial<T>),
     async () => ({}),
+    { revalidate: 60, tags: [`page:${page}`] },
   );
 }
 
