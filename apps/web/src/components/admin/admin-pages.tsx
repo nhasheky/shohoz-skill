@@ -7,6 +7,7 @@ import { formatBdt } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { AdminList, PubBadge, type AdminColumn, type PageResult } from "./admin-list";
 import { AdminForm, toForm } from "./admin-form";
+import { resizeImageToFile } from "./file-upload-field";
 import type { FieldDef } from "./admin-ui";
 import { Badge, ConfirmDialog, Pagination, SearchInput, AdminModal, FieldInput } from "./admin-ui";
 import {
@@ -1448,24 +1449,8 @@ type ReviewDraft = {
 const EMPTY_REVIEW: ReviewDraft = { productType: "book", productId: "", authorName: "", rating: 5, text: "", imageUrl: "", status: "APPROVED" };
 
 async function resizeReviewImage(file: File): Promise<string> {
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = reject;
-    image.src = dataUrl;
-  });
-  const scale = Math.min(1, 900 / img.width);
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(img.width * scale);
-  canvas.height = Math.round(img.height * scale);
-  canvas.getContext("2d")?.drawImage(img, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", 0.75);
+  const out = await resizeImageToFile(file, 900, 0.75);
+  return api.uploadFile(out);
 }
 
 export function ReviewsPage() {
@@ -1695,6 +1680,22 @@ export function ReviewsPage() {
 
 function ImageUploadField({ label, value, onChange, className }: { label: string; value: string; onChange: (v: string) => void; className?: string }) {
   const [method, setMethod] = useState<"link" | "upload">("link");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleFile(file: File) {
+    setBusy(true);
+    setError("");
+    try {
+      const out = await resizeImageToFile(file, 1280, 0.85);
+      onChange(await api.uploadFile(out));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className={className}>
       <div className="mb-1.5 flex items-center justify-between">
@@ -1707,14 +1708,10 @@ function ImageUploadField({ label, value, onChange, className }: { label: string
       {method === "link" ? (
         <input value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-accent" placeholder="https://..." />
       ) : (
-        <input type="file" accept="image/*" onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (!file) return;
-          const reader = new FileReader();
-          reader.onload = (ev) => onChange(ev.target?.result as string);
-          reader.readAsDataURL(file);
-        }} className="w-full rounded-xl border border-border bg-card px-3.5 py-2 text-sm text-foreground outline-none file:mr-4 file:rounded-xl file:border-0 file:bg-accent file:px-4 file:py-1 file:text-xs file:font-semibold file:text-accent-foreground hover:file:bg-accent-hover focus:border-accent" />
+        <input type="file" accept="image/*" disabled={busy} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleFile(file); }} className="w-full rounded-xl border border-border bg-card px-3.5 py-2 text-sm text-foreground outline-none file:mr-4 file:rounded-xl file:border-0 file:bg-accent file:px-4 file:py-1 file:text-xs file:font-semibold file:text-accent-foreground hover:file:bg-accent-hover focus:border-accent disabled:opacity-60" />
       )}
+      {busy && <span className="mt-1 block text-xs font-semibold text-accent">Uploading…</span>}
+      {error && <span className="mt-1 block text-xs text-danger">{error}</span>}
       {value && <img src={value} alt="" className="mt-3 h-14 w-auto max-w-full rounded border border-border object-contain bg-muted" />}
     </div>
   );

@@ -48,10 +48,16 @@ export function FileUploadField({
       return;
     }
 
+    setUploading(true);
+    setProgress(0);
     try {
-      onChange(await resizeImage(file, 1280, 0.82));
-    } catch {
-      setError("Failed to process image.");
+      const resized = await resizeImageToFile(file, 1280, 0.82);
+      onChange(await uploadFile(resized, setProgress));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to upload image.");
+      setFileName("");
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -108,7 +114,9 @@ export function FileUploadField({
   );
 }
 
-async function resizeImage(file: File, maxWidth: number, quality: number): Promise<string> {
+export async function resizeImageToFile(file: File, maxWidth: number, quality: number): Promise<File> {
+  const passthrough = () => new File([file], file.name, { type: file.type });
+  if (typeof document === "undefined" || !file.type.startsWith("image/")) return passthrough();
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
@@ -128,7 +136,9 @@ async function resizeImage(file: File, maxWidth: number, quality: number): Promi
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext("2d");
-  if (!ctx) return dataUrl;
+  if (!ctx) return passthrough();
   ctx.drawImage(img, 0, 0, width, height);
-  return canvas.toDataURL("image/jpeg", quality);
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob((b) => resolve(b), "image/jpeg", quality));
+  if (!blob) return passthrough();
+  return new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "image"}.jpg`, { type: "image/jpeg" });
 }
