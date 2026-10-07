@@ -126,6 +126,12 @@ export class OrdersController {
     return this.orders.findAll(Number(page) || 1, Number(perPage) || 20, status, q);
   }
 
+  /** Public: order tracking by order number, phone or email. */
+  @Get('track')
+  track(@Query('q') q: string) {
+    return this.orders.track(q);
+  }
+
   /** Public: confirmation page summary (order number, items, totals, address). */
   @Get(':id/summary')
   summary(@Param('id') id: string) {

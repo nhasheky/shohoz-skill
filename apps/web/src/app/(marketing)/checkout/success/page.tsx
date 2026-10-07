@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { BackgroundOrbs } from "@/components/layout/background";
 import { ButtonLink } from "@/components/ui/button";
 import { formatBdt, formatDate } from "@/lib/format";
+import { trackEvent } from "@/lib/track";
 import { IconCheckCircle, IconLock } from "@/components/ui/icons";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.shohozskill.com.bd";
@@ -61,6 +62,18 @@ function SuccessContent() {
       : order
         ? [{ productType: order.productType, title: order.productTitle, variant: order.variant, quantity: order.quantity, unitPrice: order.amount }]
         : [];
+
+  useEffect(() => {
+    if (!order) return;
+    trackEvent("Purchase", {
+      value: order.total,
+      currency: "BDT",
+      order_id: order.orderNumber,
+      content_type: order.productType,
+      content_name: order.productTitle,
+      num_items: order.quantity,
+    });
+  }, [order]);
 
   return (
     <main className="relative overflow-hidden">

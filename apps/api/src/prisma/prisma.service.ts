@@ -120,6 +120,20 @@ const AUTO_MIGRATIONS: string[] = [
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "ExamStart_userId_examId_key" ON "ExamStart"("userId","examId")`,
   `CREATE INDEX IF NOT EXISTS "ExamStart_examId_idx" ON "ExamStart"("examId")`,
+  // Marketing / tracking pixels.
+  `CREATE TABLE IF NOT EXISTS "MarketingPixel" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "provider" TEXT NOT NULL DEFAULT 'custom',
+    "pixelId" TEXT,
+    "headCode" TEXT,
+    "bodyCode" TEXT,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "MarketingPixel_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "MarketingPixel_enabled_idx" ON "MarketingPixel"("enabled")`,
 ];
 
 @Injectable()

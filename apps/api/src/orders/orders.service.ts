@@ -536,6 +536,47 @@ export class OrdersService {
     return this.prisma.order.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
   }
 
+  /** Public: look up orders by order number, phone or email (safe fields only). */
+  async track(query?: string) {
+    const q = (query ?? '').trim();
+    if (!q) throw new BadRequestException('অর্ডার নম্বর, মোবাইল নম্বর বা ইমেইল দিন।');
+
+    const digits = q.replace(/\D/g, '');
+    const or: Record<string, unknown>[] = [
+      { guestEmail: { equals: q, mode: 'insensitive' } },
+      { user: { is: { email: { equals: q, mode: 'insensitive' } } } },
+    ];
+
+    if (digits.length >= 6) {
+      or.push({ guestPhone: { contains: digits } });
+      or.push({ user: { is: { phone: { contains: digits } } } });
+    }
+    if (/^\d{3,8}$/.test(q)) {
+      or.push({ orderNumber: Number(q) });
+    }
+
+    const orders = await this.prisma.order.findMany({
+      where: { OR: or },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: {
+        id: true,
+        orderNumber: true,
+        status: true,
+        paymentMethod: true,
+        productTitle: true,
+        total: true,
+        amount: true,
+        isPhysical: true,
+        createdAt: true,
+        courierStatus: true,
+        trackingCode: true,
+        items: true,
+      },
+    });
+    return { orders };
+  }
+
   /** User: cancel their own order (only before payment / shipping). */
   async cancel(orderId: string, userId: string) {
     const order = await this.prisma.order.findFirst({ where: { id: orderId, userId } });

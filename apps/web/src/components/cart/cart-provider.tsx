@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { trackEvent } from "@/lib/track";
 
 export type CartItem = {
   key: string;
@@ -83,6 +84,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           return prev.map((p) => (p.key === key ? { ...p, quantity: p.quantity + qty } : p));
         }
         return [...prev, { ...item, key, quantity: qty }];
+      });
+      trackEvent("AddToCart", {
+        value: item.unitPrice * (item.quantity ?? 1),
+        currency: "BDT",
+        content_type: item.productType,
+        content_name: item.title,
+        content_id: item.productId,
       });
       return { ok: true };
     },

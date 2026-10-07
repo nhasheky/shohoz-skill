@@ -383,3 +383,30 @@ export type ContactMessage = {
   status: "NEW" | "READ" | "REPLIED" | "ARCHIVED";
   createdAt: string;
 };
+
+export type MarketingPixel = {
+  id: string;
+  name: string;
+  provider: string;
+  pixelId?: string | null;
+  headCode?: string | null;
+  bodyCode?: string | null;
+  enabled: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type TrackedOrder = {
+  id: string;
+  orderNumber?: number | null;
+  status: string;
+  paymentMethod?: string | null;
+  productTitle: string;
+  total: number;
+  amount?: number;
+  isPhysical?: boolean;
+  createdAt: string;
+  courierStatus?: string | null;
+  trackingCode?: string | null;
+  items?: { title?: string; quantity?: number; variant?: string | null }[] | null;
+};

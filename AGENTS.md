@@ -44,16 +44,19 @@ are about to edit. If you learn something new and important, append it here.
   `register`, `contact`, `about`, `privacy`, `terms`.
 - Admin `admin/`: `login`, `users`, `courses` (+`new`/`[id]`/`[id]/edit`), `books`,
   `exams`, `blogs`, `orders`, `coupons`, `categories`, `reviews`, `re-exam`,
-  `blocked`, `incomplete`, `messages`, `pages`, `settings`.
+  `blocked`, `incomplete`, `messages`, `pages`, `settings`, `marketing`.
 - `api/send-email/route.ts` — email send endpoint.
 - Libs: `src/lib/api.ts` (public client), `src/lib/admin-api.ts`, `src/lib/types.ts`
-  (domain types), `src/lib/data/*` (legacy mock data, mirrors Prisma), `src/lib/site.ts`.
+  (domain types), `src/lib/data/*` (legacy mock data, mirrors Prisma), `src/lib/site.ts`,
+  `src/lib/pixel-snippets.ts` (pixel snippet builders), `src/lib/track.ts` (`trackEvent`).
 - Components: `src/components/{admin,auth,brand,cart,dashboard,exam,layout,marketing,product,ui}`.
+  `marketing/pixels.tsx` injects admin-managed pixels; `marketing/track-order.tsx` is the
+  storefront order-tracking band rendered above the footer on every marketing page.
 - `next.config.ts` permanently redirects old plural URLs → singular.
 
 **API — NestJS (`apps/api/src`), global prefix `/api`**
 - Modules: `auth`, `users`, `catalogue/{courses,books,exams}`, `orders`, `reviews`,
-  `blogs`, `admin`, `cms`, `uploads`, `coupons`, `blocked`.
+  `blogs`, `admin`, `cms`, `uploads`, `coupons`, `blocked`, `marketing`.
 - Notable routes (all under `/api`):
   - `auth`: `register`, `login`, `verify-otp`, `resend-otp`, `otp/request`,
     `otp/verify`, `admin-login`, `set-password`, `sessions`, `sessions/:id`.
@@ -64,9 +67,12 @@ are about to edit. If you learn something new and important, append it here.
     `:id/attempts`, `:id/my-attempt`, `:id/start`, `:id/re-exam`.
   - `orders`: `checkout`, `checkout-batch`, `coupon/validate`, `draft(s)`,
     `:id/poll`, `sslcommerz/diag`, `mine`, admin list/`summary`/`suggestions`,
-    `:id/refund`, `:id/cancel`, `:id/status`, `bulk`, `steadfast/*`.
+    `:id/refund`, `:id/cancel`, `:id/status`, `bulk`, `steadfast/*`, and public
+    `track?q=` (order no / phone / email).
   - `reviews` (+ `admin/reviews`), `blogs`, `cms` (`site-settings`, `pages/:page`,
     `contact-messages`), `coupons`, `blocked`, `uploads` (`init`/`:id/part`/`:id/complete`).
+  - `marketing`: public `GET marketing/pixels` (enabled), admin CRUD
+    `admin/marketing/pixels`.
   - `admin`: `stats`, `users`, `users/:id/status`, `orders`, `analytics/revenue`,
     plus `courses`/`books`/`exams`/`blogs` list+detail.
 - Entry: `main.ts` (prefix `api`, CORS from `WEB_ORIGIN`, static `/uploads`).
@@ -77,7 +83,8 @@ are about to edit. If you learn something new and important, append it here.
 User, OtpCode, DeviceSession, Course, CoursePrice, CurriculumSection, Lesson,
 Instructor, Book, Exam, ExamSubject, ExamTopic, Question, ExamStart, ReExamRequest,
 BlogPost, Order, Coupon, Enrollment, ProgressItem, ExamAttempt, Review,
-BlockedContact, CheckoutDraft, SiteSetting, PageContent, ContactMessage.
+BlockedContact, CheckoutDraft, SiteSetting, PageContent, ContactMessage,
+MarketingPixel.
 
 **Continuity rules**
 - Answer questions from this file first; open code only when editing a file.

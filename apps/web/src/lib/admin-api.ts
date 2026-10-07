@@ -5,7 +5,7 @@
  * localStorage (issued by the OTP login flow). Throws on failure so the
  * admin UI can fall back to demo mode.
  */
-import type { Order, AppUser, SiteSetting, PageContent, ContactMessage } from "@/lib/types";
+import type { Order, AppUser, SiteSetting, PageContent, ContactMessage, MarketingPixel } from "@/lib/types";
 
 export const TOKEN_KEY = "shohoz_token";
 export const ROLE_KEY = "shohoz_role";
@@ -329,3 +329,12 @@ export const setContactMessageStatus = (id: string, status: ContactMessage["stat
   request(`/admin/contact-messages/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) });
 export const deleteContactMessage = (id: string) =>
   request(`/admin/contact-messages/${id}`, { method: "DELETE" });
+
+// ─── Marketing pixels ─────────────────────────────────────────────────────
+export const listMarketingPixels = () => request<MarketingPixel[]>("/admin/marketing/pixels");
+export const createMarketingPixel = (dto: Partial<MarketingPixel>) =>
+  request<MarketingPixel>("/admin/marketing/pixels", { method: "POST", body: JSON.stringify(dto) });
+export const updateMarketingPixel = (id: string, dto: Partial<MarketingPixel>) =>
+  request<MarketingPixel>(`/admin/marketing/pixels/${id}`, { method: "PUT", body: JSON.stringify(dto) });
+export const deleteMarketingPixel = (id: string) =>
+  request(`/admin/marketing/pixels/${id}`, { method: "DELETE" });

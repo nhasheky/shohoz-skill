@@ -12,6 +12,7 @@ import { CmsModule } from './cms/cms.module.js';
 import { UploadsModule } from './uploads/uploads.module.js';
 import { CouponsModule } from './coupons/coupons.module.js';
 import { BlockedModule } from './blocked/blocked.module.js';
+import { MarketingModule } from './marketing/marketing.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 
@@ -33,6 +34,7 @@ import { AppService } from './app.service.js';
     UploadsModule,
     CouponsModule,
     BlockedModule,
+    MarketingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -538,6 +538,22 @@ model PageContent {
   updatedAt DateTime @updatedAt
 }
 
+// Marketing / tracking pixels injected into the storefront (Facebook, TikTok,
+// GTM, GA4, Google Ads, etc.). Admin-managed via the Marketing panel.
+model MarketingPixel {
+  id        String   @id @default(cuid())
+  name      String
+  provider  String   @default("custom") // facebook | tiktok | gtm | ga4 | google_ads | snapchat | linkedin | pinterest | twitter | clarity | custom
+  pixelId   String?
+  headCode  String?  @db.Text
+  bodyCode  String?  @db.Text
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([enabled])
+}
+
 // Contact form submissions captured from the public Contact page.
 model ContactMessage {
   id        String   @id @default(cuid())

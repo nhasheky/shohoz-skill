@@ -18,6 +18,7 @@ import type {
   Order,
   ProductReview,
   SiteSetting,
+  MarketingPixel,
   SuggestedRef,
   TestimonialReview,
   VideoSource,
@@ -786,6 +787,15 @@ export async function getSiteSettings(): Promise<SiteSetting> {
     "/site-settings",
     (raw) => mapSiteSetting(raw as Record<string, unknown>),
     async () => FALLBACK_SITE_SETTINGS,
+  );
+}
+
+/** Public: admin-managed marketing pixels (enabled only). */
+export async function getMarketingPixels(): Promise<MarketingPixel[]> {
+  return withFallback(
+    "/marketing/pixels",
+    (raw) => (Array.isArray(raw) ? (raw as MarketingPixel[]) : []),
+    async () => [],
   );
 }
 
