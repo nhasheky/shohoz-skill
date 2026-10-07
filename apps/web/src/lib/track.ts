@@ -35,12 +35,12 @@ const TIKTOK_MAP: Record<TrackEventName, string> = {
   Search: "Search",
 };
 
-export function trackEvent(name: TrackEventName, data: Record<string, unknown> = {}) {
+export function trackEvent(name: TrackEventName, data: Record<string, unknown> = {}, eventId?: string) {
   if (typeof window === "undefined") return;
   const w = window as Win;
   try {
-    if (typeof w.fbq === "function") w.fbq("track", name, data);
-    if (w.ttq && typeof w.ttq.track === "function") w.ttq.track(TIKTOK_MAP[name] ?? name, data);
+    if (typeof w.fbq === "function") w.fbq("track", name, data, eventId ? { eventID: eventId } : undefined);
+    if (w.ttq && typeof w.ttq.track === "function") w.ttq.track(TIKTOK_MAP[name] ?? name, data, eventId ? { event_id: eventId } : undefined);
     if (typeof w.gtag === "function") w.gtag("event", name, data);
     if (Array.isArray(w.dataLayer)) w.dataLayer.push({ event: name, ...data });
     if (typeof w.snaptr === "function") w.snaptr("track", name.toUpperCase(), data);

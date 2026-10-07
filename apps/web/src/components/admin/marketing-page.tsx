@@ -19,27 +19,31 @@ type Draft = {
   pixelId: string;
   headCode: string;
   bodyCode: string;
+  capiToken: string;
+  testEventCode: string;
+  advancedMatching: boolean;
   enabled: boolean;
 };
 
-const EMPTY: Draft = { name: "", provider: "facebook", pixelId: "", headCode: "", bodyCode: "", enabled: true };
+const EMPTY: Draft = { name: "", provider: "facebook", pixelId: "", headCode: "", bodyCode: "", capiToken: "", testEventCode: "", advancedMatching: false, enabled: true };
 
 export function MarketingPage() {
   useAdminTitle("Marketing");
   const toast = useToast();
   const [pixels, setPixels] = useState<MarketingPixel[]>([]);
   const [loading, setLoading] = useState(true);
-  const [mode, setMode] = useState<"live" | "demo">("demo");
+  const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<MarketingPixel | null>(null);
 
   const load = useCallback(async () => {
+    setLoading(true);
     try {
       setPixels(await api.listMarketingPixels());
-      setMode("live");
-    } catch {
-      setMode("demo");
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not load pixels");
     } finally {
       setLoading(false);
     }
@@ -62,6 +66,9 @@ export function MarketingPage() {
       pixelId: p.pixelId ?? "",
       headCode: p.headCode ?? "",
       bodyCode: p.bodyCode ?? "",
+      capiToken: p.capiToken ?? "",
+      testEventCode: p.testEventCode ?? "",
+      advancedMatching: p.advancedMatching === true,
       enabled: p.enabled !== false,
     });
   }
@@ -74,19 +81,11 @@ export function MarketingPage() {
       pixelId: draft.pixelId.trim(),
       headCode: draft.headCode,
       bodyCode: draft.bodyCode,
+      capiToken: draft.capiToken.trim(),
+      testEventCode: draft.testEventCode.trim(),
+      advancedMatching: draft.advancedMatching,
       enabled: draft.enabled,
     };
-    if (mode === "demo") {
-      setPixels((rows) =>
-        draft.id
-          ? rows.map((r) => (r.id === draft.id ? { ...r, ...payload } : r))
-          : [...rows, { id: `demo-${Date.now()}`, ...payload } as MarketingPixel],
-      );
-      setEditing(null);
-      setBusy(false);
-      toast.success("Saved (demo)");
-      return;
-    }
     try {
       if (draft.id) {
         const updated = await api.updateMarketingPixel(draft.id, payload);
@@ -97,6 +96,7 @@ export function MarketingPage() {
       }
       toast.success(draft.id ? "Pixel updated" : "Pixel added");
       setEditing(null);
+      setError(null);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
     } finally {
@@ -107,7 +107,6 @@ export function MarketingPage() {
   async function toggle(p: MarketingPixel) {
     const next = !(p.enabled !== false);
     setPixels((rows) => rows.map((r) => (r.id === p.id ? { ...r, enabled: next } : r)));
-    if (mode === "demo") return;
     try {
       await api.updateMarketingPixel(p.id, { enabled: next });
     } catch {
@@ -119,13 +118,6 @@ export function MarketingPage() {
   async function remove() {
     if (!confirm) return;
     setBusy(true);
-    if (mode === "demo") {
-      setPixels((rows) => rows.filter((r) => r.id !== confirm.id));
-      setConfirm(null);
-      setBusy(false);
-      toast.success("Deleted (demo)");
-      return;
-    }
     try {
       await api.deleteMarketingPixel(confirm.id);
       setPixels((rows) => rows.filter((r) => r.id !== confirm.id));
@@ -164,7 +156,14 @@ export function MarketingPage() {
         </p>
       </div>
 
-      {mode === "demo" && <p className="mt-2 text-xs text-muted-foreground">API unreachable — changes শুধু এই পেজে থাকবে (demo).</p>}
+      {error && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-danger/30 bg-danger/5 px-4 py-3 text-sm">
+          <p className="font-semibold text-danger">পিক্সেল লোড করা যায়নি — {error}</p>
+          <button type="button" onClick={load} className="rounded-lg border border-danger/40 px-3 py-1.5 text-xs font-bold text-danger hover:bg-danger/10">
+            আবার চেষ্টা করুন
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div className="mt-8 py-10 text-center text-sm text-muted-foreground">Loading pixels…</div>
@@ -267,6 +266,23 @@ function PixelForm({
             <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pixel / Container ID</span>
             <input value={form.pixelId} onChange={(e) => set("pixelId", e.target.value)} placeholder={PROVIDER_ID_HINT[form.provider] ?? ""} className={inputCls} />
           </label>
+        )}
+        {form.provider === "facebook" && (
+          <>
+            <label className="block sm:col-span-2">
+              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Conversions API access token</span>
+              <input value={form.capiToken} onChange={(e) => set("capiToken", e.target.value)} placeholder="Events Manager → Settings → Generate access token" className={cn(inputCls, "font-mono text-xs")} />
+              <span className="mt-1 block text-[11px] text-muted-foreground">চাইলে সার্ভার-সাইড Purchase event যাবে (browser pixel ব্লক হলেও কাজ করবে)। খালি রাখলে শুধু browser pixel চলবে।</span>
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Test event code</span>
+              <input value={form.testEventCode} onChange={(e) => set("testEventCode", e.target.value)} placeholder="TEST12345" className={cn(inputCls, "font-mono text-xs")} />
+            </label>
+            <label className="flex items-center gap-2.5 pt-6 text-sm text-foreground">
+              <input type="checkbox" checked={form.advancedMatching} onChange={(e) => set("advancedMatching", e.target.checked)} className="h-4 w-4 accent-[#F2A93B]" />
+              Advanced matching
+            </label>
+          </>
         )}
         <PasteField
           label={isCustom ? "Head code (inside <head>)" : "Head code override (optional)"}

@@ -7,11 +7,22 @@ import type { CreateMarketingPixelDto, UpdateMarketingPixelDto } from './dto/mar
 export class MarketingService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Public: only the enabled pixels, oldest first (stable injection order). */
+  /** Public: only the enabled pixels, oldest first (stable injection order).
+   *  Secrets (CAPI token / test code) are never exposed to the browser. */
   async listEnabled() {
     return this.prisma.marketingPixel.findMany({
       where: { enabled: true },
       orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        provider: true,
+        pixelId: true,
+        headCode: true,
+        bodyCode: true,
+        enabled: true,
+        advancedMatching: true,
+      },
     });
   }
 

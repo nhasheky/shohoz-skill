@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAdminTitle } from "@/lib/use-admin-title";
@@ -29,13 +29,14 @@ import { courses as seedCourses } from "@/lib/data/courses";
 import { books as seedBooks } from "@/lib/data/books";
 import { allExams as seedExams } from "@/lib/data/exams";
 import { blogs as seedBlogs } from "@/lib/data/blogs";
+import { homepageStats, homeFaq, aboutContent } from "@/lib/data/site-content";
 import { adminUsers as seedUsers, adminOrders, adminStats, revenueSeries } from "@/lib/data/admin";
 import { getAdminStats, getAdminRevenue } from "@/lib/admin-api";
 import type { AppUser, Order, ContactMessage } from "@/lib/types";
 
 type Row = { id: string } & Record<string, unknown>;
 
-// ─── Field definitions ─────────────────────────────────────────────────────
+// â”€â”€â”€ Field definitions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const courseFields: FieldDef[] = [
   { name: "slug", label: "Slug", span2: true, help: "Leave blank to auto-generate from the title." },
   { name: "title", label: "Title", required: true, span2: true },
@@ -60,7 +61,7 @@ const courseFields: FieldDef[] = [
   { name: "featured", label: "Featured", type: "checkbox" },
   { name: "published", label: "Published", type: "checkbox" },
   { name: "suggested", label: "Suggested products", type: "suggested", span2: true, help: "Pick which books/exams show as suggestions under this course. Empty = auto." },
-  { name: "gift", label: "🎁 Gift products (free with this course)", type: "suggested", span2: true, help: "এই কোর্স কিনলে যেসব book/exam/course ফ্রি হিসেবে অ্যাকাউন্টে যোগ হবে।" },
+  { name: "gift", label: "ًںژپ Gift products (free with this course)", type: "suggested", span2: true, help: "à¦ڈà¦‡ à¦•à§‹à¦°à§چà¦¸ à¦•à¦؟à¦¨à¦²à§‡ à¦¯à§‡à¦¸à¦¬ book/exam/course à¦«à§چà¦°à¦؟ à¦¹à¦؟à¦¸à§‡à¦¬à§‡ à¦…à§چà¦¯à¦¾à¦•à¦¾à¦‰à¦¨à§چà¦ںà§‡ à¦¯à§‹à¦— à¦¹à¦¬à§‡à¥¤" },
 ];
 
 const bookFields: FieldDef[] = [
@@ -77,10 +78,10 @@ const bookFields: FieldDef[] = [
   { name: "edition", label: "Edition" },
   { name: "language", label: "Language", type: "select", options: ["En", "Bn", "Mixture"] },
   { name: "pages", label: "Pages", type: "number", required: true },
-  { name: "bookFormat", label: "Format", type: "select", options: ["PDF", "Hardcopy"], required: true, help: "Choose ONE — a book is either an online PDF or a printed hardcopy." },
-  { name: "pdfPrice", label: "Online PDF price (৳)", type: "number", help: "Set the price for the online PDF.", showWhen: (f) => f.bookFormat === "PDF" },
+  { name: "bookFormat", label: "Format", type: "select", options: ["PDF", "Hardcopy"], required: true, help: "Choose ONE â€” a book is either an online PDF or a printed hardcopy." },
+  { name: "pdfPrice", label: "Online PDF price (à§³)", type: "number", help: "Set the price for the online PDF.", showWhen: (f) => f.bookFormat === "PDF" },
   { name: "pdfFileUrl", label: "Full PDF (owners only)", type: "file", span2: true, help: "The complete book, read in the secure viewer (no download). Required for the PDF format.", showWhen: (f) => f.bookFormat === "PDF" },
-  { name: "hardcopyPrice", label: "Hardcopy price (৳)", type: "number", help: "Set the price for the printed hardcopy (demo PDF only — no full PDF).", showWhen: (f) => f.bookFormat === "Hardcopy" },
+  { name: "hardcopyPrice", label: "Hardcopy price (à§³)", type: "number", help: "Set the price for the printed hardcopy (demo PDF only â€” no full PDF).", showWhen: (f) => f.bookFormat === "Hardcopy" },
   { name: "samplePages", label: "Sample pages", type: "number" },
   { name: "students", label: "Students", type: "number" },
   { name: "rating", label: "Rating", type: "number" },
@@ -101,8 +102,8 @@ const examFields: FieldDef[] = [
   { name: "difficulty", label: "Difficulty", type: "select", options: ["Easy", "Medium", "Hard"] },
   { name: "isFree", label: "Free", type: "checkbox" },
   { name: "negativeMarking", label: "Negative marking", type: "checkbox" },
-  { name: "priceAmount", label: "Price (৳)", type: "number" },
-  { name: "priceOriginalAmount", label: "Original price (৳)", type: "number" },
+  { name: "priceAmount", label: "Price (à§³)", type: "number" },
+  { name: "priceOriginalAmount", label: "Original price (à§³)", type: "number" },
   { name: "defaultNegativeMarks", label: "Negative marks / wrong", type: "number" },
   { name: "durationMinutes", label: "Duration (min)", type: "number" },
   { name: "questionsCount", label: "Questions", type: "number" },
@@ -129,7 +130,7 @@ const blogFields: FieldDef[] = [
   { name: "tags", label: "Tags", type: "textarea", json: true, help: '["BCS","strategy"]' },
 ];
 
-// ─── Normalizers (API + demo shapes → editor form state) ──────────────────
+// â”€â”€â”€ Normalizers (API + demo shapes â†’ editor form state) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function num(v: unknown): number | "" {
   if (typeof v === "number") return v;
   if (v && typeof v === "object" && typeof (v as { amount?: unknown }).amount === "number") return (v as { amount: number }).amount;
@@ -192,13 +193,13 @@ function normBlocks(v: unknown): BlogBlockRow[] {
   return v as BlogBlockRow[];
 }
 
-// ─── Courses ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ Courses â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const courseColumns: AdminColumn<Row>[] = [
   { key: "title", label: "Course", sortable: true, render: (r) => <p className="max-w-[26ch] truncate font-bold text-foreground">{String(r.title ?? "")}</p> },
-  { key: "category", label: "Category", render: (r) => <span className="text-muted-foreground">{String(r.category ?? "—")}</span> },
+  { key: "category", label: "Category", render: (r) => <span className="text-muted-foreground">{String(r.category ?? "â€”")}</span> },
   { key: "price", label: "Price", render: (r) => <span className="font-bold text-foreground">{coursePrice(r)}</span> },
-  { key: "students", label: "Students", sortable: true, render: (r) => <span className="text-muted-foreground">{num(r.students) === "" ? "—" : String(r.students)}</span> },
-  { key: "rating", label: "Rating", sortable: true, render: (r) => <span className="text-muted-foreground">{typeof r.rating === "number" ? r.rating.toFixed(1) : "—"}</span> },
+  { key: "students", label: "Students", sortable: true, render: (r) => <span className="text-muted-foreground">{num(r.students) === "" ? "â€”" : String(r.students)}</span> },
+  { key: "rating", label: "Rating", sortable: true, render: (r) => <span className="text-muted-foreground">{typeof r.rating === "number" ? r.rating.toFixed(1) : "â€”"}</span> },
   { key: "published", label: "Status", render: (r) => <PubBadge published={r.published} /> },
 ];
 
@@ -208,7 +209,7 @@ function coursePrice(r: Row): string {
     const lt = prices.find((p) => p.duration === "LIFETIME") ?? prices[0];
     return formatBdt(lt.amount);
   }
-  return "—";
+  return "â€”";
 }
 
 export function CoursesListPage() {
@@ -224,7 +225,7 @@ export function CoursesListPage() {
       fetchList={(q, page, perPage) => api.listCourses(q, page, perPage) as Promise<PageResult<Row>>}
       seed={() => seedCourses as unknown as Row[]}
       onDelete={async (id) => { await api.deleteCourse(id); }}
-      searchPlaceholder="Search courses…"
+      searchPlaceholder="Search coursesâ€¦"
     />
   );
 }
@@ -294,20 +295,20 @@ export function CourseFormPage({ id }: { id?: string }) {
   );
 }
 
-// ─── Books ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Books â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const bookColumns: AdminColumn<Row>[] = [
   { key: "title", label: "Title", sortable: true, render: (r) => <p className="max-w-[26ch] truncate font-bold text-foreground">{String(r.title ?? "")}</p> },
-  { key: "author", label: "Author", render: (r) => <span className="text-muted-foreground">{String(r.author ?? "—")}</span> },
-  { key: "category", label: "Category", render: (r) => <span className="text-muted-foreground">{String(r.category ?? "—")}</span> },
+  { key: "author", label: "Author", render: (r) => <span className="text-muted-foreground">{String(r.author ?? "â€”")}</span> },
+  { key: "category", label: "Category", render: (r) => <span className="text-muted-foreground">{String(r.category ?? "â€”")}</span> },
   { key: "pdfPrice", label: "Formats", render: (r) => {
     const pdf = num(r.pdfPrice);
     const hard = num(r.hardcopyPrice);
     const parts: string[] = [];
     if (pdf !== "") parts.push(`PDF ${formatBdt(pdf as number)}`);
     if (hard !== "") parts.push(`HC ${formatBdt(hard as number)}`);
-    return <span className="font-bold text-foreground">{parts.length ? parts.join(" · ") : "—"}</span>;
+    return <span className="font-bold text-foreground">{parts.length ? parts.join(" آ· ") : "â€”"}</span>;
   } },
-  { key: "rating", label: "Rating", sortable: true, render: (r) => <span className="text-muted-foreground">{typeof r.rating === "number" ? r.rating.toFixed(1) : "—"}</span> },
+  { key: "rating", label: "Rating", sortable: true, render: (r) => <span className="text-muted-foreground">{typeof r.rating === "number" ? r.rating.toFixed(1) : "â€”"}</span> },
   { key: "published", label: "Status", render: (r) => <PubBadge published={r.published} /> },
 ];
 
@@ -324,7 +325,7 @@ export function BooksListPage() {
       fetchList={(q, page, perPage) => api.listBooks(q, page, perPage) as Promise<PageResult<Row>>}
       seed={() => seedBooks as unknown as Row[]}
       onDelete={async (id) => { await api.deleteBook(id); }}
-      searchPlaceholder="Search books…"
+      searchPlaceholder="Search booksâ€¦"
     />
   );
 }
@@ -350,15 +351,15 @@ export function BookFormPage({ id }: { id?: string }) {
         onSubmit={async (dto) => {
           delete dto.hasPdfFile;
           delete dto.bookFormat;
-          // A blank price means "do not sell this format" → persist an explicit null
+          // A blank price means "do not sell this format" â†’ persist an explicit null
           // so an existing price can also be cleared.
           if (dto.pdfPrice === undefined) dto.pdfPrice = null;
           if (dto.hardcopyPrice === undefined) dto.hardcopyPrice = null;
           if (!dto.pdfPrice && !dto.hardcopyPrice) {
-            throw new Error("Choose a format — set an online PDF price OR a hardcopy price.");
+            throw new Error("Choose a format â€” set an online PDF price OR a hardcopy price.");
           }
           if (dto.pdfPrice && dto.hardcopyPrice) {
-            throw new Error("Choose either online PDF or hardcopy — not both.");
+            throw new Error("Choose either online PDF or hardcopy â€” not both.");
           }
           if (dto.pdfPrice && !dto.pdfFileUrl && !hasPdfFile) {
             throw new Error("Upload the full PDF file when selling the online PDF.");
@@ -388,13 +389,13 @@ export function BookFormPage({ id }: { id?: string }) {
   );
 }
 
-// ─── Exams ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Exams â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const examColumns: AdminColumn<Row>[] = [
   { key: "title", label: "Title", sortable: true, render: (r) => <p className="max-w-[26ch] truncate font-bold text-foreground">{String(r.title ?? "")}</p> },
-  { key: "examType", label: "Type", render: (r) => <span className="text-muted-foreground">{String(r.examType ?? "—")}</span> },
-  { key: "price", label: "Price", render: (r) => (r.isFree ? <Badge tone="success">Free</Badge> : <span className="font-bold text-foreground">{num(r.priceAmount) === "" ? "—" : formatBdt(num(r.priceAmount) as number)}</span>) },
-  { key: "questionsCount", label: "Questions", render: (r) => <span className="text-muted-foreground">{num(r.questionsCount) === "" ? "—" : String(r.questionsCount)}</span> },
-  { key: "rating", label: "Rating", sortable: true, render: (r) => <span className="text-muted-foreground">{typeof r.rating === "number" ? r.rating.toFixed(1) : "—"}</span> },
+  { key: "examType", label: "Type", render: (r) => <span className="text-muted-foreground">{String(r.examType ?? "â€”")}</span> },
+  { key: "price", label: "Price", render: (r) => (r.isFree ? <Badge tone="success">Free</Badge> : <span className="font-bold text-foreground">{num(r.priceAmount) === "" ? "â€”" : formatBdt(num(r.priceAmount) as number)}</span>) },
+  { key: "questionsCount", label: "Questions", render: (r) => <span className="text-muted-foreground">{num(r.questionsCount) === "" ? "â€”" : String(r.questionsCount)}</span> },
+  { key: "rating", label: "Rating", sortable: true, render: (r) => <span className="text-muted-foreground">{typeof r.rating === "number" ? r.rating.toFixed(1) : "â€”"}</span> },
   { key: "published", label: "Status", render: (r) => <PubBadge published={r.published} /> },
 ];
 
@@ -411,7 +412,7 @@ export function ExamsListPage() {
       fetchList={(q, page, perPage) => api.listExams(q, page, perPage) as Promise<PageResult<Row>>}
       seed={() => seedExams as unknown as Row[]}
       onDelete={async (id) => { await api.deleteExam(id); }}
-      searchPlaceholder="Search exams…"
+      searchPlaceholder="Search examsâ€¦"
     />
   );
 }
@@ -446,12 +447,12 @@ export function ExamFormPage({ id }: { id?: string }) {
   );
 }
 
-// ─── Blogs ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Blogs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const blogColumns: AdminColumn<Row>[] = [
   { key: "title", label: "Title", sortable: true, render: (r) => <p className="max-w-[28ch] truncate font-bold text-foreground">{String(r.title ?? "")}</p> },
-  { key: "category", label: "Category", render: (r) => <span className="text-muted-foreground">{String(r.category ?? "—")}</span> },
-  { key: "author", label: "Author", render: (r) => <span className="text-muted-foreground">{String(r.author ?? "—")}</span> },
-  { key: "readMinutes", label: "Read", render: (r) => <span className="text-muted-foreground">{num(r.readMinutes) === "" ? "—" : `${String(r.readMinutes)}m`}</span> },
+  { key: "category", label: "Category", render: (r) => <span className="text-muted-foreground">{String(r.category ?? "â€”")}</span> },
+  { key: "author", label: "Author", render: (r) => <span className="text-muted-foreground">{String(r.author ?? "â€”")}</span> },
+  { key: "readMinutes", label: "Read", render: (r) => <span className="text-muted-foreground">{num(r.readMinutes) === "" ? "â€”" : `${String(r.readMinutes)}m`}</span> },
   { key: "published", label: "Status", render: (r) => <PubBadge published={r.published} /> },
 ];
 
@@ -468,7 +469,7 @@ export function BlogsListPage() {
       fetchList={(q, page, perPage) => api.listBlogs(q, page, perPage) as Promise<PageResult<Row>>}
       seed={() => seedBlogs as unknown as Row[]}
       onDelete={async (id) => { await api.deleteBlog(id); }}
-      searchPlaceholder="Search posts…"
+      searchPlaceholder="Search postsâ€¦"
     />
   );
 }
@@ -497,7 +498,7 @@ export function BlogFormPage({ id }: { id?: string }) {
   );
 }
 
-// ─── Shared form-page helpers ──────────────────────────────────────────────
+// â”€â”€â”€ Shared form-page helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function EditorSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mt-6 rounded-2xl border border-border bg-surface/60 p-4 dark:bg-background/60">
@@ -512,7 +513,7 @@ function PageSkeleton({ title, loading, notFound, children }: { title: string; l
     return (
       <div className="py-16 text-center">
         <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-border border-t-accent" />
-        <p className="mt-3 text-sm text-muted-foreground">Loading {title.toLowerCase()}…</p>
+        <p className="mt-3 text-sm text-muted-foreground">Loading {title.toLowerCase()}â€¦</p>
       </div>
     );
   }
@@ -594,7 +595,7 @@ function normalizeInitial(row: Record<string, unknown>): Record<string, unknown>
   return { ...toForm(blogFields, row), content: normBlocks(row.content), seo: (row.seo as Record<string, unknown>) ?? {} };
 }
 
-// ─── Users ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Users â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export function UsersPage() {
   useAdminTitle("Users");
   const toast = useToast();
@@ -724,7 +725,7 @@ export function UsersPage() {
 
   async function revokeAccess(enrollmentId: string) {
     if (!overviewUser) return;
-    if (typeof window !== "undefined" && !window.confirm("এই access টা বাতিল করবেন?")) return;
+    if (typeof window !== "undefined" && !window.confirm("à¦ڈà¦‡ access à¦ںà¦¾ à¦¬à¦¾à¦¤à¦؟à¦² à¦•à¦°à¦¬à§‡à¦¨?")) return;
     try {
       await api.revokeEnrollment(overviewUser.id, enrollmentId);
       toast.success("Access revoked");
@@ -745,7 +746,7 @@ export function UsersPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="w-56">
-            <SearchInput value={q} onChange={(v) => { setQ(v); setPage(1); }} placeholder="Search users…" />
+            <SearchInput value={q} onChange={(v) => { setQ(v); setPage(1); }} placeholder="Search usersâ€¦" />
           </div>
           <select value={role} onChange={(e) => { setRole(e.target.value); setPage(1); }} className="rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground outline-none focus:border-accent">
             <option value="">All roles</option>
@@ -762,7 +763,7 @@ export function UsersPage() {
           </select>
         </div>
       </div>
-      {mode === "demo" && <p className="mt-2 text-xs text-muted-foreground">API unreachable — showing demo users.</p>}
+      {mode === "demo" && <p className="mt-2 text-xs text-muted-foreground">API unreachable â€” showing demo users.</p>}
 
       <div className="mt-4 overflow-hidden rounded-3xl border border-border bg-card shadow-card">
         <div className="overflow-x-auto">
@@ -810,9 +811,9 @@ export function UsersPage() {
         </AdminModal>
       )}
       {overviewUser && (
-        <AdminModal open onClose={() => setOverviewUser(null)} title={`Dashboard — ${overviewUser.name}`} wide>
+        <AdminModal open onClose={() => setOverviewUser(null)} title={`Dashboard â€” ${overviewUser.name}`} wide>
           {!overview ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">Loadingâ€¦</p>
           ) : (
             <div className="space-y-5">
               <div className="rounded-2xl border border-border bg-surface/50 p-4">
@@ -824,7 +825,7 @@ export function UsersPage() {
                     <option value="exam">Exam</option>
                   </select>
                   <select value={grantProductId} onChange={(e) => setGrantProductId(e.target.value)} className="min-w-[220px] flex-1 rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground outline-none focus:border-accent">
-                    <option value="">— প্রোডাক্ট বেছে নিন —</option>
+                    <option value="">â€” à¦ھà§چà¦°à§‹à¦،à¦¾à¦•à§چà¦ں à¦¬à§‡à¦›à§‡ à¦¨à¦؟à¦¨ â€”</option>
                     {grantOptions.filter((o) => o.type === grantType).map((o) => (
                       <option key={o.id} value={o.id}>{o.title}</option>
                     ))}
@@ -845,7 +846,7 @@ export function UsersPage() {
                           <p className="truncate text-sm font-bold text-foreground">{e.title}</p>
                           <p className="text-xs text-muted-foreground">
                             <span className="uppercase">{e.productType}</span>
-                            {e.giftFrom ? ` · 🎁 gift from ${e.giftFrom}` : e.viaAdmin ? " · admin" : ""}
+                            {e.giftFrom ? ` آ· ًںژپ gift from ${e.giftFrom}` : e.viaAdmin ? " آ· admin" : ""}
                           </p>
                         </div>
                         <button type="button" onClick={() => revokeAccess(e.id)} className="rounded-lg border border-danger/40 px-3 py-1.5 text-xs font-bold text-danger hover:bg-danger/10">Revoke</button>
@@ -863,7 +864,7 @@ export function UsersPage() {
                   <div className="space-y-1.5">
                     {overview.orders.slice(0, 10).map((o) => (
                       <div key={o.id} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm">
-                        <span className="font-mono text-xs text-muted-foreground">#{o.orderNumber ?? "—"}</span>
+                        <span className="font-mono text-xs text-muted-foreground">#{o.orderNumber ?? "â€”"}</span>
                         <span className="min-w-0 flex-1 truncate text-foreground">{o.productTitle}</span>
                         <Badge tone={o.status === "PAID" ? "success" : o.status === "CANCELLED" || o.status === "FAILED" ? "danger" : "muted"}>{o.status}</Badge>
                         <span className="font-bold text-foreground">{formatBdt(o.total ?? o.amount)}</span>
@@ -957,14 +958,14 @@ function UserFields({ user, onSave, onClose, busy }: { user: AppUser; onSave: (d
       <div className="mt-6 flex justify-end gap-3">
         <button type="button" onClick={onClose} className="rounded-xl border border-border px-5 py-2.5 text-sm font-bold text-foreground transition-colors hover:bg-muted">Cancel</button>
         <button type="button" onClick={() => onSave(form)} disabled={busy} className="rounded-xl bg-accent px-5 py-2.5 text-sm font-bold text-accent-foreground transition-colors hover:bg-accent-hover disabled:opacity-50">
-          {busy ? "Saving…" : "Save"}
+          {busy ? "Savingâ€¦" : "Save"}
         </button>
       </div>
     </div>
   );
 }
 
-// ─── Orders ────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Orders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export function OrdersPage() {
   useAdminTitle("Orders");
   const toast = useToast();
@@ -1123,7 +1124,7 @@ export function OrdersPage() {
     setBusyId(o.id);
     try {
       const res = await api.sendToSteadfast(o.id);
-      toast.success(`Steadfast e pathano holo${res.trackingCode ? ` — ${res.trackingCode}` : ""}`);
+      toast.success(`Steadfast e pathano holo${res.trackingCode ? ` â€” ${res.trackingCode}` : ""}`);
       setDetails((d) => (d && d.id === o.id ? { ...d, trackingCode: res.trackingCode ?? d.trackingCode, consignmentId: res.consignmentId ?? d.consignmentId, courierStatus: res.status ?? d.courierStatus } : d));
       load();
     } catch (e) {
@@ -1137,7 +1138,7 @@ export function OrdersPage() {
     setBusyId(o.id);
     try {
       const res = await api.refreshCourier(o.id);
-      toast.success(`Courier status: ${res.delivery_status ?? "—"}`);
+      toast.success(`Courier status: ${res.delivery_status ?? "â€”"}`);
       setDetails((d) => (d && d.id === o.id ? { ...d, courierStatus: res.delivery_status ?? d.courierStatus } : d));
       load();
     } catch (e) {
@@ -1162,7 +1163,7 @@ export function OrdersPage() {
 
   async function blockValue(type: "PHONE" | "IP", value: string, order?: Order) {
     const v = value.trim();
-    if (!v || v === "—") return;
+    if (!v || v === "â€”") return;
     if (typeof window !== "undefined" && !window.confirm(`${v} block korben? Ei ${type === "PHONE" ? "number" : "IP"} theke ar order asbe na.`)) return;
     try {
       await api.addBlocked({ type, value: v, reason: order ? `Blocked from order ${order.orderNumber ?? order.id}` : undefined });
@@ -1176,8 +1177,8 @@ export function OrdersPage() {
   const editCls = "w-full rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-accent";
 
   const customerName = (o: Order) => o.user?.name ?? o.guestName ?? "Guest";
-  const customerPhone = (o: Order) => o.user?.phone ?? o.guestPhone ?? "—";
-  const customerEmail = (o: Order) => o.user?.email ?? o.guestEmail ?? "—";
+  const customerPhone = (o: Order) => o.user?.phone ?? o.guestPhone ?? "â€”";
+  const customerEmail = (o: Order) => o.user?.email ?? o.guestEmail ?? "â€”";
   const isGuest = (o: Order) => !o.userId && !o.user;
 
   return (
@@ -1187,7 +1188,7 @@ export function OrdersPage() {
           <h1 className="font-display text-2xl font-extrabold text-foreground">Orders</h1>
           <p className="mt-1 text-sm text-muted-foreground">Track and update order payments</p>
           {courierBalance != null && (
-            <p className="mt-1 text-xs font-semibold text-accent">Steadfast balance: ৳{formatBdt(courierBalance)}</p>
+            <p className="mt-1 text-xs font-semibold text-accent">Steadfast balance: à§³{formatBdt(courierBalance)}</p>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -1214,11 +1215,11 @@ export function OrdersPage() {
             <input type="date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} className="rounded-lg border border-border bg-card px-2 py-2 text-xs text-foreground outline-none focus:border-accent" />
           </label>
           <button type="button" onClick={refreshAll} disabled={refreshing} className="rounded-xl border border-border px-3 py-2.5 text-xs font-bold text-foreground hover:bg-muted disabled:opacity-50">
-            {refreshing ? "Refreshing…" : "Refresh courier statuses"}
+            {refreshing ? "Refreshingâ€¦" : "Refresh courier statuses"}
           </button>
         </div>
       </div>
-      {mode === "demo" && <p className="mt-2 text-xs text-muted-foreground">API unreachable — showing demo orders.</p>}
+      {mode === "demo" && <p className="mt-2 text-xs text-muted-foreground">API unreachable â€” showing demo orders.</p>}
 
       {selected.length > 0 && (
         <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-accent/40 bg-accent/5 px-4 py-3">
@@ -1272,28 +1273,28 @@ export function OrdersPage() {
                     {o.customerHistory && o.customerHistory.sent > 0 ? (
                       <>
                         <span className="font-bold text-success">{o.customerHistory.delivered} delivered</span>
-                        <span className="text-muted-foreground"> · {o.customerHistory.cancelled} cancel</span>
+                        <span className="text-muted-foreground"> آ· {o.customerHistory.cancelled} cancel</span>
                         <span className="block text-[11px] text-muted-foreground">
                           sent {o.customerHistory.sent}
-                          {o.customerHistory.inProgress ? ` · ${o.customerHistory.inProgress} active` : ""}
-                          {o.customerHistory.returned ? ` · ${o.customerHistory.returned} returned` : ""}
+                          {o.customerHistory.inProgress ? ` آ· ${o.customerHistory.inProgress} active` : ""}
+                          {o.customerHistory.returned ? ` آ· ${o.customerHistory.returned} returned` : ""}
                         </span>
                       </>
                     ) : (
                       <span className="text-muted-foreground">No Steadfast record</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{o.productType === "book" ? o.quantity ?? 1 : "—"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{o.productType === "book" ? o.quantity ?? 1 : "â€”"}</td>
                   <td className="px-4 py-3 text-xs font-semibold text-muted-foreground">{o.paymentMethod ?? o.method}</td>
                   <td className="px-4 py-3"><Badge tone={statusTone(o.status)}>{o.status}</Badge></td>
-                  <td className="px-4 py-3 text-right text-xs text-muted-foreground">{o.isPhysical ? formatBdt(o.deliveryCharge ?? 0) : "—"}</td>
+                  <td className="px-4 py-3 text-right text-xs text-muted-foreground">{o.isPhysical ? formatBdt(o.deliveryCharge ?? 0) : "â€”"}</td>
                   <td className="px-4 py-3 text-right font-bold text-foreground">{formatBdt(o.total ?? o.amount)}</td>
                   <td className="px-4 py-3 text-muted-foreground">{new Date(o.createdAt).toLocaleDateString("en-BD")}</td>
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-2">
                       {o.isPhysical && !o.trackingCode && (
                         <button type="button" onClick={() => sendCourier(o)} disabled={busyId === o.id} className="rounded-lg bg-accent px-2.5 py-1 text-xs font-bold text-accent-foreground hover:bg-accent-hover disabled:opacity-50">
-                          {busyId === o.id ? "…" : "Send"}
+                          {busyId === o.id ? "â€¦" : "Send"}
                         </button>
                       )}
                       {o.trackingCode && <span className="font-mono text-[10px] text-muted-foreground">{o.trackingCode}</span>}
@@ -1313,22 +1314,22 @@ export function OrdersPage() {
         <AdminModal open onClose={() => setDetails(null)} title={`Order ${details.id}`} wide>
           <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
             {[
-              ["Order no", String(details.orderNumber ?? "—")],
+              ["Order no", String(details.orderNumber ?? "â€”")],
               ["Customer", customerName(details)],
               ["Customer type", isGuest(details) ? "Guest checkout" : "Registered"],
               ["Phone", customerPhone(details)],
               ["Email", customerEmail(details)],
-              ["Device", details.device || "—"],
-              ["IP address", details.ipAddress || "—"],
+              ["Device", details.device || "â€”"],
+              ["IP address", details.ipAddress || "â€”"],
               ["Item", details.productTitle],
-              ["Type", `${details.productType}${details.variant ? ` · ${details.variant}` : ""}`],
+              ["Type", `${details.productType}${details.variant ? ` آ· ${details.variant}` : ""}`],
               ["Quantity", String(details.productType === "book" ? details.quantity ?? 1 : 1)],
               ["Amount", formatBdt(details.amount)],
-              ["Delivery", details.isPhysical ? `${formatBdt(details.deliveryCharge ?? 0)} (${details.region ?? "—"})` : "—"],
+              ["Delivery", details.isPhysical ? `${formatBdt(details.deliveryCharge ?? 0)} (${details.region ?? "â€”"})` : "â€”"],
               ["Total bill", formatBdt(details.total ?? details.amount)],
               ["Payment method", details.paymentMethod ?? details.method],
-              ["Transaction", details.txId || "—"],
-              ["Address", details.address || "—"],
+              ["Transaction", details.txId || "â€”"],
+              ["Address", details.address || "â€”"],
               ["Date", new Date(details.createdAt).toLocaleString("en-BD")],
               ["Status", details.status],
             ].map(([k, v]) => (
@@ -1340,7 +1341,7 @@ export function OrdersPage() {
           </dl>
 
           <div className="mt-4 flex flex-wrap gap-2">
-            {customerPhone(details) !== "—" && (
+            {customerPhone(details) !== "â€”" && (
               <button type="button" onClick={() => blockValue("PHONE", customerPhone(details), details)} className="rounded-lg border border-danger/40 px-3 py-1.5 text-xs font-bold text-danger hover:bg-danger/10">
                 Block this phone
               </button>
@@ -1377,12 +1378,12 @@ export function OrdersPage() {
             {details.trackingCode ? (
               <div className="space-y-1 text-sm">
                 <p>Tracking: <span className="font-mono font-bold text-foreground">{details.trackingCode}</span></p>
-                <p className="text-muted-foreground">Consignment: {details.consignmentId ?? "—"} · Status: <span className="font-semibold text-foreground">{details.courierStatus ?? "—"}</span></p>
+                <p className="text-muted-foreground">Consignment: {details.consignmentId ?? "â€”"} آ· Status: <span className="font-semibold text-foreground">{details.courierStatus ?? "â€”"}</span></p>
                 <button type="button" onClick={() => refreshCourierStatus(details)} disabled={busyId === details.id} className="mt-2 rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted disabled:opacity-50">Refresh courier status</button>
               </div>
             ) : details.isPhysical ? (
               <button type="button" onClick={() => sendCourier(details)} disabled={busyId === details.id} className="rounded-lg bg-accent px-4 py-2 text-xs font-bold text-accent-foreground hover:bg-accent-hover disabled:opacity-50">
-                {busyId === details.id ? "Sending…" : "Send to Steadfast"}
+                {busyId === details.id ? "Sendingâ€¦" : "Send to Steadfast"}
               </button>
             ) : (
               <p className="text-xs text-muted-foreground">Only hardcopy orders can be sent to Steadfast.</p>
@@ -1402,10 +1403,10 @@ export function OrdersPage() {
                 ["productTitle", "Product"],
                 ["variant", "Variant (pdf/hardcopy)"],
                 ["quantity", "Quantity"],
-                ["amount", "Amount (৳)"],
-                ["discount", "Discount (৳)"],
-                ["deliveryCharge", "Delivery (৳)"],
-                ["total", "Total (৳)"],
+                ["amount", "Amount (à§³)"],
+                ["discount", "Discount (à§³)"],
+                ["deliveryCharge", "Delivery (à§³)"],
+                ["total", "Total (à§³)"],
                 ["status", "Status"],
                 ["paymentMethod", "Payment method"],
                 ["region", "Region (DHAKA/OUTSIDE)"],
@@ -1424,7 +1425,7 @@ export function OrdersPage() {
           </div>
           <div className="mt-4 flex justify-end gap-2 border-t border-border pt-4">
             <button type="button" onClick={() => setEditingId(null)} className="rounded-xl border border-border px-5 py-2.5 text-sm font-bold text-foreground hover:bg-muted">Cancel</button>
-            <button type="button" onClick={saveEdit} disabled={saving} className="rounded-xl bg-accent px-6 py-2.5 text-sm font-bold text-accent-foreground hover:bg-accent-hover disabled:opacity-60">{saving ? "Saving…" : "Save order"}</button>
+            <button type="button" onClick={saveEdit} disabled={saving} className="rounded-xl bg-accent px-6 py-2.5 text-sm font-bold text-accent-foreground hover:bg-accent-hover disabled:opacity-60">{saving ? "Savingâ€¦" : "Save order"}</button>
           </div>
         </AdminModal>
       )}
@@ -1432,7 +1433,7 @@ export function OrdersPage() {
   );
 }
 
-// ─── Reviews ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ Reviews â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 type ReviewDraft = {
   id?: string;
   productType: "course" | "book" | "exam";
@@ -1594,7 +1595,7 @@ export function ReviewsPage() {
 
       <div className="mt-4 space-y-3">
         {loading ? (
-          <p className="py-10 text-center text-sm text-muted-foreground">Loading…</p>
+          <p className="py-10 text-center text-sm text-muted-foreground">Loadingâ€¦</p>
         ) : rows.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-border py-16 text-center text-sm text-muted-foreground">No reviews here.</div>
         ) : (
@@ -1608,12 +1609,12 @@ export function ReviewsPage() {
                   )}
                   <div>
                     <p className="text-sm font-bold text-foreground">{r.user?.name ?? r.authorName ?? "Admin"}</p>
-                    <p className="text-xs text-muted-foreground">{r.productType} · {r.productId} · {r.rating}★ · {new Date(r.createdAt).toLocaleDateString("en-BD")}</p>
+                    <p className="text-xs text-muted-foreground">{r.productType} آ· {r.productId} آ· {r.rating}âک… آ· {new Date(r.createdAt).toLocaleDateString("en-BD")}</p>
                   </div>
                 </div>
                 <Badge tone={r.status === "APPROVED" ? "success" : r.status === "REJECTED" ? "danger" : "accent"}>{r.status}</Badge>
               </div>
-              <p className="mt-3 text-sm text-muted-foreground">“{r.text}”</p>
+              <p className="mt-3 text-sm text-muted-foreground">â€œ{r.text}â€‌</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {r.status !== "APPROVED" && <button type="button" onClick={() => moderate(r, true)} className="rounded-lg bg-success px-3 py-1.5 text-xs font-bold text-success-foreground hover:opacity-90">Approve</button>}
                 {r.status !== "REJECTED" && <button type="button" onClick={() => moderate(r, false)} className="rounded-lg bg-danger px-3 py-1.5 text-xs font-bold text-danger-foreground hover:opacity-90">Reject</button>}
@@ -1640,7 +1641,7 @@ export function ReviewsPage() {
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Product</span>
                 <select value={draft.productId} onChange={(e) => setDraft({ ...draft, productId: e.target.value })} className={inputCls}>
-                  <option value="">— select —</option>
+                  <option value="">â€” select â€”</option>
                   {productOptions.map((o) => (<option key={o.id} value={o.id}>{o.title}</option>))}
                 </select>
               </label>
@@ -1651,7 +1652,7 @@ export function ReviewsPage() {
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rating</span>
                 <select value={draft.rating} onChange={(e) => setDraft({ ...draft, rating: Number(e.target.value) })} className={inputCls}>
-                  {[5, 4, 3, 2, 1].map((n) => (<option key={n} value={n}>{n} ★</option>))}
+                  {[5, 4, 3, 2, 1].map((n) => (<option key={n} value={n}>{n} âک…</option>))}
                 </select>
               </label>
               <label className="block">
@@ -1672,18 +1673,18 @@ export function ReviewsPage() {
                 <div className="relative w-max">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={draft.imageUrl} alt="" className="h-24 rounded-xl object-cover" />
-                  <button type="button" onClick={() => setDraft({ ...draft, imageUrl: "" })} className="absolute -right-2 -top-2 rounded-full bg-danger p-1 text-danger-foreground" aria-label="Remove photo">✕</button>
+                  <button type="button" onClick={() => setDraft({ ...draft, imageUrl: "" })} className="absolute -right-2 -top-2 rounded-full bg-danger p-1 text-danger-foreground" aria-label="Remove photo">âœ•</button>
                 </div>
               ) : (
                 <label className="inline-flex cursor-pointer items-center rounded-xl border border-dashed border-border px-4 py-2 text-xs font-bold text-muted-foreground hover:text-foreground">
-                  📷 Add photo (optional)
+                  ًں“· Add photo (optional)
                   <input type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) setDraft({ ...draft, imageUrl: await resizeReviewImage(f) }); }} />
                 </label>
               )}
             </div>
             <div className="flex justify-end gap-2 border-t border-border pt-3">
               <button type="button" onClick={() => setDraft(null)} className="rounded-xl border border-border px-5 py-2.5 text-sm font-bold text-foreground hover:bg-muted">Cancel</button>
-              <button type="button" onClick={save} disabled={busy} className="rounded-xl bg-accent px-6 py-2.5 text-sm font-bold text-accent-foreground hover:bg-accent-hover disabled:opacity-60">{busy ? "Saving…" : "Save review"}</button>
+              <button type="button" onClick={save} disabled={busy} className="rounded-xl bg-accent px-6 py-2.5 text-sm font-bold text-accent-foreground hover:bg-accent-hover disabled:opacity-60">{busy ? "Savingâ€¦" : "Save review"}</button>
             </div>
           </div>
         )}
@@ -1719,14 +1720,14 @@ function ImageUploadField({ label, value, onChange, className }: { label: string
   );
 }
 
-// ─── Settings ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const SETTINGS_DEFAULTS = {
   siteTitle: "Shohoz Skill",
-  siteTitleBn: "সহজ স্কিল",
+  siteTitleBn: "à¦¸à¦¹à¦œ à¦¸à§چà¦•à¦؟à¦²",
   logoUrl: "",
   faviconUrl: "",
   metaDescription:
-    "Bangladesh's fastest learning platform for government-job preparation — courses, MCQ exams, and books. Learn to Earn.",
+    "Bangladesh's fastest learning platform for government-job preparation â€” courses, MCQ exams, and books. Learn to Earn.",
   ogImageUrl: "",
   keywords: "",
   supportEmail: "support@shohozskill.com",
@@ -1810,7 +1811,7 @@ export function SettingsPage() {
       toast.success("Site settings saved");
       setMode("live");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Save failed — is the API running?");
+      toast.error(err instanceof Error ? err.message : "Save failed â€” is the API running?");
     } finally {
       setBusy(false);
     }
@@ -1823,8 +1824,8 @@ export function SettingsPage() {
     { key: "keywords", label: "Keywords (comma separated)", span2: true },
     { key: "supportEmail", label: "Support email" },
     { key: "supportPhone", label: "Support phone" },
-    { key: "deliveryChargeDhaka", label: "Delivery charge — inside Dhaka (৳)" },
-    { key: "deliveryChargeOutside", label: "Delivery charge — outside Dhaka (৳)" },
+    { key: "deliveryChargeDhaka", label: "Delivery charge â€” inside Dhaka (à§³)" },
+    { key: "deliveryChargeOutside", label: "Delivery charge â€” outside Dhaka (à§³)" },
     { key: "reviewScrollSeconds", label: "Reviews auto-scroll interval (seconds)", span2: true },
   ];
 
@@ -1832,10 +1833,10 @@ export function SettingsPage() {
     <div className="max-w-3xl">
       <h1 className="font-display text-2xl font-extrabold text-foreground">Site Settings</h1>
       <p className="mt-1 text-sm text-muted-foreground">Branding, SEO metadata and delivery charges.</p>
-      {mode === "demo" && <p className="mt-2 text-xs text-muted-foreground">API unreachable — showing defaults.</p>}
+      {mode === "demo" && <p className="mt-2 text-xs text-muted-foreground">API unreachable â€” showing defaults.</p>}
 
       {loading ? (
-        <div className="mt-8 py-10 text-center text-sm text-muted-foreground">Loading settings…</div>
+        <div className="mt-8 py-10 text-center text-sm text-muted-foreground">Loading settingsâ€¦</div>
       ) : (
         <div className="mt-5 rounded-3xl border border-border bg-card p-6 shadow-card">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -1877,7 +1878,7 @@ export function SettingsPage() {
             disabled={busy}
             className="mt-6 rounded-xl bg-accent px-6 py-2.5 text-sm font-bold text-accent-foreground transition-colors hover:bg-accent-hover disabled:opacity-50"
           >
-            {busy ? "Saving…" : "Save settings"}
+            {busy ? "Savingâ€¦" : "Save settings"}
           </button>
         </div>
       )}
@@ -1885,11 +1886,85 @@ export function SettingsPage() {
   );
 }
 
-// ─── Pages (CMS content) ─────────────────────────────────────────────────────
+// â”€â”€â”€ Pages (CMS content) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Live default copy for each page. The editor is pre-filled/merged with these so
+// the admin always sees the exact text currently shown on the site.
+const HOME_DEFAULTS = {
+  heroEyebrow: "Bangladesh's fastest learning platform",
+  heroTitle: "Prepare for Govt. Jobs with Learn to Earn",
+  heroDescription:
+    "BCS, NTRCA, bank & every government job â€” through fast video courses, real negative-marking MCQ exams, and books you can read instantly. Start learning in seconds, not weeks.",
+  heroMetrics: [
+    { value: "62k+", label: "Learners" },
+    { value: "320+", label: "Courses & exams" },
+    { value: "1.2s", label: "Average page load" },
+  ],
+  heroPrimaryLabel: "Explore Courses",
+  heroPrimaryHref: "/courses",
+  heroSecondaryLabel: "Free MCQ Exam",
+  heroSecondaryHref: "/exams",
+  heroSearchPlaceholder: "Search courses, exams, booksâ€¦",
+  deviceStrip: ["âڑ، Instant access", "Log in on up to 2 devices", "Every page loads in under a second", "Watch sample lesson"],
+  stats: homepageStats,
+  categoriesEyebrow: "Categories",
+  categoriesTitle: "Pick your exam, we do the rest",
+  categoriesDescription: "Focused preparation tracks for every government job of Bangladesh.",
+  coursesEyebrow: "Featured Courses",
+  coursesTitle: "Courses that turn preparation into placement",
+  coursesDescription: "Short, exam-first video lessons with shortcuts, quizzes and a certificate on completion.",
+  examsEyebrow: "MCQ Exam Engine",
+  examsTitle: "Practice under real exam pressure",
+  examsDescription:
+    "Topic-wise exams inside packages, negative marking simulators, and instant result analysis with explanations. Free till you're ready for the paid battlefield.",
+  examEngineTitle: "How the exam engine works",
+  examsSteps: [
+    { title: "Pick a topic", description: "Subject â†’ topic-wise exam, tuned to the real paper pattern." },
+    { title: "Sit the test", description: "Per-question marks & negative marking exactly like the board." },
+    { title: "Get instant analysis", description: "Score, breakdown, and every answer explained in seconds." },
+  ],
+  booksEyebrow: "Featured Books",
+  booksTitle: "Read the book the moment you buy it",
+  booksDescription:
+    "Watermarked online reader â€” no downloads, no waiting. Or get hardcopy shipped to any upazila of Bangladesh.",
+  reviewsEyebrow: "Success Stories",
+  reviewsTitle: "Reviews from our learners",
+  reviewsDescription: "From first attempt to final selection â€” real words from real toppers.",
+  blogsEyebrow: "From the Blog",
+  blogsTitle: "Strategy notes, study plans, exam analysis",
+  faqEyebrow: "FAQ",
+  faqTitle: "Questions? Answered.",
+  faqDescription: "Still stuck? Write to support@shohozskill.com â€” average reply time under 2 hours.",
+  faq: homeFaq,
+  ctaBadge: "Start today",
+  ctaTitle: "Your job is waiting. Learn to Earn.",
+  ctaDescription: "Join 62,000+ aspirants preparing faster with Shohoz Skill. Courses, MCQ exams and books â€” all under one roof.",
+  ctaPrimaryLabel: "Browse Courses",
+  ctaPrimaryHref: "/courses",
+  ctaSecondaryLabel: "View Exam Packages",
+  ctaSecondaryHref: "/exams",
+  ctaFootnote: "Pay with bKash آ· Nagad آ· SSLCommerz â€” instant access",
+};
+
+const ABOUT_DEFAULTS = {
+  title: "Job preparation, rebuilt as a product",
+  description:
+    "We are a small team of ex-BCS and ex-bank officers who got tired of how slow and expensive government-job preparation had become.",
+  story: aboutContent.story,
+  values: aboutContent.values,
+  milestones: aboutContent.milestones,
+};
+
+const CONTACT_DEFAULTS = {
+  title: "We answer fast â€” usually within a day",
+  description:
+    "Support, refunds, bulk school orders, or just a question about a course. Pick whatever is easiest for you.",
+  supportHours: "Saturday â€“ Thursday",
+};
+
 const PAGE_META: Record<string, { label: string; hint: string; template: Record<string, any> }> = {
   home: {
     label: "Home",
-    hint: "Overrides for the homepage. Leave a field blank to use the default.",
+    hint: "Homepage â€” à¦ھà§چà¦°à¦¤à¦؟à¦ںà¦؟ à¦¬à¦•à§چà¦¸à§‡ à¦ڈà¦–à¦¨ à¦¸à¦¾à¦‡à¦ںà§‡ à¦¯à§‡ à¦ںà§‡à¦•à§چà¦¸à¦ں à¦¦à§‡à¦–à¦¾à¦ڑà§چà¦›à§‡ à¦¸à§‡à¦ںà¦¾à¦‡ à¦¬à¦¸à¦¾à¦¨à§‹ à¦†à¦›à§‡à¥¤ à¦¯à§‡à¦ںà¦¾ à¦¬à¦¦à¦²à¦¾à¦¤à§‡ à¦ڑà¦¾à¦¨ à¦¶à§پà¦§à§پ à¦¸à§‡à¦ںà¦¾ à¦ڈà¦،à¦؟à¦ں à¦•à¦°à§‡ Save content à¦ڑà¦¾à¦ھà§پà¦¨à¥¤",
     template: {
       heroEyebrow: "", heroTitle: "", heroDescription: "", heroMetrics: [],
       heroPrimaryLabel: "", heroPrimaryHref: "", heroSecondaryLabel: "", heroSecondaryHref: "", heroSearchPlaceholder: "",
@@ -1898,12 +1973,12 @@ const PAGE_META: Record<string, { label: string; hint: string; template: Record<
   },
   about: {
     label: "About Us",
-    hint: "Story paragraphs, values and milestones.",
+    hint: "About page â€” à¦—à¦²à§چà¦ھ (Story), Values à¦“ Milestones à¦ڈà¦–à¦¨ à¦¸à¦¾à¦‡à¦ںà§‡ à¦¯à¦¾ à¦¦à§‡à¦–à¦¾à¦ڑà§چà¦›à§‡ à¦¸à§‡à¦ںà¦¾à¦‡ à¦¬à¦¸à¦¾à¦¨à§‹à¥¤ à¦ڈà¦،à¦؟à¦ں à¦•à¦°à§‡ Save à¦•à¦°à§پà¦¨à¥¤",
     template: { story: [], values: [], milestones: [] },
   },
   contact: {
     label: "Contact Us",
-    hint: "Contact details and intro copy.",
+    hint: "Contact page â€” title/description/support hours à¦ڈà¦،à¦؟à¦ں à¦•à¦°à§پà¦¨à¥¤ Email/Phone/Address à¦–à¦¾à¦²à¦؟ à¦°à¦¾à¦–à¦²à§‡ Site Settings à¦¥à§‡à¦•à§‡ à¦¨à§‡à¦¬à§‡à¥¤",
     template: { title: "", description: "", email: "", phone: "", address: "", supportHours: "" },
   },
 };
@@ -1911,7 +1986,7 @@ const PAGE_META: Record<string, { label: string; hint: string; template: Record<
 const pageInputCls = "w-full rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-accent";
 
 function HomeForm({ data, onChange }: { data: any; onChange: (v: any) => void }) {
-  const d = { ...PAGE_META.home.template, ...(data || {}) };
+  const d = { ...HOME_DEFAULTS, ...(data || {}) };
   const set = (k: string, v: any) => onChange({ ...d, [k]: v });
 
   const addHeroMetric = () => set("heroMetrics", [...(d.heroMetrics || []), { value: "", label: "" }]);
@@ -1981,7 +2056,7 @@ function HomeForm({ data, onChange }: { data: any; onChange: (v: any) => void })
               <div key={i} className="relative rounded-xl border border-border bg-card p-2">
                 <input value={m.value} onChange={(e) => updHeroMetric(i, { ...m, value: e.target.value })} placeholder="Value (e.g. 62k+)" className={cn(pageInputCls, "mb-1 p-1.5 text-xs")} />
                 <input value={m.label} onChange={(e) => updHeroMetric(i, { ...m, label: e.target.value })} placeholder="Label (e.g. Learners)" className={cn(pageInputCls, "p-1.5 text-xs")} />
-                <button type="button" onClick={() => remHeroMetric(i)} className="absolute right-1 top-1 text-muted-foreground hover:text-danger">✕</button>
+                <button type="button" onClick={() => remHeroMetric(i)} className="absolute right-1 top-1 text-muted-foreground hover:text-danger">âœ•</button>
               </div>
             ))}
           </div>
@@ -2015,7 +2090,7 @@ function HomeForm({ data, onChange }: { data: any; onChange: (v: any) => void })
               <input type="number" value={s.value} onChange={(e) => updStat(i, { ...s, value: Number(e.target.value) })} placeholder="Number" className={pageInputCls} />
               <input value={s.suffix} onChange={(e) => updStat(i, { ...s, suffix: e.target.value })} placeholder="Suffix (e.g. +)" className={pageInputCls} />
               <input value={s.label} onChange={(e) => updStat(i, { ...s, label: e.target.value })} placeholder="Label" className={cn(pageInputCls, "w-full flex-1")} />
-              <button type="button" onClick={() => remStat(i)} className="px-2 text-muted-foreground hover:text-danger">✕</button>
+              <button type="button" onClick={() => remStat(i)} className="px-2 text-muted-foreground hover:text-danger">âœ•</button>
             </div>
           ))}
         </div>
@@ -2054,7 +2129,7 @@ function HomeForm({ data, onChange }: { data: any; onChange: (v: any) => void })
               <div key={i} className="flex flex-col gap-2 rounded-xl border border-border bg-card p-2 relative">
                 <input value={s.title} onChange={(e) => updExamStep(i, { ...s, title: e.target.value })} placeholder="Title" className={pageInputCls} />
                 <textarea rows={2} value={s.description} onChange={(e) => updExamStep(i, { ...s, description: e.target.value })} placeholder="Description" className={cn(pageInputCls, "resize-y")} />
-                <button type="button" onClick={() => remExamStep(i)} className="absolute right-2 top-2 rounded bg-background p-1 text-muted-foreground hover:text-danger">✕</button>
+                <button type="button" onClick={() => remExamStep(i)} className="absolute right-2 top-2 rounded bg-background p-1 text-muted-foreground hover:text-danger">âœ•</button>
               </div>
             ))}
           </div>
@@ -2120,7 +2195,7 @@ function HomeForm({ data, onChange }: { data: any; onChange: (v: any) => void })
 }
 
 function AboutForm({ data, onChange }: { data: any; onChange: (v: any) => void }) {
-  const d = { ...PAGE_META.about.template, ...(data || {}) };
+  const d = { ...ABOUT_DEFAULTS, ...(data || {}) };
   const set = (k: string, v: any) => onChange({ ...d, [k]: v });
   
   const addValue = () => set("values", [...(d.values || []), { title: "", description: "" }]);
@@ -2147,7 +2222,7 @@ function AboutForm({ data, onChange }: { data: any; onChange: (v: any) => void }
                 <input value={v.title} onChange={(e) => updValue(i, { ...v, title: e.target.value })} placeholder="Title" className={pageInputCls} />
                 <textarea rows={2} value={v.description} onChange={(e) => updValue(i, { ...v, description: e.target.value })} placeholder="Description" className={cn(pageInputCls, "resize-y")} />
               </div>
-              <button type="button" onClick={() => remValue(i)} className="p-2 text-muted-foreground hover:text-danger">✕</button>
+              <button type="button" onClick={() => remValue(i)} className="p-2 text-muted-foreground hover:text-danger">âœ•</button>
             </div>
           ))}
         </div>
@@ -2168,7 +2243,7 @@ function AboutForm({ data, onChange }: { data: any; onChange: (v: any) => void }
                 </div>
                 <textarea rows={2} value={m.description} onChange={(e) => updMilestone(i, { ...m, description: e.target.value })} placeholder="Description" className={cn(pageInputCls, "resize-y")} />
               </div>
-              <button type="button" onClick={() => remMilestone(i)} className="p-2 text-muted-foreground hover:text-danger">✕</button>
+              <button type="button" onClick={() => remMilestone(i)} className="p-2 text-muted-foreground hover:text-danger">âœ•</button>
             </div>
           ))}
         </div>
@@ -2178,7 +2253,7 @@ function AboutForm({ data, onChange }: { data: any; onChange: (v: any) => void }
 }
 
 function ContactForm({ data, onChange }: { data: any; onChange: (v: any) => void }) {
-  const d = { ...PAGE_META.contact.template, ...(data || {}) };
+  const d = { ...CONTACT_DEFAULTS, ...(data || {}) };
   const set = (k: string, v: any) => onChange({ ...d, [k]: v });
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -2217,6 +2292,8 @@ export function PagesAdminPage() {
   const [docs, setDocs] = useState<Record<string, any>>({ home: {}, about: {}, contact: {} });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [previewKey, setPreviewKey] = useState(0);
+  const previewUrl = active === "home" ? "/" : `/${active}`;
 
   useEffect(() => {
     let cancelled = false;
@@ -2248,16 +2325,16 @@ export function PagesAdminPage() {
       await api.updatePage(active, docs[active] || {});
       toast.success(`${PAGE_META[active].label} content saved`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Save failed — is the API running?");
+      toast.error(err instanceof Error ? err.message : "Save failed â€” is the API running?");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="max-w-4xl">
+    <div className="max-w-7xl">
       <h1 className="font-display text-2xl font-extrabold text-foreground">Pages</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Edit the dynamic content of the Home, About and Contact pages.</p>
+      <p className="mt-1 text-sm text-muted-foreground">Home, About à¦“ Contact à¦ھà§‡à¦œà§‡à¦° à¦¸à¦¬ à¦²à§‡à¦–à¦¾ à¦ڈà¦–à¦¾à¦¨ à¦¥à§‡à¦•à§‡ à¦ڈà¦،à¦؟à¦ں à¦•à¦°à§پà¦¨à¥¤ à¦ھà¦¾à¦¶à§‡ à¦²à¦¾à¦‡à¦­ à¦ھà§چà¦°à¦؟à¦­à¦؟à¦‰ à¦¦à§‡à¦–à¦¾ à¦¯à¦¾à¦¬à§‡à¥¤</p>
 
       <div className="mt-5 flex flex-wrap gap-2">
         {Object.entries(PAGE_META).map(([key, meta]) => (
@@ -2275,10 +2352,11 @@ export function PagesAdminPage() {
         ))}
       </div>
 
-      <div className="mt-4 rounded-3xl border border-border bg-card p-6 shadow-card">
+      <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+      <div className="rounded-3xl border border-border bg-card p-6 shadow-card">
         <p className="mb-4 text-xs text-muted-foreground">{PAGE_META[active].hint}</p>
         {loading ? (
-          <div className="py-10 text-center text-sm text-muted-foreground">Loading…</div>
+          <div className="py-10 text-center text-sm text-muted-foreground">Loadingâ€¦</div>
         ) : (
           <>
             {active === "home" && <HomeForm data={docs.home} onChange={(v) => setDoc("home", v)} />}
@@ -2292,18 +2370,37 @@ export function PagesAdminPage() {
                 disabled={busy}
                 className="rounded-xl bg-accent px-6 py-2.5 text-sm font-bold text-accent-foreground transition-colors hover:bg-accent-hover disabled:opacity-50"
               >
-                {busy ? "Saving…" : "Save content"}
+                {busy ? "Savingâ€¦" : "Save content"}
               </button>
             </div>
           </>
         )}
+      </div>
+
+      <div className="lg:sticky lg:top-20 lg:self-start">
+        <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
+          <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Live preview آ· {PAGE_META[active].label}</p>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => setPreviewKey((k) => k + 1)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-foreground hover:border-accent hover:text-accent">
+                Reload
+              </button>
+              <a href={previewUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-foreground hover:border-accent hover:text-accent">
+                Open
+              </a>
+            </div>
+          </div>
+          <iframe key={previewKey} src={previewUrl} title="Page preview" className="h-[70vh] w-full bg-background" />
+        </div>
+        <p className="mt-2 text-[11px] text-muted-foreground">Save content à¦ڑà¦¾à¦ھà¦¾à¦° à¦ھà¦° Reload à¦ڑà¦¾à¦ھà§پà¦¨ â€” à¦ھà¦°à¦؟à¦¬à¦°à§چà¦¤à¦¨ à¦ڈà¦–à¦¾à¦¨à§‡ à¦¦à§‡à¦–à¦¤à§‡ à¦ھà¦¾à¦¬à§‡à¦¨à¥¤</p>
+      </div>
       </div>
     </div>
   );
 }
 
 
-// ─── Categories ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Categories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const CATEGORY_ICONS = ["graduation", "book", "target", "video", "brain"];
 type CatRow = { slug: string; label: string; labelBn: string; description: string; icon: string; count: number };
 const EMPTY_CAT: CatRow = { slug: "", label: "", labelBn: "", description: "", icon: "graduation", count: 0 };
@@ -2377,9 +2474,9 @@ export function CategoriesPage() {
 
       <div className="mt-5 rounded-3xl border border-border bg-card p-5 shadow-card">
         {loading ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">Loadingâ€¦</p>
         ) : items.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">No categories yet. Click “Add category”.</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">No categories yet. Click â€œAdd categoryâ€‌.</p>
         ) : (
           <div className="space-y-3">
             {items.map((c, i) => (
@@ -2391,7 +2488,7 @@ export function CategoriesPage() {
                   </label>
                   <label className="block">
                     <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Label (Bangla)</span>
-                    <input value={c.labelBn} onChange={(e) => upd(i, { labelBn: e.target.value })} placeholder="বিসিএস" className={inputCls} />
+                    <input value={c.labelBn} onChange={(e) => upd(i, { labelBn: e.target.value })} placeholder="à¦¬à¦؟à¦¸à¦؟à¦ڈà¦¸" className={inputCls} />
                   </label>
                   <label className="block">
                     <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Slug</span>
@@ -2409,8 +2506,8 @@ export function CategoriesPage() {
                   </label>
                 </div>
                 <div className="mt-2 flex items-center gap-2">
-                  <button type="button" onClick={() => move(i, -1)} className="rounded-lg border border-border px-2 py-1 text-xs font-bold text-muted-foreground hover:text-foreground">↑</button>
-                  <button type="button" onClick={() => move(i, 1)} className="rounded-lg border border-border px-2 py-1 text-xs font-bold text-muted-foreground hover:text-foreground">↓</button>
+                  <button type="button" onClick={() => move(i, -1)} className="rounded-lg border border-border px-2 py-1 text-xs font-bold text-muted-foreground hover:text-foreground">â†‘</button>
+                  <button type="button" onClick={() => move(i, 1)} className="rounded-lg border border-border px-2 py-1 text-xs font-bold text-muted-foreground hover:text-foreground">â†“</button>
                   <button type="button" onClick={() => rem(i)} className="ml-auto rounded-lg border border-danger/40 px-3 py-1 text-xs font-bold text-danger hover:bg-danger/10">Remove</button>
                 </div>
               </div>
@@ -2420,7 +2517,7 @@ export function CategoriesPage() {
 
         <div className="mt-5 flex items-center gap-3 border-t border-border pt-5">
           <button type="button" onClick={save} disabled={busy || loading} className="rounded-xl bg-accent px-6 py-2.5 text-sm font-bold text-accent-foreground hover:bg-accent-hover disabled:opacity-50">
-            {busy ? "Saving…" : "Save categories"}
+            {busy ? "Savingâ€¦" : "Save categories"}
           </button>
         </div>
       </div>
@@ -2428,7 +2525,7 @@ export function CategoriesPage() {
   );
 }
 
-// ─── Contact Messages ────────────────────────────────────────────────────────
+// â”€â”€â”€ Contact Messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export function ContactMessagesPage() {
   useAdminTitle("Contact Messages");
   const toast = useToast();
@@ -2505,7 +2602,7 @@ export function ContactMessagesPage() {
           <option value="ARCHIVED">Archived</option>
         </select>
       </div>
-      {mode === "demo" && <p className="mt-2 text-xs text-muted-foreground">API unreachable — no contact messages to show.</p>}
+      {mode === "demo" && <p className="mt-2 text-xs text-muted-foreground">API unreachable â€” no contact messages to show.</p>}
 
       <div className="mt-4 overflow-hidden rounded-3xl border border-border bg-card shadow-card">
         <div className="overflow-x-auto">
@@ -2529,9 +2626,9 @@ export function ContactMessagesPage() {
                   <tr key={m.id} className="cursor-pointer transition-colors hover:bg-muted/40" onClick={() => setViewing(m)}>
                     <td className="px-5 py-3">
                       <p className="font-bold text-foreground">{m.name}</p>
-                      <p className="text-xs text-muted-foreground">{m.email}{m.phone ? ` · ${m.phone}` : ""}</p>
+                      <p className="text-xs text-muted-foreground">{m.email}{m.phone ? ` آ· ${m.phone}` : ""}</p>
                     </td>
-                    <td className="px-5 py-3 text-muted-foreground">{m.subject ?? "—"}</td>
+                    <td className="px-5 py-3 text-muted-foreground">{m.subject ?? "â€”"}</td>
                     <td className="max-w-[34ch] truncate px-5 py-3 text-muted-foreground">{m.message}</td>
                     <td className="px-5 py-3"><Badge tone={tone(m.status)}>{m.status}</Badge></td>
                     <td className="px-5 py-3 text-muted-foreground">{new Date(m.createdAt).toLocaleDateString("en-BD")}</td>
@@ -2549,8 +2646,8 @@ export function ContactMessagesPage() {
           <div className="space-y-3 text-sm">
             <div className="grid grid-cols-2 gap-3">
               <div><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Email</p><p className="mt-0.5 font-semibold text-foreground">{viewing.email}</p></div>
-              <div><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Phone</p><p className="mt-0.5 font-semibold text-foreground">{viewing.phone ?? "—"}</p></div>
-              <div><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Subject</p><p className="mt-0.5 font-semibold text-foreground">{viewing.subject ?? "—"}</p></div>
+              <div><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Phone</p><p className="mt-0.5 font-semibold text-foreground">{viewing.phone ?? "â€”"}</p></div>
+              <div><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Subject</p><p className="mt-0.5 font-semibold text-foreground">{viewing.subject ?? "â€”"}</p></div>
               <div><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date</p><p className="mt-0.5 font-semibold text-foreground">{new Date(viewing.createdAt).toLocaleString("en-BD")}</p></div>
             </div>
             <div><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Message</p><p className="mt-1 whitespace-pre-wrap rounded-xl bg-muted/60 p-4 text-foreground">{viewing.message}</p></div>
@@ -2579,7 +2676,7 @@ export function ContactMessagesPage() {
   );
 }
 
-// ─── Dashboard ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ Dashboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export function DashboardPage() {
   useAdminTitle("Dashboard");
   const [stats, setStats] = useState<Record<string, number | string> | null>(null);
@@ -2609,10 +2706,10 @@ export function DashboardPage() {
 
   const max = Math.max(1, ...(revenue?.map((r) => r.revenue) ?? [1]));
   const kpis = [
-    { label: "Total users", value: stats ? String(stats.totalUsers ?? "—") : "—" },
-    { label: "Active subscriptions", value: stats ? String(stats.activeSubscriptions ?? "—") : "—" },
-    { label: "Revenue (30d)", value: stats ? formatBdt(Number(stats.revenue30d ?? 0)) : "—" },
-    { label: "Pending orders", value: stats ? String(stats.pendingOrders ?? "—") : "—" },
+    { label: "Total users", value: stats ? String(stats.totalUsers ?? "â€”") : "â€”" },
+    { label: "Active subscriptions", value: stats ? String(stats.activeSubscriptions ?? "â€”") : "â€”" },
+    { label: "Revenue (30d)", value: stats ? formatBdt(Number(stats.revenue30d ?? 0)) : "â€”" },
+    { label: "Pending orders", value: stats ? String(stats.pendingOrders ?? "â€”") : "â€”" },
   ];
 
   return (
@@ -2622,7 +2719,7 @@ export function DashboardPage() {
         <p className="text-sm text-muted-foreground">Platform overview</p>
       </div>
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="text-sm text-muted-foreground">Loadingâ€¦</p>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -2634,7 +2731,7 @@ export function DashboardPage() {
             ))}
           </div>
           <section className="rounded-3xl border border-border bg-card p-6 shadow-card">
-            <h2 className="font-display text-lg font-extrabold text-foreground">Revenue — last 12 months</h2>
+            <h2 className="font-display text-lg font-extrabold text-foreground">Revenue â€” last 12 months</h2>
             <div className="mt-6 flex h-44 items-end gap-1.5 sm:gap-2">
               {revenue?.map((r) => (
                 <div key={r.month} className="group relative flex flex-1 flex-col items-center justify-end">
@@ -2650,3 +2747,4 @@ export function DashboardPage() {
     </div>
   );
 }
+

@@ -4,9 +4,10 @@ import { OrdersService } from './orders.service.js';
 import { SteadfastService } from './steadfast.service.js';
 import { CouponsModule } from '../coupons/coupons.module.js';
 import { BlockedModule } from '../blocked/blocked.module.js';
+import { MarketingModule } from '../marketing/marketing.module.js';
 
 @Module({
-  imports: [CouponsModule, BlockedModule],
+  imports: [CouponsModule, BlockedModule, MarketingModule],
   controllers: [OrdersController],
   providers: [OrdersService, SteadfastService],
   exports: [OrdersService],

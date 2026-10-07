@@ -548,6 +548,10 @@ model MarketingPixel {
   headCode  String?  @db.Text
   bodyCode  String?  @db.Text
   enabled   Boolean  @default(true)
+  // Meta/Facebook Conversions API (server-side events)
+  capiToken       String?  @db.Text
+  testEventCode   String?
+  advancedMatching Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

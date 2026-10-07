@@ -6,6 +6,7 @@ import { CouponsService } from '../coupons/coupons.service.js';
 import { BlockedService } from '../blocked/blocked.service.js';
 import { MailService } from '../auth/mail.service.js';
 import { SteadfastService } from './steadfast.service.js';
+import { MetaCapiService } from '../marketing/meta-capi.service.js';
 import { normalizePhone } from '../common/phone.js';
 import type { SaveDraftDto } from './dto/draft.dto.js';
 
@@ -41,6 +42,7 @@ export class OrdersService {
     private readonly steadfast: SteadfastService,
     private readonly blocked: BlockedService,
     private readonly mail: MailService,
+    private readonly metaCapi: MetaCapiService,
   ) {}
 
   // ─── Guest / authenticated checkout ────────────────────────────────────────
@@ -122,7 +124,10 @@ export class OrdersService {
     await this.deleteDraft(dto.draftId);
     void this.sendOrderEmails(order, 'placed');
     if (discount > 0 && couponCode) await this.coupons.markUsed(couponCode);
-    if (isFree) await this.grantAccessForOrder(order);
+    if (isFree) {
+      await this.grantAccessForOrder(order);
+      this.trackPurchase(order);
+    }
 
     const paymentUrl = isFree ? null : await this.initiatePayment(order, userId);
 
@@ -250,7 +255,10 @@ export class OrdersService {
     await this.deleteDraft(dto.draftId);
     void this.sendOrderEmails(order, 'placed');
     if (discount > 0 && couponCode) await this.coupons.markUsed(couponCode);
-    if (isFree) await this.grantAccessForOrder(order);
+    if (isFree) {
+      await this.grantAccessForOrder(order);
+      this.trackPurchase(order);
+    }
 
     const paymentUrl = isFree ? null : await this.initiatePayment(order, userId);
 
@@ -395,6 +403,21 @@ export class OrdersService {
     if (!order.isPhysical) await this.grantAccess(order.userId, order.productType, order.productId);
   }
 
+  /** Fire the server-side Meta Purchase event (best-effort, never blocks). */
+  private trackPurchase(order: {
+    id: string;
+    orderNumber?: number | null;
+    total?: number | null;
+    amount?: number | null;
+    guestEmail?: string | null;
+    guestPhone?: string | null;
+    userId?: string | null;
+    ipAddress?: string | null;
+    userAgent?: string | null;
+  }) {
+    void this.metaCapi.sendOrderPurchase(order).catch(() => {});
+  }
+
   /** Load a product (by id or slug) and compute its authoritative price. */
   private async resolveProduct(dto: {
     productType: string;
@@ -527,6 +550,7 @@ export class OrdersService {
     if (ticks >= 2) {
       await this.prisma.order.update({ where: { id: order.id }, data: { status: 'PAID' } });
       await this.grantAccessForOrder(order);
+      this.trackPurchase(order);
       return { status: 'PAID', message: 'Payment confirmed — access unlocked.' };
     }
     return { status: 'PENDING', message: 'Still waiting for gateway confirmation.' };
@@ -1209,6 +1233,7 @@ export class OrdersService {
               data: { status: 'PAID', txId: body.bank_tran_id || body.tran_id || order.txId },
             });
             await this.grantAccessForOrder(order);
+            this.trackPurchase(order);
             void this.sendOrderEmails(order, 'paid');
             return `${frontendUrl}/checkout/success?orderId=${order.id}&method=SSLCOMMERZ&status=PAID&digital=${digital}`;
           }
@@ -1221,6 +1246,7 @@ export class OrdersService {
           if (order.userId && !order.isPhysical) {
             await this.grantAccess(order.userId, order.productType, order.productId);
           }
+          this.trackPurchase(order);
           return `${frontendUrl}/checkout/success?orderId=${order.id}&method=SSLCOMMERZ&status=PAID&digital=${digital}`;
         }
       } catch (err) {
@@ -1233,6 +1259,7 @@ export class OrdersService {
       if (order.userId && !order.isPhysical) {
         await this.grantAccess(order.userId, order.productType, order.productId);
       }
+      this.trackPurchase(order);
       return `${frontendUrl}/checkout/success?orderId=${order.id}&method=SSLCOMMERZ&status=PAID&digital=${digital}`;
     } else {
       await this.prisma.order.update({
@@ -1254,10 +1281,11 @@ export class OrdersService {
        try {
          const sslcz = this.getSslcz();
          const isValid = await sslcz.validate(body);
-         if (isValid && order.status !== 'PAID') {
-            await this.prisma.order.update({ where: { id: order.id }, data: { status: 'PAID' } });
-            await this.grantAccessForOrder(order);
-         }
+          if (isValid && order.status !== 'PAID') {
+             await this.prisma.order.update({ where: { id: order.id }, data: { status: 'PAID' } });
+             await this.grantAccessForOrder(order);
+             this.trackPurchase(order);
+          }
        } catch (err) {
          console.error('IPN Validation Error:', err);
        }

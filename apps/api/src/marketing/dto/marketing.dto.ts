@@ -36,6 +36,18 @@ export class CreateMarketingPixelDto {
   bodyCode?: string;
 
   @IsOptional()
+  @IsString()
+  capiToken?: string;
+
+  @IsOptional()
+  @IsString()
+  testEventCode?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  advancedMatching?: boolean;
+
+  @IsOptional()
   @IsBoolean()
   enabled?: boolean;
 }
@@ -61,6 +73,18 @@ export class UpdateMarketingPixelDto {
   @IsOptional()
   @IsString()
   bodyCode?: string;
+
+  @IsOptional()
+  @IsString()
+  capiToken?: string;
+
+  @IsOptional()
+  @IsString()
+  testEventCode?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  advancedMatching?: boolean;
 
   @IsOptional()
   @IsBoolean()

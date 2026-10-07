@@ -392,6 +392,9 @@ export type MarketingPixel = {
   headCode?: string | null;
   bodyCode?: string | null;
   enabled: boolean;
+  advancedMatching?: boolean;
+  capiToken?: string | null;
+  testEventCode?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };

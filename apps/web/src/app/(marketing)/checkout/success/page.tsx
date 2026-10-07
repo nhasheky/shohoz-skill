@@ -72,7 +72,7 @@ function SuccessContent() {
       content_type: order.productType,
       content_name: order.productTitle,
       num_items: order.quantity,
-    });
+    }, order.orderNumber ? String(order.orderNumber) : order.id);
   }, [order]);
 
   return (

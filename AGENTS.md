@@ -52,6 +52,9 @@ are about to edit. If you learn something new and important, append it here.
 - Components: `src/components/{admin,auth,brand,cart,dashboard,exam,layout,marketing,product,ui}`.
   `marketing/pixels.tsx` injects admin-managed pixels; `marketing/track-order.tsx` is the
   storefront order-tracking band rendered above the footer on every marketing page.
+- `admin/pages` editor (in `admin-pages.tsx`) pre-fills each field with the **live default
+  copy** (`HOME_DEFAULTS`/`ABOUT_DEFAULTS`/`CONTACT_DEFAULTS`) and shows a live-preview
+  iframe, so the admin sees exactly which text each field maps to.
 - `next.config.ts` permanently redirects old plural URLs → singular.
 
 **API — NestJS (`apps/api/src`), global prefix `/api`**
@@ -71,8 +74,10 @@ are about to edit. If you learn something new and important, append it here.
     `track?q=` (order no / phone / email).
   - `reviews` (+ `admin/reviews`), `blogs`, `cms` (`site-settings`, `pages/:page`,
     `contact-messages`), `coupons`, `blocked`, `uploads` (`init`/`:id/part`/`:id/complete`).
-  - `marketing`: public `GET marketing/pixels` (enabled), admin CRUD
-    `admin/marketing/pixels`.
+  - `marketing`: public `GET marketing/pixels` (enabled, secrets stripped),
+    admin CRUD `admin/marketing/pixels`. `MetaCapiService` sends server-side
+    Meta/Facebook **Purchase** events (Conversions API) on payment success,
+    with optional advanced matching + test event code.
   - `admin`: `stats`, `users`, `users/:id/status`, `orders`, `analytics/revenue`,
     plus `courses`/`books`/`exams`/`blogs` list+detail.
 - Entry: `main.ts` (prefix `api`, CORS from `WEB_ORIGIN`, static `/uploads`).

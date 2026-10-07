@@ -134,6 +134,10 @@ const AUTO_MIGRATIONS: string[] = [
     CONSTRAINT "MarketingPixel_pkey" PRIMARY KEY ("id")
   )`,
   `CREATE INDEX IF NOT EXISTS "MarketingPixel_enabled_idx" ON "MarketingPixel"("enabled")`,
+  // Meta Conversions API + advanced matching fields.
+  `ALTER TABLE "MarketingPixel" ADD COLUMN IF NOT EXISTS "capiToken" TEXT`,
+  `ALTER TABLE "MarketingPixel" ADD COLUMN IF NOT EXISTS "testEventCode" TEXT`,
+  `ALTER TABLE "MarketingPixel" ADD COLUMN IF NOT EXISTS "advancedMatching" BOOLEAN NOT NULL DEFAULT false`,
 ];
 
 @Injectable()
