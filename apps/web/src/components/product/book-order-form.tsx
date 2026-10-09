@@ -77,11 +77,13 @@ export function BookOrderForm({
   const [applied, setApplied] = useState<{ code: string; discount: number } | null>(null);
   const [couponMsg, setCouponMsg] = useState("");
   const [couponBusy, setCouponBusy] = useState(false);
+  const [quantity, setQuantity] = useState(1);
 
   const plan = plans.find((p) => p.id === active) ?? plans[0];
   const price = plan?.price ?? 0;
   const free = price === 0;
   const physical = plan?.id === "hardcopy";
+  const subtotal = price * quantity;
 
   const deliveryCharge = physical
     ? region === "DHAKA"
@@ -89,7 +91,7 @@ export function BookOrderForm({
       : settings.deliveryChargeOutside
     : 0;
   const couponDiscount = applied?.discount ?? 0;
-  const total = Math.max(0, price - couponDiscount) + deliveryCharge;
+  const total = Math.max(0, subtotal - couponDiscount) + deliveryCharge;
   const discount = plan?.originalPrice && plan.originalPrice > price
     ? Math.round(((plan.originalPrice - price) / plan.originalPrice) * 100)
     : 0;
@@ -119,7 +121,7 @@ export function BookOrderForm({
         variant: plan?.id,
         title,
         unitPrice: price,
-        quantity: 1,
+        quantity,
       },
     ],
   }));
@@ -153,7 +155,7 @@ export function BookOrderForm({
     setCouponBusy(true);
     setCouponMsg("");
     try {
-      const item: Record<string, unknown> = { productType: "book", productId, quantity: 1 };
+      const item: Record<string, unknown> = { productType: "book", productId, quantity };
       if (plan) item.variant = plan.id;
       const res = await fetch(`${API_URL}/api/orders/coupon/validate`, {
         method: "POST",
@@ -204,6 +206,7 @@ export function BookOrderForm({
       productId,
       paymentMethod: free ? "SSLCOMMERZ" : activeMethod,
       variant: plan?.id,
+      quantity,
     };
     if (draftRef.current) body.draftId = draftRef.current;
     if (!loggedIn) {
@@ -288,8 +291,27 @@ export function BookOrderForm({
           <div className="min-w-0 flex-1">
             <p className="truncate font-bold text-foreground">{title}</p>
             <p className="text-xs text-muted-foreground">{plan?.label || (physical ? "হার্ডকপি" : "PDF কপি")}</p>
-            <div className="mt-2 flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted-foreground">পরিমাণ: ১</span>
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <div className="inline-flex items-center rounded-xl border border-border bg-card">
+                <button
+                  type="button"
+                  aria-label="কমাও"
+                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  disabled={quantity <= 1}
+                  className="flex h-9 w-9 items-center justify-center text-lg font-bold text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+                >
+                  −
+                </button>
+                <span className="min-w-[2.5rem] text-center text-sm font-bold text-foreground">{quantity}</span>
+                <button
+                  type="button"
+                  aria-label="বাড়াও"
+                  onClick={() => setQuantity((q) => Math.min(99, q + 1))}
+                  className="flex h-9 w-9 items-center justify-center text-lg font-bold text-foreground transition-colors hover:bg-muted"
+                >
+                  +
+                </button>
+              </div>
               <span className="font-display text-lg font-extrabold text-foreground">
                 {formatBdt(price)}
                 {discount > 0 && (
@@ -406,8 +428,8 @@ export function BookOrderForm({
           <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">অর্ডার সারসংক্ষেপ</p>
           <div className="mt-3 space-y-2.5 text-sm">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">{plan?.label || (physical ? "হার্ডকপি" : "PDF কপি")} × ১</span>
-              <span className="font-semibold text-foreground">{formatBdt(price)}</span>
+              <span className="text-muted-foreground">{plan?.label || (physical ? "হার্ডকপি" : "PDF কপি")} × {quantity}</span>
+              <span className="font-semibold text-foreground">{formatBdt(subtotal)}</span>
             </div>
             {physical && (
               <div className="flex items-center justify-between">
