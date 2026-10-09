@@ -58,6 +58,15 @@ are about to edit. If you learn something new and important, append it here.
 - Admin auth uses **separate** localStorage keys (`shohoz_admin_token`/`_role`/`_name`)
   from the public site (`shohoz_token`), and `admin-api` clears + redirects to
   `/admin/login` on any 401 — public login/logout can no longer clobber the admin session.
+- **Book landing page**: `book/[slug]/page.tsx` is a CartFlows-style landing page —
+  big admin `headline` → `subheading` → cover (click = demo PDF) → `shortDescription`
+  → `videoUrl` (YouTube/Vimeo/mp4) → `landingImageUrl` → full `description` → the
+  free demo PDF **auto-loads inline** (`BookAutoDemo`, no click) → reviews → an
+  embedded `BookOrderForm` (price, delivery charge, payment, coupon + the
+  "এখানে ক্লিক দিয়ে অর্ডার কনফার্ম করুন" button) → suggestions. All hero fields are
+  optional and fall back to title/subtitle for older books.
+- **Theme defaults to light** for the whole site (`ThemeProvider` + `ThemeScript`);
+  dark is opt-in via the navbar `ThemeToggle` (persisted in `shohoz-theme`).
 - `next.config.ts` permanently redirects old plural URLs → singular.
 - **Performance**: `src/lib/api.ts` caches public reads in Next's Data Cache
   (`next.revalidate`, 60s) and only calls `cookies()`/`no-store` for `{ auth: true }`

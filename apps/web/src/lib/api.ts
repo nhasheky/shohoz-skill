@@ -94,7 +94,7 @@ type ApiCourse = {
   faq?: FaqItem[];
 };
 type ApiBook = {
-  id: string; slug: string; title: string; titleBn?: string | null; subtitle?: string | null; description?: string | null;
+  id: string; slug: string; title: string; titleBn?: string | null; subtitle?: string | null; headline?: string | null; subheading?: string | null; shortDescription?: string | null; videoUrl?: string | null; landingImageUrl?: string | null; description?: string | null;
   category?: string | null; author?: string | null; pages?: number | null; edition?: string | null; language?: string | null; publisher?: string | null;
   pdfPrice?: number | null; hardcopyPrice?: number | null; samplePages?: number | null; students?: number | null; rating?: number | null;
   reviewCount?: number | null; featured?: boolean | null; published: boolean; createdAt: string;
@@ -251,6 +251,11 @@ function mapBook(raw: ApiBook): Book {
     title: raw.title,
     titleBn: raw.titleBn ?? undefined,
     subtitle: raw.subtitle ?? "",
+    headline: raw.headline ?? undefined,
+    subheading: raw.subheading ?? undefined,
+    shortDescription: raw.shortDescription ?? undefined,
+    videoUrl: raw.videoUrl ?? undefined,
+    landingImageUrl: raw.landingImageUrl ?? undefined,
     description: raw.description ?? "",
     category: raw.category ?? "",
     thumbnailUrl: raw.thumbnailUrl ?? undefined,

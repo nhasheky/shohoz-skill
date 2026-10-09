@@ -83,6 +83,11 @@ export type Book = {
   title: string;
   titleBn?: string;
   subtitle: string;
+  headline?: string;
+  subheading?: string;
+  shortDescription?: string;
+  videoUrl?: string;
+  landingImageUrl?: string;
   description: string;
   category: string;
   thumbnailUrl?: string;

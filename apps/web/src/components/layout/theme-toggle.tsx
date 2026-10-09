@@ -2,7 +2,7 @@ import { cn } from "@/lib/cn";
 import { IconMoon, IconSun } from "@/components/ui/icons";
 import { useTheme } from "@/providers/theme";
 
-const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("shohoz-theme");if(!t){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}var root=document.documentElement;if(t==="dark"){root.classList.add("dark");}else{root.classList.remove("dark");}root.style.colorScheme=t;root.dataset.theme=t;}catch(e){}})();`;
+const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("shohoz-theme");if(t!=="dark"&&t!=="light"){t="light";}var root=document.documentElement;if(t==="dark"){root.classList.add("dark");}else{root.classList.remove("dark");}root.style.colorScheme=t;root.dataset.theme=t;}catch(e){}})();`;
 
 export function ThemeScript() {
   return <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />;

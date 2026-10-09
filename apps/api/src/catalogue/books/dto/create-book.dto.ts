@@ -28,6 +28,26 @@ export class CreateBookDto {
   @IsString()
   subtitle?: string;
 
+  @IsOptional()
+  @IsString()
+  headline?: string;
+
+  @IsOptional()
+  @IsString()
+  subheading?: string;
+
+  @IsOptional()
+  @IsString()
+  shortDescription?: string;
+
+  @IsOptional()
+  @IsString()
+  videoUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  landingImageUrl?: string;
+
   @IsString()
   @IsNotEmpty()
   description: string;

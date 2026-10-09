@@ -78,7 +78,7 @@ export class BooksService {
 
   private sanitizeBookScalars(dto: Record<string, any>) {
     const clean: Record<string, any> = {};
-    const stringFields = ['title', 'titleBn', 'subtitle', 'description', 'category', 'author', 'publisher', 'edition', 'language', 'thumbnailUrl', 'demoPdfUrl', 'pdfFileUrl'];
+    const stringFields = ['title', 'titleBn', 'subtitle', 'headline', 'subheading', 'shortDescription', 'videoUrl', 'landingImageUrl', 'description', 'category', 'author', 'publisher', 'edition', 'language', 'thumbnailUrl', 'demoPdfUrl', 'pdfFileUrl'];
     for (const f of stringFields) {
       if (dto[f] !== undefined) {
         clean[f] = dto[f] ? String(dto[f]).trim() : null;

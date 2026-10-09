@@ -138,6 +138,12 @@ const AUTO_MIGRATIONS: string[] = [
   `ALTER TABLE "MarketingPixel" ADD COLUMN IF NOT EXISTS "capiToken" TEXT`,
   `ALTER TABLE "MarketingPixel" ADD COLUMN IF NOT EXISTS "testEventCode" TEXT`,
   `ALTER TABLE "MarketingPixel" ADD COLUMN IF NOT EXISTS "advancedMatching" BOOLEAN NOT NULL DEFAULT false`,
+  // Book landing-page hero fields (admin-entered).
+  `ALTER TABLE "Book" ADD COLUMN IF NOT EXISTS "headline" TEXT`,
+  `ALTER TABLE "Book" ADD COLUMN IF NOT EXISTS "subheading" TEXT`,
+  `ALTER TABLE "Book" ADD COLUMN IF NOT EXISTS "shortDescription" TEXT`,
+  `ALTER TABLE "Book" ADD COLUMN IF NOT EXISTS "videoUrl" TEXT`,
+  `ALTER TABLE "Book" ADD COLUMN IF NOT EXISTS "landingImageUrl" TEXT`,
 ];
 
 @Injectable()

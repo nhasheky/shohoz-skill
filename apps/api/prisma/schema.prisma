@@ -185,7 +185,13 @@ model Book {
   title                 String
   titleBn               String?
   subtitle              String?
+  // Landing-page hero copy (admin-entered).
+  headline              String?
+  subheading            String?
+  shortDescription      String?  @db.Text
   description           String   @db.Text
+  videoUrl              String?
+  landingImageUrl       String?
   category              String
   author                String
   pages                 Int
