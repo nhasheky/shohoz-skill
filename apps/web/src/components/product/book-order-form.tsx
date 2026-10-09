@@ -7,6 +7,7 @@ import { formatBdt } from "@/lib/format";
 import { cleanPhoneInput, isValidPhone } from "@/lib/phone";
 import { useCheckoutDraft } from "@/hooks/use-checkout-draft";
 import { IconCheckCircle, IconLock, IconShieldCheck } from "@/components/ui/icons";
+import { ProductCover } from "@/components/ui/product-cover";
 import type { PurchasePlan } from "./purchase-panel";
 
 type PaymentMethod = "COD" | "SSLCOMMERZ";
@@ -49,11 +50,13 @@ function hasStoredToken(): boolean {
 export function BookOrderForm({
   title,
   productId,
+  thumbnailUrl,
   allowedPaymentMethods,
   plans,
 }: {
   title: string;
   productId: string;
+  thumbnailUrl?: string;
   allowedPaymentMethods?: string[];
   plans: PurchasePlan[];
 }) {
@@ -265,163 +268,146 @@ export function BookOrderForm({
   }
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
+    <div className="mx-auto max-w-2xl overflow-hidden rounded-3xl border border-border bg-card shadow-card">
       <div className="border-b border-border bg-muted/50 px-6 py-4">
         <p className="text-xs font-bold uppercase tracking-wide text-accent">অর্ডার ফর্ম</p>
         <h2 className="mt-0.5 font-display text-xl font-extrabold text-foreground">{title}</h2>
       </div>
 
-      <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="order-2 space-y-4 p-6 lg:order-1">
-          {plans.length > 1 && (
-            <div>
-              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">ফরম্যাট বাছুন</span>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {plans.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setActive(p.id)}
-                    className={cn(
-                      "flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors",
-                      active === p.id ? "border-accent bg-accent/10" : "border-border bg-card hover:border-muted-foreground/40",
-                    )}
-                  >
-                    <span className={cn("text-sm font-bold", active === p.id ? "text-accent" : "text-foreground")}>
-                      {p.label || (p.id === "hardcopy" ? "হার্ডকপি" : "PDF কপি")}
-                    </span>
-                    <span className="text-sm font-bold text-foreground">{formatBdt(p.price)}</span>
-                  </button>
-                ))}
-              </div>
+      <div className="space-y-6 p-6">
+        {/* 1. Book photo + quantity + price */}
+        <div className="flex items-center gap-4 rounded-2xl border border-border bg-muted/40 p-3">
+          {thumbnailUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={thumbnailUrl} alt={title} className="h-20 w-16 shrink-0 rounded-lg border border-border object-cover" />
+          ) : (
+            <div className="h-20 w-16 shrink-0 overflow-hidden rounded-lg border border-border">
+              <ProductCover title={title} kind="book" ratio="portrait" compact />
             </div>
           )}
-
-          {!free && (
-            <div>
-              <div className="flex gap-2">
-                <input
-                  value={coupon}
-                  onChange={(e) => setCoupon(e.target.value.toUpperCase())}
-                  placeholder="কুপন কোড"
-                  className={cn(inputCls, "py-2.5 uppercase")}
-                />
-                <button
-                  type="button"
-                  onClick={applyCoupon}
-                  disabled={couponBusy || !coupon.trim()}
-                  className="shrink-0 rounded-xl border border-border px-4 text-sm font-bold text-foreground hover:bg-muted disabled:opacity-50"
-                >
-                  {couponBusy ? "…" : "প্রয়োগ"}
-                </button>
-              </div>
-              {couponMsg && <p className={cn("mt-1.5 text-xs font-semibold", applied ? "text-success" : "text-danger")}>{couponMsg}</p>}
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-bold text-foreground">{title}</p>
+            <p className="text-xs text-muted-foreground">{plan?.label || (physical ? "হার্ডকপি" : "PDF কপি")}</p>
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground">পরিমাণ: ১</span>
+              <span className="font-display text-lg font-extrabold text-foreground">
+                {formatBdt(price)}
+                {discount > 0 && (
+                  <span className="ml-2 rounded-full bg-accent/15 px-2 py-0.5 text-xs font-bold text-accent">{discount}% off</span>
+                )}
+              </span>
             </div>
-          )}
-
-          <div className="space-y-3">
-            {!loggedIn && (
-              <p className="text-xs text-muted-foreground">
-                গেস্ট হিসেবে অর্ডার করুন — বা{" "}
-                <a href="/login" className="font-bold text-accent hover:underline">লগইন</a> করলে এই অর্ডার আপনার একাউন্টে যুক্ত হবে।
-              </p>
-            )}
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">আপনার সম্পূর্ণ নাম লিখুন *</span>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="যেমন: রহিম উদ্দিন" className={inputCls} />
-            </label>
-            <div className={cn("grid gap-3", physical ? "grid-cols-1" : "sm:grid-cols-2")}>
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">মোবাইল নম্বর *</span>
-                <input value={phone} onChange={(e) => setPhone(cleanPhoneInput(e.target.value))} inputMode="tel" placeholder="01XXXXXXXXX" className={inputCls} />
-              </label>
-              {!physical && (
-                <label className="block">
-                  <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Gmail address *</span>
-                  <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@gmail.com" className={inputCls} />
-                </label>
-              )}
-            </div>
-            {physical && (
-              <>
-                <label className="block">
-                  <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">আপনার সম্পূর্ণ ঠিকানা *</span>
-                  <textarea value={address} onChange={(e) => setAddress(e.target.value)} rows={2} placeholder="বাসা, রোড, এলাকা, জেলা" className={cn(inputCls, "resize-y")} />
-                </label>
-                <div>
-                  <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">ডেলিভারি এরিয়া *</span>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(["OUTSIDE", "DHAKA"] as const).map((r) => (
-                      <button
-                        key={r}
-                        type="button"
-                        onClick={() => setRegion(r)}
-                        className={cn(
-                          "rounded-xl border px-3 py-2.5 text-xs font-bold transition-colors",
-                          region === r ? "border-accent bg-accent/10 text-accent" : "border-border bg-card text-muted-foreground hover:text-foreground",
-                        )}
-                      >
-                        {r === "OUTSIDE" ? `ঢাকার বাহিরে (${formatBdt(settings.deliveryChargeOutside)})` : `ঢাকার ভেতরে (${formatBdt(settings.deliveryChargeDhaka)})`}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
           </div>
-
-          {!free && (
-            <div>
-              <p className="mb-2 text-xs font-semibold text-muted-foreground">পেমেন্ট পদ্ধতি</p>
-              <div className={cn("grid gap-2", allowed.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
-                {allowed.map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setMethod(m)}
-                    className={cn(
-                      "rounded-xl border px-3 py-2.5 text-xs font-bold transition-colors",
-                      activeMethod === m ? "border-accent bg-accent/10 text-accent" : "border-border bg-card text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {m === "COD" ? "ক্যাশ অন ডেলিভারি" : "SSLCOMMERZ দিয়ে পেমেন্ট"}
-                  </button>
-                ))}
-              </div>
-              {physical && activeMethod === "COD" && (
-                <p className="mt-2 text-xs text-muted-foreground">বই হাতে পেয়ে কুরিয়ারকে টাকা দিন।</p>
-              )}
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={submit}
-            disabled={step === "processing"}
-            className="mt-1 w-full rounded-2xl bg-accent px-6 py-4 font-display text-base font-extrabold text-accent-foreground shadow-glow transition-colors hover:bg-accent-hover disabled:opacity-60"
-          >
-            {step === "processing" ? "অর্ডার প্রসেস হচ্ছে…" : "এখানে ক্লিক দিয়ে অর্ডার কনফার্ম করুন"}
-          </button>
-
-          {step === "error" && (
-            <p className="rounded-xl bg-danger/10 px-4 py-3 text-center text-sm font-semibold text-danger">{errorMsg}</p>
-          )}
-
-          <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
-            <IconShieldCheck width={14} height={14} className="text-success" />
-            নিরাপদ পেমেন্ট — SSLCOMMERZ ও ক্যাশ অন ডেলিভারি
-          </p>
         </div>
 
-        <aside className="order-1 border-b border-border bg-muted/40 p-6 lg:order-2 lg:border-b-0 lg:border-l">
+        {plans.length > 1 && (
+          <div>
+            <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">ফরম্যাট বাছুন</span>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {plans.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setActive(p.id)}
+                  className={cn(
+                    "flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors",
+                    active === p.id ? "border-accent bg-accent/10" : "border-border bg-card hover:border-muted-foreground/40",
+                  )}
+                >
+                  <span className={cn("text-sm font-bold", active === p.id ? "text-accent" : "text-foreground")}>
+                    {p.label || (p.id === "hardcopy" ? "হার্ডকপি" : "PDF কপি")}
+                  </span>
+                  <span className="text-sm font-bold text-foreground">{formatBdt(p.price)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 2. Customer details */}
+        <div className="space-y-3">
+          <p className="text-sm font-bold text-foreground">আপনার তথ্য</p>
+          {!loggedIn && (
+            <p className="text-xs text-muted-foreground">
+              গেস্ট হিসেবে অর্ডার করুন — বা{" "}
+              <a href="/login" className="font-bold text-accent hover:underline">লগইন</a> করলে এই অর্ডার আপনার একাউন্টে যুক্ত হবে।
+            </p>
+          )}
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">আপনার সম্পূর্ণ নাম লিখুন *</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="যেমন: রহিম উদ্দিন" className={inputCls} />
+          </label>
+          <div className={cn("grid gap-3", physical ? "grid-cols-1" : "sm:grid-cols-2")}>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">মোবাইল নম্বর *</span>
+              <input value={phone} onChange={(e) => setPhone(cleanPhoneInput(e.target.value))} inputMode="tel" placeholder="01XXXXXXXXX" className={inputCls} />
+            </label>
+            {!physical && (
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Gmail address *</span>
+                <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@gmail.com" className={inputCls} />
+              </label>
+            )}
+          </div>
+          {physical && (
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">আপনার সম্পূর্ণ ঠিকানা *</span>
+              <textarea value={address} onChange={(e) => setAddress(e.target.value)} rows={2} placeholder="বাসা, রোড, এলাকা, জেলা" className={cn(inputCls, "resize-y")} />
+            </label>
+          )}
+        </div>
+
+        {/* 3. Shipping */}
+        {physical && (
+          <div>
+            <p className="mb-2 text-sm font-bold text-foreground">শিপিং</p>
+            <div className="grid grid-cols-2 gap-2">
+              {(["OUTSIDE", "DHAKA"] as const).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setRegion(r)}
+                  className={cn(
+                    "rounded-xl border px-3 py-2.5 text-xs font-bold transition-colors",
+                    region === r ? "border-accent bg-accent/10 text-accent" : "border-border bg-card text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {r === "OUTSIDE" ? `ঢাকার বাহিরে (${formatBdt(settings.deliveryChargeOutside)})` : `ঢাকার ভেতরে (${formatBdt(settings.deliveryChargeDhaka)})`}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!free && (
+          <div>
+            <div className="flex gap-2">
+              <input
+                value={coupon}
+                onChange={(e) => setCoupon(e.target.value.toUpperCase())}
+                placeholder="কুপন কোড"
+                className={cn(inputCls, "py-2.5 uppercase")}
+              />
+              <button
+                type="button"
+                onClick={applyCoupon}
+                disabled={couponBusy || !coupon.trim()}
+                className="shrink-0 rounded-xl border border-border px-4 text-sm font-bold text-foreground hover:bg-muted disabled:opacity-50"
+              >
+                {couponBusy ? "…" : "প্রয়োগ"}
+              </button>
+            </div>
+            {couponMsg && <p className={cn("mt-1.5 text-xs font-semibold", applied ? "text-success" : "text-danger")}>{couponMsg}</p>}
+          </div>
+        )}
+
+        {/* 4. Order summary */}
+        <div className="rounded-2xl border border-border bg-muted/40 p-4">
           <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">অর্ডার সারসংক্ষেপ</p>
-          <div className="mt-4 space-y-2.5 text-sm">
+          <div className="mt-3 space-y-2.5 text-sm">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">{plan?.label || (physical ? "হার্ডকপি" : "PDF কপি")}</span>
-              <span className="font-semibold text-foreground">
-                {formatBdt(price)}
-                {discount > 0 && <span className="ml-2 rounded-full bg-accent/15 px-2 py-0.5 text-xs font-bold text-accent">{discount}% off</span>}
-              </span>
+              <span className="text-muted-foreground">{plan?.label || (physical ? "হার্ডকপি" : "PDF কপি")} × ১</span>
+              <span className="font-semibold text-foreground">{formatBdt(price)}</span>
             </div>
             {physical && (
               <div className="flex items-center justify-between">
@@ -440,11 +426,56 @@ export function BookOrderForm({
               <span className="font-display text-2xl font-extrabold text-foreground">{formatBdt(total)}</span>
             </div>
           </div>
-          <p className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
-            <IconLock width={13} height={13} className="mt-0.5 shrink-0" />
-            আপনার তথ্য সুরক্ষিত। অর্ডার দিলে আমাদের টিম শীঘ্রই যোগাযোগ করবে।
-          </p>
-        </aside>
+        </div>
+
+        {/* 5. Payment method */}
+        {!free && (
+          <div>
+            <p className="mb-2 text-sm font-bold text-foreground">পেমেন্ট পদ্ধতি</p>
+            <div className={cn("grid gap-2", allowed.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
+              {allowed.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMethod(m)}
+                  className={cn(
+                    "rounded-xl border px-3 py-2.5 text-xs font-bold transition-colors",
+                    activeMethod === m ? "border-accent bg-accent/10 text-accent" : "border-border bg-card text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {m === "COD" ? "ক্যাশ অন ডেলিভারি" : "SSLCOMMERZ দিয়ে পেমেন্ট"}
+                </button>
+              ))}
+            </div>
+            {physical && activeMethod === "COD" && (
+              <p className="mt-3 rounded-xl bg-warning/10 px-3 py-2.5 text-xs leading-relaxed text-foreground">
+                অনুগ্রহ করে ফেক অর্ডার করবেন না। আমরা আপনাদের বিশ্বাস করেই বই পাঠাই অগ্রিম, আপনি ক্যান্সেল করলে আমাদের লস হয়। অনুগ্রহ করে ফেক অর্ডার করবেন না।
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* 6. Confirm button */}
+        <button
+          type="button"
+          onClick={submit}
+          disabled={step === "processing"}
+          className="w-full rounded-2xl bg-accent px-6 py-4 font-display text-base font-extrabold text-accent-foreground shadow-glow transition-colors hover:bg-accent-hover disabled:opacity-60"
+        >
+          {step === "processing" ? "অর্ডার প্রসেস হচ্ছে…" : "এখানে ক্লিক দিয়ে অর্ডার কনফার্ম করুন"}
+        </button>
+
+        {step === "error" && (
+          <p className="rounded-xl bg-danger/10 px-4 py-3 text-center text-sm font-semibold text-danger">{errorMsg}</p>
+        )}
+
+        <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
+          <IconShieldCheck width={14} height={14} className="text-success" />
+          নিরাপদ পেমেন্ট — SSLCOMMERZ ও ক্যাশ অন ডেলিভারি
+        </p>
+        <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
+          <IconLock width={13} height={13} /> আপনার তথ্য সুরক্ষিত। অর্ডার দিলে আমাদের টিম শীঘ্রই যোগাযোগ করবে।
+        </p>
       </div>
     </div>
   );

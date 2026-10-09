@@ -258,6 +258,7 @@ export default async function BookDetailPage(props: PageProps<"/book/[slug]">) {
             <BookOrderForm
               title={book.title}
               productId={book.id}
+              thumbnailUrl={book.thumbnailUrl}
               allowedPaymentMethods={book.allowedPaymentMethods}
               plans={plans}
             />
