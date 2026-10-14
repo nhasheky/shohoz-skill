@@ -113,7 +113,7 @@ MarketingPixel.
 
 **Hosting status (2026-10-14 — read before any deploy)**
 - Account is **`shohozsk1`** on **`trex.infernodns.com` = `152.228.223.226`** (the server the user
-  "changed" to; `141.95.34.163` from the Oct-11 move is dead). See `AGENTS.local.md`.
+  "changed" to). `141.95.34.163` is a **secondary IP of the same box** (not a different server). See `AGENTS.local.md`.
 - **Web (Vercel) is LIVE again**: Hostneko's server move had reset apex to the cPanel IP (site was
   serving an autoindex), so the agent re-pointed `@` A → `216.198.79.1` and `www` → apex via the
   cPanel DNS API (run from inside the box). `api` A stays on the Hostneko IP.
