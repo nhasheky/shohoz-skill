@@ -111,6 +111,23 @@ BlogPost, Order, Coupon, Enrollment, ProgressItem, ExamAttempt, Review,
 BlockedContact, CheckoutDraft, SiteSetting, PageContent, ContactMessage,
 MarketingPixel.
 
+**Hosting status (2026-10-14 — read before any deploy)**
+- Account is **`shohozsk1`** on **`trex.infernodns.com` = `152.228.223.226`** (the server the user
+  "changed" to; `141.95.34.163` from the Oct-11 move is dead). See `AGENTS.local.md`.
+- **Web (Vercel) is LIVE again**: Hostneko's server move had reset apex to the cPanel IP (site was
+  serving an autoindex), so the agent re-pointed `@` A → `216.198.79.1` and `www` → apex via the
+  cPanel DNS API (run from inside the box). `api` A stays on the Hostneko IP.
+- **API is down (503)** — one blocker: the account's PostgreSQL is not reachable
+  (`no pg_hba.conf entry` for `shohozsk1_admin` from 127.0.0.1) and the server's cPanel
+  `Postgres` module is missing, so only Hostneko can (re)provision it. The user wants to stay on
+  PostgreSQL (do **not** port the app to MySQL). Everything else is ready: `dist` on the server
+  matches HEAD, Passenger app `Shohoz API` is configured, `shell_exec` works.
+- **Deploy channel is no longer FTP** (port 21 closed, SSH closed, cPanel UI sits behind
+  Imunify360): use the on-server HTTP **runner + uploader** (`AGENTS.local.md` → "Agent channels").
+  PM2 is legacy and has been stopped; Passenger is the runtime.
+- Pre-existing crons/leftovers on the box: a `*/5` `pm2 resurrect` cron (safe to remove), a legacy
+  `^api/` reverse-proxy rule in `public_html/.htaccess` (port 3000 no longer used).
+
 **Continuity rules**
 - Answer questions from this file first; open code only when editing a file.
 - Keep this memory current: add new modules/routes/gotchas here as they appear.
@@ -144,13 +161,13 @@ to **commit + push + deploy**. Follow this order:
 5. **Web (Vercel)**: pushing `main` triggers an automatic deploy. If
    `AGENTS.local.md` has `VERCEL_TOKEN`, you may also verify/force with the
    `vercel` CLI.
-6. **API (Hostneko)**: run `scripts/deploy-api.ps1` (see §7). It builds, uploads
-   `dist/` over FTP, restarts PM2 and health-checks. Manual equivalent:
+6. **API (Hostneko)**: **FTP is gone — do not use `scripts/deploy-api.ps1`.** Use the on-server
+   HTTP runner + uploader (see §7). Manual equivalent:
    ```powershell
    npm run build:api
-   # upload apps/api/dist/** -> /home/shohozsk1/api.shohozskill.com.bd/dist/  (FTP)
-   # restart via the runner:
-   #   cd /home/shohozsk1/api.shohozskill.com.bd && ./node_modules/.bin/pm2 restart shohoz-api
+   # tar apps/api/dist -> upload via shz_upload.php -> extract over .../api.shohozskill.com.bd/dist
+   # upload prisma/schema.prisma, run ./node_modules/.bin/prisma generate on the box
+   # restart Passenger:  mkdir -p tmp && touch tmp/restart.txt
    ```
 7. **DB schema changes**: the host runs no arbitrary SQL at deploy time, so add
    idempotent `ALTER/CREATE ... IF NOT EXISTS` statements to `AUTO_MIGRATIONS`
@@ -208,20 +225,29 @@ npm run db:seed        # seed demo data
 
 ## 7. API deploy details (Hostneko)
 
-The API is a PM2 process `shohoz-api` running `dist/main.js` on port `3000`,
-fronted by Apache. Access is via **FTP + an HTTP command runner** (SSH is closed,
-the cPanel UI is behind Imunify360 and not scriptable). All host-specific values
-live in `AGENTS.local.md`. Use `scripts/deploy-api.ps1`; it does:
+The API runs as a **Passenger** app (`Shohoz API`, domain `api.shohozskill.com.bd`, startup file
+`app.js` → `dist/main.js`, Node 20 from `/opt/alt/alt-nodejs20`). FTP (21), SSH (22) and the cPanel
+UI from outside are all closed/challenged, so everything goes through two HTTP endpoints that live in
+`public_html` of the account (**keys/paths in `AGENTS.local.md`**), called against the server IP with
+`-k` + `Host: shohozskill.com.bd`:
+
+- **runner** `shz_runner.php` — `bash -lc` as the user (`b64=<base64(cmd)>`); `shell_exec` is enabled.
+- **uploader** `shz_upload.php` — `-F dest=<path under $HOME> -F file=@local` (no FTP needed).
+
+Deploy recipe:
 
 1. `npm run build:api` (prisma generate + nest build) → `apps/api/dist`
-2. Backup the live `dist` on the server, then FTP-upload the new `dist/**`
-   to `/home/shohozsk1/api.shohozskill.com.bd/dist/`
-3. FTP-upload `apps/api/prisma/schema.prisma` and run
-   `./node_modules/.bin/prisma generate` on the server (the generated client
-   lives on the server; `dist/` alone is not enough for new Prisma models)
-4. Restart via the runner: `./node_modules/.bin/pm2 restart shohoz-api`
-5. Health-check `https://api.shohozskill.com.bd/api/health`
+2. Back up + replace the live `dist` on the box:
+   ```powershell
+   # tar/zip apps/api/dist, upload via shz_upload.php, then on the box:
+   #   cd api.shohozskill.com.bd && mv dist dist.bak.$(date +%s) && tar xzf ../shz-dist.tar.gz
+   ```
+3. Upload `apps/api/prisma/schema.prisma` and run `./node_modules/.bin/prisma generate` on the box
+   (the generated client lives on the server; `dist/` alone is not enough for new Prisma models).
+4. Restart Passenger: `cd /home/shohozsk1/api.shohozskill.com.bd && mkdir -p tmp && touch tmp/restart.txt`
+5. Health-check `https://api.shohozskill.com.bd/api/health` (expects `{"status":"ok"}`; 503 = app died
+   at boot, check `passenger.log` in the app dir; `P1010`/`P1001` = DB not reachable → Hostneko).
 
-If you change `apps/api/.env.production` or server `.env`, upload it too and
-restart PM2 (env is read at boot).
+If you change `apps/api/.env.production`, upload it as `.env` and touch `tmp/restart.txt` (env is read at
+boot). PM2 (`shohoz-api`, `~/.pm2`, the `*/5` `pm2 resurrect` cron) is legacy — leave it stopped.
 
