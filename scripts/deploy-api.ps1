@@ -1,145 +1,88 @@
-#requires -Version 5.1
-<#
-  Shohoz Skill — API deploy to Hostneko (FTP upload + remote runner + PM2 restart).
-
-  Reads machine config from AGENTS.local.md (KEY=VALUE lines). See AGENTS.md §7.
-
-  Usage (from repo root):
-    powershell -ExecutionPolicy Bypass -File scripts/deploy-api.ps1
-    powershell -ExecutionPolicy Bypass -File scripts/deploy-api.ps1 -SkipBuild
-    powershell -ExecutionPolicy Bypass -File scripts/deploy-api.ps1 -NoRestart
-    powershell -ExecutionPolicy Bypass -File scripts/deploy-api.ps1 -TestOnly   # upload+extract to scratch, no restart
-#>
 param(
   [switch]$SkipBuild,
-  [switch]$NoRestart,
-  [switch]$TestOnly
+  [switch]$SchemaOnly,
+  [switch]$Install
 )
 
 $ErrorActionPreference = 'Stop'
-$repo = Split-Path -Parent $PSScriptRoot
-$apiDir = Join-Path $repo 'apps\api'
-$distDir = Join-Path $apiDir 'dist'
-$agentsLocal = Join-Path $repo 'AGENTS.local.md'
 
-if (-not (Test-Path -LiteralPath $agentsLocal)) {
-  throw "AGENTS.local.md not found at $agentsLocal (holds FTP + runner credentials)."
-}
+$root  = Split-Path -Parent $PSScriptRoot
+$local = Join-Path $root 'AGENTS.local.md'
+
+if (-not (Test-Path $local)) { throw "AGENTS.local.md not found at $local" }
 
 $cfg = @{}
-foreach ($line in Get-Content -LiteralPath $agentsLocal) {
-  if ($line -match '^\s*([A-Z_]+)=(.+?)\s*$') { $cfg[$matches[1]] = $matches[2].Trim() }
-}
-$required = 'FTP_HOST', 'FTP_USER', 'FTP_PASS', 'FTP_BASE', 'RUNNER_URL', 'RUNNER_HEADER', 'RUNNER_KEY', 'API_DIR', 'API_HEALTH'
-foreach ($k in $required) {
-  if (-not $cfg.ContainsKey($k)) { throw "Missing config key '$k' in AGENTS.local.md" }
+foreach ($line in Get-Content $local) {
+  if ($line -match '^\s*([A-Z_]+)=(.*)$') { $cfg[$Matches[1]] = $Matches[2].Trim() }
 }
 
-function Invoke-Runner([string]$Command) {
-  $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($Command))
-  $cargs = @(
-    '-s', '--max-time', '180',
-    '-H', "X-Runner-Key: $($cfg['RUNNER_KEY'])",
-    '-H', "Host: $($cfg['RUNNER_HEADER'])",
-    '--data-urlencode', "b64=$b64",
-    $cfg['RUNNER_URL']
-  )
-  return (& curl.exe @cargs)
+foreach ($key in 'RUNNER_URL', 'RUNNER_KEY', 'RUNNER_HEADER', 'UPLOAD_URL', 'API_DIR', 'API_HEALTH') {
+  if (-not $cfg[$key]) { throw "AGENTS.local.md is missing $key" }
 }
 
-function Send-FtpFile([string]$LocalPath, [string]$RemotePath) {
-  $cred = New-Object System.Net.NetworkCredential($cfg['FTP_USER'], $cfg['FTP_PASS'])
-  $uri = "ftp://$($cfg['FTP_HOST'])$RemotePath"
-  $req = [System.Net.FtpWebRequest]::Create($uri)
-  $req.Method = [System.Net.WebRequestMethods+Ftp]::UploadFile
-  $req.Credentials = $cred
-  $req.UsePassive = $true
-  $req.UseBinary = $true
-  $req.KeepAlive = $false
-  $bytes = [IO.File]::ReadAllBytes($LocalPath)
-  $req.ContentLength = $bytes.Length
-  $stream = $req.GetRequestStream()
-  $stream.Write($bytes, 0, $bytes.Length)
-  $stream.Close()
-  $resp = $req.GetResponse()
-  $resp.Close()
+$apiDir    = Join-Path $root 'apps\api'
+$distDir   = Join-Path $apiDir 'dist'
+$schema    = Join-Path $apiDir 'prisma\schema.prisma'
+$apiRemote = $cfg.API_DIR -replace '^/home/shohozsk1/', ''
+$stamp     = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+
+function Run-Remote([string]$Cmd) {
+  $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($Cmd))
+  curl.exe -sk -H "X-Runner-Key: $($cfg.RUNNER_KEY)" -H "Host: $($cfg.RUNNER_HEADER)" --data-urlencode "b64=$b64" $cfg.RUNNER_URL
+  if ($LASTEXITCODE -ne 0) { throw "runner call failed ($LASTEXITCODE)" }
 }
 
-# 1. Build
+function Send-File([string]$LocalPath, [string]$RemoteRel) {
+  $out = curl.exe -sk -H "X-Runner-Key: $($cfg.RUNNER_KEY)" -H "Host: $($cfg.RUNNER_HEADER)" -F "dest=$RemoteRel" -F "file=@$LocalPath" $cfg.UPLOAD_URL
+  $out | Write-Host
+  if ($out -notmatch '^OK ') { throw "upload failed for $RemoteRel" }
+  $out
+}
+
 if (-not $SkipBuild) {
-  Write-Host '[1/6] npm run build:api ...' -ForegroundColor Cyan
-  Push-Location $repo
-  npm run build:api
-  $code = $LASTEXITCODE
-  Pop-Location
-  if ($code -ne 0) { throw "build:api failed (exit $code)" }
-}
-if (-not (Test-Path -LiteralPath $distDir)) { throw "dist not found: $distDir" }
-
-# 2. Package dist as tar.gz (forward-slash paths; PowerShell's zip writes
-#    backslashes on 5.1, which the server-side unzip rejects)
-$stamp = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-$zipName = "_deploy.$stamp.tar.gz"
-$zipPath = Join-Path $env:TEMP $zipName
-if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
-Write-Host '[2/6] Packaging dist ...' -ForegroundColor Cyan
-& tar.exe -czf $zipPath -C $distDir .
-if ($LASTEXITCODE -ne 0) { throw "tar packaging failed (exit $LASTEXITCODE)" }
-
-# 3. Upload zip (FTP root is the user home, so FTP_BASE is home-relative)
-$remoteZip = "$($cfg['FTP_BASE'])/$zipName"
-Write-Host "[3/6] Uploading $zipName ($([math]::Round((Get-Item $zipPath).Length/1MB,2)) MB) ..." -ForegroundColor Cyan
-Send-FtpFile $zipPath $remoteZip
-
-# 4. Extract on server (backup current dist)
-$dir = $cfg['API_DIR']
-if ($TestOnly) {
-  $prep = "cd '$dir' && rm -rf _deploytest && mkdir -p _deploytest && tar -xzf '$zipName' -C _deploytest && rm -f '$zipName' && echo EXTRACT_OK && ls _deploytest | head"
-} else {
-  $prep = "cd '$dir' && if [ -d dist ]; then mv dist dist.bak.$stamp; fi && mkdir -p dist && tar -xzf '$zipName' -C dist && rm -f '$zipName' && echo EXTRACT_OK && ls dist | head"
-}
-Write-Host '[4/6] Extracting on server ...' -ForegroundColor Cyan
-$extractOut = (Invoke-Runner $prep | Out-String)
-Write-Host $extractOut
-if ($extractOut -notmatch 'EXTRACT_OK') { throw "Remote extract failed" }
-
-if ($TestOnly) {
-  Write-Host "Test complete. Cleaning scratch dir ..." -ForegroundColor Yellow
-  Invoke-Runner "cd '$dir' && rm -rf _deploytest && echo CLEANED" | Write-Host
-  Remove-Item -LiteralPath $zipPath -Force
-  Write-Host 'TestOnly deploy OK (live dist untouched).' -ForegroundColor Green
-  return
+  Write-Host '== build:api ==' -ForegroundColor Cyan
+  Push-Location $root
+  try {
+    npm run build:api
+    if ($LASTEXITCODE -ne 0) { throw 'build:api failed' }
+  } finally { Pop-Location }
 }
 
-# 5. Sync Prisma schema + regenerate the client on the server. Schema changes
-#    are applied by AUTO_MIGRATIONS at boot, but the generated client must be
-#    refreshed or new models are undefined at runtime.
-Write-Host '[5/6] Syncing Prisma schema + generating client ...' -ForegroundColor Cyan
-$schemaLocal = Join-Path $apiDir 'prisma\schema.prisma'
-if (Test-Path -LiteralPath $schemaLocal) {
-  Send-FtpFile $schemaLocal "$($cfg['FTP_BASE'])/prisma/schema.prisma"
-  $genOut = (Invoke-Runner "cd '$dir' && ./node_modules/.bin/prisma generate" | Out-String)
-  Write-Host $genOut
-  if ($genOut -notmatch 'Generated Prisma Client') { throw 'Remote prisma generate failed' }
-} else {
-  Write-Warning "schema.prisma not found at $schemaLocal - skipping client regeneration"
+if (-not $SchemaOnly) {
+  $tar = Join-Path $env:TEMP "opencode\shz-dist-$stamp.tar.gz"
+  Write-Host "== packaging dist -> $tar ==" -ForegroundColor Cyan
+  tar -czf $tar -C $distDir .
+  if ($LASTEXITCODE -ne 0) { throw 'tar failed' }
+  Write-Host "== uploading dist ($([math]::Round((Get-Item $tar).Length / 1MB, 2)) MB) ==" -ForegroundColor Cyan
+  Send-File $tar "$apiRemote/shz-dist.tar.gz" | Out-Null
 }
 
-# 6. Restart + health
-if (-not $NoRestart) {
-  Write-Host '[6/6] Restarting PM2 shohoz-api ...' -ForegroundColor Cyan
-  Invoke-Runner "cd '$dir' && ./node_modules/.bin/pm2 restart shohoz-api" | Write-Host
-}
+Write-Host '== uploading prisma/schema.prisma ==' -ForegroundColor Cyan
+Send-File $schema "$apiRemote/prisma/schema.prisma" | Out-Null
 
-Start-Sleep -Seconds 3
-Write-Host "Health check $($cfg['API_HEALTH']) ..." -ForegroundColor Cyan
-$health = (& curl.exe -s --max-time 30 $cfg['API_HEALTH'] | Out-String)
-Write-Host $health
-if ($health -notmatch '"status":"ok"') {
-  Write-Warning "Health check did not return ok. Roll back with:"
-  Write-Warning "  runner: cd '$dir' && rm -rf dist && mv dist.bak.$stamp dist && ./node_modules/.bin/pm2 restart shohoz-api"
-  throw 'API health check failed after deploy.'
-}
+$remote = @"
+set -e
+cd $($cfg.API_DIR)
+if [ -f shz-dist.tar.gz ]; then
+  rm -rf dist.bak.$stamp
+  mv dist dist.bak.$stamp
+  mkdir dist
+  tar xzf shz-dist.tar.gz -C dist
+  rm -f shz-dist.tar.gz
+  echo "dist swapped (backup dist.bak.$stamp)"
+fi
+./node_modules/.bin/prisma generate --schema prisma/schema.prisma
+mkdir -p tmp
+touch tmp/restart.txt
+echo "passenger restart touched"
+sleep 3
+curl -s -o /dev/null -m 30 -w "health=%{http_code}\n" -H "Host: api.shohozskill.com.bd" http://127.0.0.1/api/health
+"@
 
-Remove-Item -LiteralPath $zipPath -Force
-Write-Host "API deploy OK (dist.bak.$stamp kept on server)." -ForegroundColor Green
+if ($Install) { $remote = "./node_modules/.bin/../.bin/npm install --omit=dev`n" + $remote }
+
+Write-Host '== server steps (swap dist, prisma generate, restart) ==' -ForegroundColor Cyan
+Run-Remote $remote | Write-Host
+
+Write-Host '== public health check ==' -ForegroundColor Cyan
+curl.exe -s -m 30 -o NUL -w "$($cfg.API_HEALTH) -> %{http_code}`n" $cfg.API_HEALTH

@@ -117,11 +117,10 @@ MarketingPixel.
 - **Web (Vercel) is LIVE again**: Hostneko's server move had reset apex to the cPanel IP (site was
   serving an autoindex), so the agent re-pointed `@` A → `216.198.79.1` and `www` → apex via the
   cPanel DNS API (run from inside the box). `api` A stays on the Hostneko IP.
-- **API is down (503)** — one blocker: the account's PostgreSQL is not reachable
-  (`no pg_hba.conf entry` for `shohozsk1_admin` from 127.0.0.1) and the server's cPanel
-  `Postgres` module is missing, so only Hostneko can (re)provision it. The user wants to stay on
-  PostgreSQL (do **not** port the app to MySQL). Everything else is ready: `dist` on the server
-  matches HEAD, Passenger app `Shohoz API` is configured, `shell_exec` works.
+- **API is LIVE (200 OK)** — PostgreSQL on `127.0.0.1:5432` is configured with `?sslmode=disable`
+  (required because the local PostgreSQL has SSL disabled, preventing Prisma Rust engine panic).
+  All 33 schema tables migrated and populated with seed data.
+  Endpoints (`/api/health`, `/api/courses`, `/api/books`, `/api/exams`, `/api/auth/admin-login`) verified working.
 - **Deploy channel is no longer FTP** (port 21 closed, SSH closed, cPanel UI sits behind
   Imunify360): use the on-server HTTP **runner + uploader** (`AGENTS.local.md` → "Agent channels").
   PM2 is legacy and has been stopped; Passenger is the runtime.
