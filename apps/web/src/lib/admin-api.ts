@@ -355,6 +355,45 @@ export const setContactMessageStatus = (id: string, status: ContactMessage["stat
 export const deleteContactMessage = (id: string) =>
   request(`/admin/contact-messages/${id}`, { method: "DELETE" });
 
+// ─── Newsletter subscribers (footer signup) ───────────────────────────────
+export type NewsletterSubscriber = {
+  id: string;
+  email: string;
+  name?: string | null;
+  phone?: string | null;
+  source: string;
+  status: "SUBSCRIBED" | "UNSUBSCRIBED";
+  note?: string | null;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  lastSentAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type NewsletterList = {
+  total: number;
+  page: number;
+  perPage: number;
+  items: NewsletterSubscriber[];
+  counts: { total: number; subscribed: number; unsubscribed: number };
+};
+
+export const listSubscribers = (q?: string, status = "ALL", page = 1, perPage = 20) =>
+  request<NewsletterList>(`/admin/newsletter${qs({ q, status, page, perPage })}`);
+export const listSubscriberEmails = (status = "SUBSCRIBED") =>
+  request<{ email: string; name?: string | null; phone?: string | null; status: string; createdAt: string }[]>(
+    `/admin/newsletter/emails${qs({ status })}`,
+  );
+export const updateSubscriber = (id: string, dto: Record<string, unknown>) =>
+  request<NewsletterSubscriber>(`/admin/newsletter/${id}`, { method: "PUT", body: JSON.stringify(dto) });
+export const deleteSubscriber = (id: string) => request(`/admin/newsletter/${id}`, { method: "DELETE" });
+export const bulkSubscribers = (ids: string[], action: "DELETE" | "STATUS", status?: "SUBSCRIBED" | "UNSUBSCRIBED") =>
+  request<{ count: number; action: string; status?: string }>("/admin/newsletter/bulk", {
+    method: "POST",
+    body: JSON.stringify({ ids, action, status }),
+  });
+
 // ─── Marketing pixels ─────────────────────────────────────────────────────
 export const listMarketingPixels = () => request<MarketingPixel[]>("/admin/marketing/pixels");
 export const createMarketingPixel = (dto: Partial<MarketingPixel>) =>

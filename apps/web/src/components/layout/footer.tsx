@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { FOOTER_LINKS, SITE } from "@/lib/site";
 import { LogoMark } from "@/components/brand/logo-mark";
+import { NewsletterForm } from "@/components/layout/newsletter-form";
 import { IconFacebook, IconInstagram, IconMail, IconMapPin, IconPhone, IconTelegram, IconYoutube } from "@/components/ui/icons";
 import { getSiteSettings } from "@/lib/api";
 
@@ -99,7 +100,11 @@ export async function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-border pt-6 text-xs text-muted-foreground sm:flex-row">
+        <div className="mt-12">
+          <NewsletterForm />
+        </div>
+
+        <div className="mt-10 flex flex-col items-center justify-between gap-3 border-t border-border pt-6 text-xs text-muted-foreground sm:flex-row">
           <p>© {year} {SITE.name}. All rights reserved.</p>
           <div className="flex items-center gap-4">
             {["bkash", "nagad", "sslcommerz"].map((p) => (

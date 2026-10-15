@@ -13,6 +13,7 @@ import { UploadsModule } from './uploads/uploads.module.js';
 import { CouponsModule } from './coupons/coupons.module.js';
 import { BlockedModule } from './blocked/blocked.module.js';
 import { MarketingModule } from './marketing/marketing.module.js';
+import { NewsletterModule } from './newsletter/newsletter.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 
@@ -35,6 +36,7 @@ import { AppService } from './app.service.js';
     CouponsModule,
     BlockedModule,
     MarketingModule,
+    NewsletterModule,
   ],
   controllers: [AppController],
   providers: [AppService],

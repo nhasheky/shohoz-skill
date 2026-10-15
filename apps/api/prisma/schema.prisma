@@ -577,3 +577,22 @@ model ContactMessage {
 
   @@index([status, createdAt])
 }
+
+// Newsletter opt-ins captured from the storefront footer (and any future
+// checkout/popup form) so the admin can run email campaigns later.
+model NewsletterSubscriber {
+  id         String    @id @default(cuid())
+  email      String    @unique
+  name       String?
+  phone      String?
+  source     String    @default("footer") // footer | popup | checkout | admin
+  status     String    @default("SUBSCRIBED") // SUBSCRIBED | UNSUBSCRIBED
+  note       String?
+  ipAddress  String?
+  userAgent  String?
+  lastSentAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([status, createdAt])
+}

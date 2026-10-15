@@ -127,6 +127,24 @@ MarketingPixel.
 - Pre-existing crons/leftovers on the box: a `*/5` `pm2 resurrect` cron (safe to remove), a legacy
   `^api/` reverse-proxy rule in `public_html/.htaccess` (port 3000 no longer used).
 
+**Connectivity verified 2026-10-15 (all channels live)**
+- Web `https://shohozskill.com.bd` → Vercel (`Server: Vercel`, `X-Vercel-Id: bom1::iad1::…`, 200 on `/`,
+  `/courses`, `/books`, `/exams`, `/blogs`, `/login`, `/dashboard`, `/admin/login`).
+- API `https://api.shohozskill.com.bd/api/health` → `{"status":"ok"}`; `/api/courses|books|exams|blogs` 200.
+  (Public CMS route is `GET /api/site-settings` — there is **no** `/api/cms/site-settings`; that 404 is normal.)
+- Runner + uploader both work (`whoami` = shohozsk1, upload test OK). `~/shz_cp.sh` (cPanel UAPI from inside
+  the box) works: `Variables/get_user_information`, `PassengerApps/list_applications` verified.
+  `/home/shohozsk1` and `/home/shohozsk1/api.shohozskill.com.bd` are **writable** by the runner.
+- `git push origin main` auth OK (dry-run "Everything up-to-date"; local = `origin/main` = `4963a8e`).
+- Passenger app config gotcha: `PassengerApps/list_applications` reports nodejs `/usr/bin/node-22` which does
+  **not exist**; the live runtime is still node20 because `api.shohozskill.com.bd/.htaccess`
+  (`PassengerNodejs /opt/alt/alt-nodejs20/…`) wins. Don't "fix" that cPanel entry.
+- **Prod DB content = seed only** (2026-10-15): User 4 (2× SUPER_ADMIN with password set:
+  `admin@shohozskill.com`, `nazmulhasanasheky@gmail.com`; TEACHER/STUDENT have `password = NULL`),
+  Course/Book/Exam/BlogPost 1 each, **PageContent 0**, Order/Coupon/Review/Enrollment/Pixel 0.
+  Site content therefore needs a full re-entry (settings + CMS pages + catalogue), then it reads live.
+- Housekeeping: 26 stale `dist.bak.*` dirs (~40 MB) in the API dir; box load average 7–8.
+
 **Continuity rules**
 - Answer questions from this file first; open code only when editing a file.
 - Keep this memory current: add new modules/routes/gotchas here as they appear.

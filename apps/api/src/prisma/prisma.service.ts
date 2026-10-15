@@ -144,6 +144,24 @@ const AUTO_MIGRATIONS: string[] = [
   `ALTER TABLE "Book" ADD COLUMN IF NOT EXISTS "shortDescription" TEXT`,
   `ALTER TABLE "Book" ADD COLUMN IF NOT EXISTS "videoUrl" TEXT`,
   `ALTER TABLE "Book" ADD COLUMN IF NOT EXISTS "landingImageUrl" TEXT`,
+  // Newsletter opt-ins (footer signup) for email campaigns.
+  `CREATE TABLE IF NOT EXISTS "NewsletterSubscriber" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "name" TEXT,
+    "phone" TEXT,
+    "source" TEXT NOT NULL DEFAULT 'footer',
+    "status" TEXT NOT NULL DEFAULT 'SUBSCRIBED',
+    "note" TEXT,
+    "ipAddress" TEXT,
+    "userAgent" TEXT,
+    "lastSentAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "NewsletterSubscriber_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "NewsletterSubscriber_email_key" ON "NewsletterSubscriber"("email")`,
+  `CREATE INDEX IF NOT EXISTS "NewsletterSubscriber_status_createdAt_idx" ON "NewsletterSubscriber"("status","createdAt")`,
 ];
 
 @Injectable()
