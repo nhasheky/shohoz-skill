@@ -145,6 +145,26 @@ MarketingPixel.
   Site content therefore needs a full re-entry (settings + CMS pages + catalogue), then it reads live.
 - Housekeeping: 26 stale `dist.bak.*` dirs (~40 MB) in the API dir; box load average 7–8.
 
+**Newsletter (2026-10-15)** — footer signup → admin panel → email campaigns.
+- API: public `POST /api/newsletter` (`{email,name?,phone?,source?}`, email lowercased, unique, re-subscribe on
+  returning address), admin (`ADMIN`/`SUPER_ADMIN`) `GET /api/admin/newsletter?q=&status=&page=&perPage=`
+  (+ `counts`), `GET /api/admin/newsletter/emails?status=` (for copy/CSV), `POST /api/admin/newsletter/bulk`
+  (`DELETE` | `STATUS`), `PUT/DELETE /api/admin/newsletter/:id`. Module `apps/api/src/newsletter/`.
+- Table `NewsletterSubscriber` (created by `AUTO_MIGRATIONS`, no manual SQL needed).
+- Web: `components/layout/newsletter-form.tsx` (client, in `layout/footer.tsx` above the copyright row, fires
+  Meta/TikTok `Lead` via `@/lib/track`); admin UI `/admin/newsletter`
+  (`components/admin/newsletter-page.tsx`, sidebar item "Newsletter").
+
+**API deploy gotchas learned 2026-10-15**
+- The HTTP runner kills long commands (~30s) with a 500 "Request Timeout". `prisma generate` on the box must be
+  backgrounded: `nohup <node20> ./node_modules/prisma/build/index.js generate > ~/shz-prisma-gen.log 2>&1 &`
+  then poll the log (takes ~6s).
+- `dist` upload recipe that works: `tar -czf shz-dist.tar.gz dist` (run inside `apps/api`), upload to `$HOME` via
+  `shz_upload.php`, then on the box `cd api.shohozskill.com.bd && mv dist dist.bak.$(date +%s) && tar xzf ../shz-dist.tar.gz`.
+  Upload `prisma/schema.prisma` directly to `api.shohozskill.com.bd/prisma/schema.prisma` (the uploader mkdirs).
+- `api.shohozskill.com.bd/passenger.log` only receives app-crash output and is NOT touched by normal request
+  errors — don't read it as a request log.
+
 **Continuity rules**
 - Answer questions from this file first; open code only when editing a file.
 - Keep this memory current: add new modules/routes/gotchas here as they appear.
