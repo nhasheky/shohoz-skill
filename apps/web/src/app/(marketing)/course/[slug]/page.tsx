@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCourse, getCourses, getMyEnrollments, getProductReviews, getSuggestions, getSiteSettings, hasSession } from "@/lib/api";
+import { getCourse, getCourses, getProductReviews, getSuggestions, getSiteSettings } from "@/lib/api";
 import { formatBdt, formatCount, formatDate, formatDurationLabel } from "@/lib/format";
 import { ProductCover } from "@/components/ui/product-cover";
 import { Stars } from "@/components/ui/rating";
@@ -81,16 +81,6 @@ export default async function CourseDetailPage(props: PageProps<"/course/[slug]"
     getSiteSettings(),
   ]);
 
-  let enrolled = false;
-  try {
-    if (await hasSession()) {
-      const list = await getMyEnrollments();
-      enrolled = list.some((e) => e.type === "course" && (e.productId === course.id || e.slug === course.slug));
-    }
-  } catch {
-    enrolled = false;
-  }
-
   const features = [
     `${course.lectures} video lessons + ${course.quizzes} quizzes`,
     `${course.resources} downloadable resources`,
@@ -167,7 +157,7 @@ export default async function CourseDetailPage(props: PageProps<"/course/[slug]"
 
             <aside className="mt-8 lg:mt-0">
               <div className="lg:sticky lg:top-24">
-                <PurchasePanel kind="Course" title={course.title} productId={course.id} productType="course" allowedPaymentMethods={course.allowedPaymentMethods} plans={plans} planNote="One-time payment" features={features} owned={enrolled} />
+                <PurchasePanel kind="Course" title={course.title} productId={course.id} productType="course" ownerSlug={course.slug} allowedPaymentMethods={course.allowedPaymentMethods} plans={plans} planNote="One-time payment" features={features} />
               </div>
             </aside>
           </div>
@@ -225,7 +215,7 @@ export default async function CourseDetailPage(props: PageProps<"/course/[slug]"
 
           {/* Curriculum */}
           <section>
-                <CurriculumAccordion sections={course.curriculum} learnBase={`/course/${course.slug}/learn`} enrolled={enrolled} />
+                <CurriculumAccordion sections={course.curriculum} learnBase={`/course/${course.slug}/learn`} ownerId={course.id} ownerSlug={course.slug} />
           </section>
 
           {/* Audience + requirements */}

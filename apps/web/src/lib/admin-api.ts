@@ -33,6 +33,7 @@ export function clearAdminSession() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(ROLE_KEY);
   localStorage.removeItem(NAME_KEY);
+  clearAdminCache();
 }
 
 /** A 401 means the (admin) token is gone/invalid — drop it and go to login. */
@@ -64,7 +65,11 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+const GET_TTL = 30_000;
+const getCache = new Map<string, { at: number; data: unknown }>();
+const inflightGet = new Map<string, Promise<unknown>>();
+
+async function rawRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const session = getAdminSession();
   if (!session) throw new ApiError(401, "Not authenticated");
   const method = (options.method ?? "GET").toUpperCase();
@@ -83,6 +88,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     },
   });
   if (res.status === 401) {
+    clearAdminCache();
     handleUnauthorized();
     throw new ApiError(401, "Session expired — আবার লগইন করুন।");
   }
@@ -91,6 +97,40 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
   if (method !== "GET") revalidateSite();
   return (await res.json()) as T;
+}
+
+export function clearAdminCache() {
+  getCache.clear();
+  inflightGet.clear();
+}
+
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const method = (options.method ?? "GET").toUpperCase();
+  if (method !== "GET") {
+    const data = await rawRequest<T>(path, options);
+    clearAdminCache();
+    return data;
+  }
+
+  const hit = getCache.get(path);
+  if (hit && Date.now() - hit.at < GET_TTL) return hit.data as T;
+
+  const pending = inflightGet.get(path);
+  if (pending) return pending as Promise<T>;
+
+  const promise = rawRequest<T>(path, options).then(
+    (data) => {
+      getCache.set(path, { at: Date.now(), data });
+      inflightGet.delete(path);
+      return data;
+    },
+    (err) => {
+      inflightGet.delete(path);
+      throw err;
+    },
+  );
+  inflightGet.set(path, promise);
+  return promise;
 }
 
 /**

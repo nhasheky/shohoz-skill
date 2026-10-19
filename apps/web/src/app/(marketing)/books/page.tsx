@@ -13,11 +13,7 @@ export const metadata: Metadata = {
 
 export const revalidate = 60;
 
-export default async function BooksPage(props: PageProps<"/books">) {
-  const searchParams = await props.searchParams;
-  const q = typeof searchParams.q === "string" ? searchParams.q : "";
-  const category = typeof searchParams.category === "string" ? searchParams.category : "";
-
+export default async function BooksPage() {
   const books = await getBooks();
 
   return (
@@ -39,8 +35,6 @@ export default async function BooksPage(props: PageProps<"/books">) {
           kind="book"
           items={books}
           placeholder="Search books (e.g. BCS Bangla, English grammar…)"
-          searchParam={q}
-          initialCategory={category}
         />
       </section>
 

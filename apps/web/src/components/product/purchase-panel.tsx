@@ -6,6 +6,7 @@ import { formatBdt } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { IconCheck } from "@/components/ui/icons";
 import { PurchaseDialog } from "./purchase-dialog";
+import { useOwned } from "./use-owned";
 
 export type PurchasePlan = { id: string; label: string; price: number; originalPrice?: number; note?: string; allowedPaymentMethods?: string[] };
 
@@ -19,6 +20,7 @@ export function PurchasePanel({
   planNote,
   features,
   owned = false,
+  ownerSlug,
 }: {
   kind?: "Course" | "Book" | "Exam";
   title: string;
@@ -29,14 +31,23 @@ export function PurchasePanel({
   planNote?: string;
   features: string[];
   owned?: boolean;
+  ownerSlug?: string;
 }) {
   const [active, setActive] = useState(plans[0]?.id ?? "");
   const [open, setOpen] = useState(false);
   const [showBar, setShowBar] = useState(false);
 
-  const plan = plans.find((p) => p.id === active) ?? plans[0];
+  useEffect(() => {
+    const onScroll = () => setShowBar(window.scrollY > 320);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
-  if (owned) {
+  const plan = plans.find((p) => p.id === active) ?? plans[0];
+  const autoOwned = useOwned(productType, productId, ownerSlug);
+
+  if (owned || autoOwned) {
     return (
       <div className="rounded-3xl border border-success/30 bg-success/5 p-6 text-center shadow-card">
         <p className="font-display text-lg font-extrabold text-foreground">✅ আপনি ইতিমধ্যে এটি কিনেছেন</p>
@@ -47,13 +58,6 @@ export function PurchasePanel({
       </div>
     );
   }
-
-  useEffect(() => {
-    const onScroll = () => setShowBar(window.scrollY > 320);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   return (
     <>

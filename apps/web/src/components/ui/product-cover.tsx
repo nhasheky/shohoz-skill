@@ -1,5 +1,8 @@
 import { cn } from "@/lib/cn";
+import Image from "next/image";
 import type { ReactNode } from "react";
+
+const OPTIMIZABLE = /^https:\/\/(api\.shohozskill\.com\.bd|shohozskill\.com\.bd|www\.shohozskill\.com\.bd|cdn\.shohozskill\.com)\//;
 
 const gradients: [string, string][] = [
   ["#0D2A4E", "#2E5E8C"],
@@ -53,7 +56,17 @@ export function ProductCover({
   if (thumbnailUrl) {
     return (
       <div className={cn("relative overflow-hidden bg-muted", aspect, "w-full", className)}>
-        <img src={thumbnailUrl} alt={title} className="w-full h-full object-cover" />
+        {OPTIMIZABLE.test(thumbnailUrl) ? (
+          <Image
+            src={thumbnailUrl}
+            alt={title}
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+            className="object-cover"
+          />
+        ) : (
+          <img src={thumbnailUrl} alt={title} className="w-full h-full object-cover" />
+        )}
         {accentText && (
           <div className="absolute top-4 right-4 rounded-md bg-accent px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent-foreground shadow">
             {accentText}

@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { Book, Course, Exam } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { CourseCard, BookCard, ExamCard } from "@/components/ui/product-card";
@@ -35,15 +36,7 @@ const sorters: Record<SortKey, (a: Base, b: Base) => number> = {
   newest: (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
 };
 
-export function CatalogExplorer({
-  kind,
-  items,
-  placeholder,
-  enableSearch = true,
-  enableSort = true,
-  searchParam,
-  initialCategory,
-}: {
+export function CatalogExplorer(props: {
   kind: "course" | "book" | "exam";
   items: Item[];
   placeholder: string;
@@ -52,8 +45,67 @@ export function CatalogExplorer({
   searchParam?: string;
   initialCategory?: string;
 }) {
-  const [q, setQ] = useState(searchParam ?? "");
-  const [cat, setCat] = useState<string>(initialCategory && initialCategory !== "all" ? initialCategory : "All");
+  return (
+    <Suspense fallback={<ExplorerFallback kind={props.kind} />}>
+      <Explorer {...props} />
+    </Suspense>
+  );
+}
+
+function ExplorerFallback({ kind }: { kind: "course" | "book" | "exam" }) {
+  return (
+    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {Array.from({ length: kind === "exam" ? 6 : 8 }).map((_, i) => (
+        <div key={i} className="rounded-2xl border border-border bg-card p-3 shadow-card">
+          <div className="skeleton aspect-video w-full rounded-xl" />
+          <div className="mt-3 skeleton h-4 w-3/4 rounded" />
+          <div className="mt-2 skeleton h-4 w-1/2 rounded" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Explorer(props: {
+  kind: "course" | "book" | "exam";
+  items: Item[];
+  placeholder: string;
+  enableSearch?: boolean;
+  enableSort?: boolean;
+  searchParam?: string;
+  initialCategory?: string;
+}) {
+  const params = useSearchParams();
+  const urlQ = params.get("q") ?? "";
+  const urlCat = params.get("category") ?? "";
+  return <ExplorerBody key={`${urlQ}|${urlCat}`} {...props} urlQ={urlQ} urlCat={urlCat} />;
+}
+
+function ExplorerBody({
+  kind,
+  items,
+  placeholder,
+  enableSearch = true,
+  enableSort = true,
+  searchParam,
+  initialCategory,
+  urlQ,
+  urlCat,
+}: {
+  kind: "course" | "book" | "exam";
+  items: Item[];
+  placeholder: string;
+  enableSearch?: boolean;
+  enableSort?: boolean;
+  searchParam?: string;
+  initialCategory?: string;
+  urlQ: string;
+  urlCat: string;
+}) {
+  const [q, setQ] = useState(searchParam ?? urlQ);
+  const [cat, setCat] = useState<string>(
+    initialCategory && initialCategory !== "all" ? initialCategory : urlCat && urlCat !== "all" ? urlCat : "All",
+  );
   const [sort, setSort] = useState<SortKey>("popular");
 
   const allCategories = useMemo(() => {

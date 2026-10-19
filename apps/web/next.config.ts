@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
   // Keep client-side navigations snappy: reuse the router cache for a short
   // window so back/forward + repeat visits don't re-hit the server.
   experimental: {
-    staleTimes: { dynamic: 30, static: 300 },
+    staleTimes: { dynamic: 60, static: 300 },
     optimizePackageImports: ["@tiptap/react", "@tiptap/starter-kit", "hls.js", "pdfjs-dist"],
   },
   // Static image optimization handled by inline SVG covers (no remote images yet).

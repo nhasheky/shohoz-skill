@@ -45,7 +45,7 @@ async function withFallback<T>(
   mock: () => Promise<T>,
   opts: FetchOpts = {},
 ): Promise<T> {
-  const { auth = false, revalidate = 60, tags } = opts;
+  const { auth = false, revalidate = 300, tags } = opts;
   try {
     const headers: Record<string, string> = { Accept: "application/json" };
     const init: RequestInit & { next?: { revalidate?: number; tags?: string[] } } = {

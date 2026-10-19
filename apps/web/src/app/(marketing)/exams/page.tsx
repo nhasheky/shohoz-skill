@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { BackgroundOrbs } from "@/components/layout/background";
 import { SectionHeader } from "@/components/marketing/section-header";
-import { ExamCard } from "@/components/ui/product-card";
 import { CtaBanner } from "@/components/marketing/cta-banner";
-import { CatalogExplorer } from "@/components/marketing/catalog-explorer";
-import { getExams, getFreeExams } from "@/lib/api";
+import { ExamsExplorer } from "@/components/marketing/exams-explorer";
+import { getExams } from "@/lib/api";
 import { IconTarget } from "@/components/ui/icons";
 
 export const metadata: Metadata = {
@@ -15,37 +14,9 @@ export const metadata: Metadata = {
 
 export const revalidate = 60;
 
-export default async function ExamsPage(props: PageProps<"/exams">) {
-  const searchParams = await props.searchParams;
-  const type = typeof searchParams.type === "string" ? searchParams.type : "";
-
-  if (type === "free") {
-    const freeExams = await getFreeExams();
-    return (
-      <main>
-        <section className="relative overflow-hidden border-b border-border">
-          <BackgroundOrbs />
-          <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
-            <SectionHeader
-              eyebrow="Free Exams"
-              title="Test the engine for free, unlimited attempts"
-              description="No signup for preview — sign in only when you want to save your result and see full analysis."
-              center
-            />
-          </div>
-        </section>
-        <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {freeExams.map((e) => (
-              <ExamCard key={e.id} exam={e} />
-            ))}
-          </div>
-        </section>
-      </main>
-    );
-  }
-
+export default async function ExamsPage() {
   const all = await getExams();
+
   return (
     <main>
       <section className="relative overflow-hidden border-b border-border">
@@ -72,7 +43,7 @@ export default async function ExamsPage(props: PageProps<"/exams">) {
       </section>
 
       <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
-        <CatalogExplorer kind="exam" items={all} placeholder="Search exams & packages (e.g. NTRCA, BCS…)" />
+        <ExamsExplorer items={all} />
       </section>
 
       <section className="pb-20">

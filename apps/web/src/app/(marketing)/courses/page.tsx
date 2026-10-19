@@ -13,11 +13,7 @@ export const metadata: Metadata = {
 
 export const revalidate = 60;
 
-export default async function CoursesPage(props: PageProps<"/courses">) {
-  const searchParams = await props.searchParams;
-  const q = typeof searchParams.q === "string" ? searchParams.q : "";
-  const category = typeof searchParams.category === "string" ? searchParams.category : "";
-
+export default async function CoursesPage() {
   const courses = await getCourses();
 
   return (
@@ -39,8 +35,6 @@ export default async function CoursesPage(props: PageProps<"/courses">) {
           kind="course"
           items={courses}
           placeholder="Search courses (e.g. BCS prelim, NTRCA…)"
-          searchParam={q}
-          initialCategory={category}
         />
       </section>
 

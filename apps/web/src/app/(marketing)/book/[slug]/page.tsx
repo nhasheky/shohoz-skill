@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getBook, getBooks, getMyEnrollments, getSiteSettings, getProductReviews, getSuggestions, hasSession } from "@/lib/api";
+import { getBook, getBooks, getSiteSettings, getProductReviews, getSuggestions } from "@/lib/api";
 import { formatCount } from "@/lib/format";
 import { Stars } from "@/components/ui/rating";
 import { BookPreview } from "@/components/product/book-preview";
 import { BookAutoDemo } from "@/components/product/book-auto-demo";
 import { BookOrderForm } from "@/components/product/book-order-form";
+import { OwnedOnly } from "@/components/product/owned-only";
 import { BackgroundOrbs } from "@/components/layout/background";
 import { ReviewSection } from "@/components/product/review-section";
 import { SuggestedSection } from "@/components/product/suggested-section";
@@ -102,16 +103,6 @@ export default async function BookDetailPage(props: PageProps<"/book/[slug]">) {
     getSuggestions("book", book.suggested, 3),
     getSiteSettings(),
   ]);
-
-  let enrolled = false;
-  try {
-    if (await hasSession()) {
-      const list = await getMyEnrollments();
-      enrolled = list.some((e) => e.type === "book" && (e.productId === book.id || e.slug === book.slug));
-    }
-  } catch {
-    enrolled = false;
-  }
 
   const headline = book.headline || book.title;
   const subheading = book.subheading || book.titleBn || book.subtitle;
@@ -268,7 +259,9 @@ export default async function BookDetailPage(props: PageProps<"/book/[slug]">) {
               <p className="mt-1 text-sm text-muted-foreground">This book is not available for purchase yet.</p>
             </div>
           )}
-          {enrolled && <p className="mt-4 text-center text-sm font-semibold text-success">✅ আপনি ইতিমধ্যে এটি কিনেছেন — ড্যাশবোর্ড থেকে ব্যবহার করুন।</p>}
+          <OwnedOnly type="book" productId={book.id} slug={book.slug}>
+            <p className="mt-4 text-center text-sm font-semibold text-success">✅ আপনি ইতিমধ্যে এটি কিনেছেন — ড্যাশবোর্ড থেকে ব্যবহার করুন।</p>
+          </OwnedOnly>
         </div>
       </section>
 

@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import type { ComponentType } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getExam, getExams, getMyEnrollments, getProductReviews, getSuggestions, getSiteSettings, hasSession } from "@/lib/api";
+import { getExam, getExams, getProductReviews, getSuggestions, getSiteSettings } from "@/lib/api";
 import { formatCount, formatDurationLabel } from "@/lib/format";
 import { ProductCover } from "@/components/ui/product-cover";
 import { Stars } from "@/components/ui/rating";
 import { BackgroundOrbs } from "@/components/layout/background";
 import { ButtonLink } from "@/components/ui/button";
-import { PurchasePanel, type PurchasePlan } from "@/components/product/purchase-panel";
+import { ExamAccess } from "@/components/product/exam-access";
+import type { PurchasePlan } from "@/components/product/purchase-panel";
 import { ReviewSection } from "@/components/product/review-section";
 import { SuggestedSection } from "@/components/product/suggested-section";
 import {
@@ -72,16 +73,6 @@ export default async function ExamDetailPage(props: PageProps<"/exam/[slug]">) {
     getSuggestions("exam", exam.suggested, 3),
     getSiteSettings(),
   ]);
-
-  let enrolled = false;
-  try {
-    if (await hasSession()) {
-      const list = await getMyEnrollments();
-      enrolled = list.some((e) => e.type === "exam" && (e.productId === exam.id || e.slug === exam.slug));
-    }
-  } catch {
-    enrolled = false;
-  }
 
   return (
     <main>
@@ -150,28 +141,16 @@ export default async function ExamDetailPage(props: PageProps<"/exam/[slug]">) {
 
             <aside className="mt-8 lg:mt-0">
               <div className="lg:sticky lg:top-24">
-                {exam.isFree || enrolled ? (
-                  <div className="rounded-3xl border border-border bg-card p-6 text-center shadow-card">
-                    <p className="font-display text-lg font-extrabold text-foreground">পরীক্ষা দিতে প্রস্তুত?</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {exam.isFree ? "এই exam সম্পূর্ণ ফ্রি — এখনই শুরু করুন।" : "আপনার access চালু আছে — এখনই শুরু করুন।"}
-                    </p>
-                    <ButtonLink href={`/exam/${exam.slug}/take`} variant="accent" className="mt-4 w-full">
-                      পরীক্ষা শুরু করুন
-                    </ButtonLink>
-                  </div>
-                ) : (
-                  <PurchasePanel
-                    kind="Exam"
-                    title={exam.title}
-                    productId={exam.id}
-                    productType="exam"
-                    allowedPaymentMethods={exam.allowedPaymentMethods}
-                    plans={plans}
-                    planNote="One-time payment · lifetime access"
-                    features={features}
-                  />
-                )}
+                <ExamAccess
+                  examId={exam.id}
+                  examSlug={exam.slug}
+                  isFree={exam.isFree}
+                  title={exam.title}
+                  allowedPaymentMethods={exam.allowedPaymentMethods}
+                  plans={plans}
+                  planNote="One-time payment · lifetime access"
+                  features={features}
+                />
               </div>
             </aside>
           </div>

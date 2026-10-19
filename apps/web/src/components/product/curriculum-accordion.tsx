@@ -5,16 +5,22 @@ import Link from "next/link";
 import { cn } from "@/lib/cn";
 import type { CurriculumSection as CurriculumSectionType } from "@/lib/types";
 import { IconChevronDown, IconClock, IconLock, IconPlay, IconVideo } from "@/components/ui/icons";
+import { useOwned } from "./use-owned";
 
 export function CurriculumAccordion({
   sections,
   learnBase,
   enrolled = false,
+  ownerId,
+  ownerSlug,
 }: {
   sections: CurriculumSectionType[];
   learnBase?: string;
   enrolled?: boolean;
+  ownerId?: string;
+  ownerSlug?: string;
 }) {
+  const autoOwned = useOwned("course", ownerId, ownerSlug);
   const [open, setOpen] = useState<string | null>(sections[0]?.id ?? null);
 
   const sectionMin = (s: CurriculumSectionType) => s.lessons.reduce((n, l) => n + l.durationMinutes, 0);
@@ -57,7 +63,7 @@ export function CurriculumAccordion({
               {isOpen && (
                 <ul className="px-5 pb-4 sm:px-6">
                   {s.lessons.map((l) => {
-                    const unlocked = enrolled || Boolean(l.preview);
+                    const unlocked = enrolled || autoOwned || Boolean(l.preview);
                     const inner = (
                       <>
                         <div className="flex min-w-0 items-start gap-3">
