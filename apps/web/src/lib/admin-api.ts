@@ -442,3 +442,69 @@ export const updateMarketingPixel = (id: string, dto: Partial<MarketingPixel>) =
   request<MarketingPixel>(`/admin/marketing/pixels/${id}`, { method: "PUT", body: JSON.stringify(dto) });
 export const deleteMarketingPixel = (id: string) =>
   request(`/admin/marketing/pixels/${id}`, { method: "DELETE" });
+
+/**
+ * Warm the in-memory cache for an admin route so clicking it renders with data
+ * already available. Safe to call repeatedly — cache + in-flight de-dupe.
+ */
+export function warmAdminRoute(href: string) {
+  if (typeof window === "undefined" || !getAdminSession()) return;
+  const run = (p?: Promise<unknown>) => {
+    void p?.catch(() => {});
+  };
+  switch (href) {
+    case "/admin":
+      run(Promise.all([getAdminStats(), getAdminRevenue()]));
+      return;
+    case "/admin/courses":
+      run(listCourses("", 1, 200));
+      return;
+    case "/admin/books":
+      run(listBooks("", 1, 200));
+      return;
+    case "/admin/exams":
+      run(listExams("", 1, 200));
+      return;
+    case "/admin/blogs":
+      run(listBlogs("", 1, 20));
+      return;
+    case "/admin/users":
+      run(listUsers("", 1, 20));
+      return;
+    case "/admin/orders":
+      run(listOrders(undefined, 1, 20));
+      return;
+    case "/admin/incomplete":
+      run(listDrafts());
+      return;
+    case "/admin/blocked":
+      run(listBlocked());
+      return;
+    case "/admin/coupons":
+      run(listCoupons());
+      return;
+    case "/admin/reviews":
+      run(listReviews("ALL", 1, 200));
+      return;
+    case "/admin/re-exam":
+      run(listReExamRequests("PENDING"));
+      return;
+    case "/admin/marketing":
+      run(listMarketingPixels());
+      return;
+    case "/admin/newsletter":
+      run(listSubscribers("", "ALL", 1, 20));
+      return;
+    case "/admin/messages":
+      run(listContactMessages(undefined, 1, 20));
+      return;
+    case "/admin/pages":
+      run(listPages());
+      return;
+    case "/admin/settings":
+      run(getSiteSettings());
+      return;
+    default:
+      return;
+  }
+}

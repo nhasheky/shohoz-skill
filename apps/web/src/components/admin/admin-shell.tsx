@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
-import { clearAdminSession, getAdminSession } from "@/lib/admin-api";
+import { clearAdminSession, getAdminSession, warmAdminRoute } from "@/lib/admin-api";
 import { ToastProvider } from "./admin-toast";
 import { LogoMark } from "@/components/brand/logo-mark";
 import {
@@ -76,6 +76,8 @@ function SidebarContent({ collapsed, onNavigate }: { collapsed: boolean; onNavig
               key={item.href}
               href={item.href}
               onClick={onNavigate}
+              onMouseEnter={() => warmAdminRoute(item.href)}
+              onFocus={() => warmAdminRoute(item.href)}
               title={collapsed ? item.label : undefined}
               className={cn(
                 "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
