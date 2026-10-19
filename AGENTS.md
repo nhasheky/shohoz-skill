@@ -179,6 +179,9 @@ MarketingPixel.
   SVG and already-small images pass through untouched.
 - `SiteSetting.logoUrl` now = transparent PNG `04aa3684fe697ecd80befe4ac29acb6e.png`;
   favicon/ogImage are white-composited PNGs (`9f2c7a41…`, `3d8b6c0e…`).
+- `app/favicon.ico/route.ts` is **not** built as a route (no `/favicon.ico` in the build output), so the
+  favicon comes from `generateMetadata().icons` in `app/layout.tsx`, which now uses
+  `settings.faviconUrl` (falling back to `/favicon.ico` → `/icon.svg`).
 
 **Continuity rules**
 - Answer questions from this file first; open code only when editing a file.
