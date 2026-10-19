@@ -46,6 +46,7 @@ export async function generateMetadata(): Promise<Metadata> {
         "বিসিএস কোর্স",
       ];
   const ogImage = settings.ogImageUrl || undefined;
+  const iconUrl = settings.faviconUrl || "/favicon.ico";
 
   return {
     metadataBase: new URL(SITE.url),
@@ -70,9 +71,9 @@ export async function generateMetadata(): Promise<Metadata> {
       images: ogImage ? [ogImage] : undefined,
     },
     icons: {
-      icon: "/favicon.ico",
-      shortcut: "/favicon.ico",
-      apple: "/favicon.ico",
+      icon: iconUrl,
+      shortcut: iconUrl,
+      apple: iconUrl,
     },
     manifest: "/manifest.webmanifest",
   };
