@@ -20,6 +20,10 @@ export async function GET() {
     }
   }
 
+  if (faviconUrl && /^https?:\/\//.test(faviconUrl)) {
+    return NextResponse.redirect(faviconUrl, { status: 307 });
+  }
+
   // Fallback to the default icon.svg if it exists, or just redirect
   return NextResponse.redirect(new URL("/icon.svg", process.env.NEXT_PUBLIC_APP_URL || "https://shohozskill.com"));
 }
