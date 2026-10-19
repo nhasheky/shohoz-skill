@@ -198,7 +198,13 @@ export default async function BookDetailPage(props: PageProps<"/book/[slug]">) {
         {book.landingImageUrl && (
           <div className="mb-10 overflow-hidden rounded-2xl border border-border">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={book.landingImageUrl} alt={book.title} className="w-full object-cover" />
+            <img
+              src={book.landingImageUrl}
+              alt={book.title}
+              loading="lazy"
+              decoding="async"
+              className="w-full object-cover"
+            />
           </div>
         )}
 

@@ -65,7 +65,7 @@ export class ApiError extends Error {
   }
 }
 
-const GET_TTL = 30_000;
+const GET_TTL = 120_000;
 const getCache = new Map<string, { at: number; data: unknown }>();
 const inflightGet = new Map<string, Promise<unknown>>();
 

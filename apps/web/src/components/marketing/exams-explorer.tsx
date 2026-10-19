@@ -1,35 +1,14 @@
 "use client";
 
-import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
 import type { Exam } from "@/lib/types";
+import { useQueryParam } from "@/lib/use-query-param";
 import { ExamCard } from "@/components/ui/product-card";
 import { CatalogExplorer } from "./catalog-explorer";
 
 export function ExamsExplorer({ items }: { items: Exam[] }) {
-  return (
-    <Suspense
-      fallback={
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-2xl border border-border bg-card p-3 shadow-card">
-              <div className="skeleton aspect-video w-full rounded-xl" />
-              <div className="mt-3 skeleton h-4 w-3/4 rounded" />
-              <div className="mt-2 skeleton h-4 w-1/2 rounded" />
-            </div>
-          ))}
-        </div>
-      }
-    >
-      <Inner items={items} />
-    </Suspense>
-  );
-}
+  const freeView = useQueryParam("type") === "free";
 
-function Inner({ items }: { items: Exam[] }) {
-  const isFreeView = useSearchParams().get("type") === "free";
-
-  if (isFreeView) {
+  if (freeView) {
     const free = items.filter((e) => e.isFree);
     return (
       <div>
