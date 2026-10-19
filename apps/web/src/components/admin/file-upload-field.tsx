@@ -117,6 +117,7 @@ export function FileUploadField({
 export async function resizeImageToFile(file: File, maxWidth: number, quality: number): Promise<File> {
   const passthrough = () => new File([file], file.name, { type: file.type });
   if (typeof document === "undefined" || !file.type.startsWith("image/")) return passthrough();
+  if (file.type === "image/svg+xml") return passthrough();
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
@@ -130,15 +131,25 @@ export async function resizeImageToFile(file: File, maxWidth: number, quality: n
     image.src = dataUrl;
   });
   const scale = Math.min(1, maxWidth / img.width);
+  if (scale === 1) return passthrough();
   const width = Math.max(1, Math.round(img.width * scale));
   const height = Math.max(1, Math.round(img.height * scale));
+  const keepAlpha = /^image\/(png|webp|gif)$/.test(file.type);
+  const outType = keepAlpha ? "image/png" : "image/jpeg";
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext("2d");
   if (!ctx) return passthrough();
+  if (!keepAlpha) {
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+  }
   ctx.drawImage(img, 0, 0, width, height);
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob((b) => resolve(b), "image/jpeg", quality));
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob((b) => resolve(b), outType, keepAlpha ? undefined : quality),
+  );
   if (!blob) return passthrough();
-  return new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "image"}.jpg`, { type: "image/jpeg" });
+  const ext = keepAlpha ? "png" : "jpg";
+  return new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "image"}.${ext}`, { type: outType });
 }

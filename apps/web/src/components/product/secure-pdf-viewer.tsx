@@ -33,9 +33,13 @@ function loadDoc(src: string): Promise<PdfDoc> {
         getDocument: (o: { data: ArrayBuffer }) => { promise: Promise<PdfDoc> };
       };
       const res = await fetch(src);
+      if (!res.ok) throw new Error(`PDF ${res.status}`);
       const buf = await res.arrayBuffer();
       return pdfjs.getDocument({ data: buf }).promise;
-    })();
+    })().catch((err) => {
+      docCache.delete(src);
+      throw err;
+    });
     docCache.set(src, cached);
   }
   return cached;
@@ -67,6 +71,7 @@ export function SecurePdfViewer({
   const [numPages, setNumPages] = useState(0);
   const [current, setCurrent] = useState(1);
   const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0);
   const [notify, setNotify] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -91,7 +96,7 @@ export function SecurePdfViewer({
     return () => {
       cancelled = true;
     };
-  }, [dataUrl]);
+  }, [dataUrl, attempt]);
 
   const renderPage = useCallback(
     async (n: number) => {
@@ -221,6 +226,16 @@ export function SecurePdfViewer({
       <div className={cn("flex h-[60vh] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border text-center", className)}>
         <IconLock width={26} height={26} className="text-danger" />
         <p className="text-sm font-bold text-foreground">{error}</p>
+        <button
+          type="button"
+          onClick={() => {
+            setError("");
+            setAttempt((n) => n + 1);
+          }}
+          className="mt-1 rounded-xl border border-border bg-card px-4 py-2 text-xs font-bold text-foreground transition-colors hover:bg-muted"
+        >
+          আবার চেষ্টা করুন
+        </button>
       </div>
     );
   }

@@ -165,6 +165,21 @@ MarketingPixel.
 - `api.shohozskill.com.bd/passenger.log` only receives app-crash output and is NOT touched by normal request
   errors — don't read it as a request log.
 
+**Uploads / media gotchas (2026-10-19)**
+- `api.shohozskill.com.bd/uploads/*` is served **directly by LiteSpeed/nginx, not by Nest**, so the
+  `app.useStaticAssets` headers in `main.ts` never run. Cross-origin `fetch` of a PDF (pdf.js in
+  `secure-pdf-viewer.tsx`) then fails with no `Access-Control-Allow-Origin` → "PDF লোড করা যায়নি।"
+- Fix lives in **`~/api.shohozskill.com.bd/uploads/.htaccess`** (`Header set Access-Control-Allow-Origin "*"`,
+  `Cross-Origin-Resource-Policy "cross-origin"`, immutable `Cache-Control`). Keep that file whenever the
+  uploads dir is moved/restored.
+- The front cache can keep an old header-less copy per URL — bump the URL (`Book.demoPdfUrl` + `?v=2`)
+  to bust it instead of waiting for the cache.
+- `resizeImageToFile` (admin uploads) must keep PNG/WebP/GIF as **PNG**; canvas→`image/jpeg` flattens
+  transparency to **black** (the site logo/favicon were stored as black-bg JPGs because of this).
+  SVG and already-small images pass through untouched.
+- `SiteSetting.logoUrl` now = transparent PNG `04aa3684fe697ecd80befe4ac29acb6e.png`;
+  favicon/ogImage are white-composited PNGs (`9f2c7a41…`, `3d8b6c0e…`).
+
 **Continuity rules**
 - Answer questions from this file first; open code only when editing a file.
 - Keep this memory current: add new modules/routes/gotchas here as they appear.
