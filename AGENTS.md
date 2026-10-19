@@ -183,6 +183,29 @@ MarketingPixel.
   favicon comes from `generateMetadata().icons` in `app/layout.tsx`, which now uses
   `settings.faviconUrl` (falling back to `/favicon.ico` → `/icon.svg`).
 
+**Performance architecture (2026-10-19) — keep it fast**
+- **Prerendered (ISR 60s, edge-cached → instant client nav):** `/`, `/about`, `/contact`, `/login`,
+  `/register`, `/cart`, `/checkout/success`, `/privacy`, `/terms`, `/courses`, `/books`, `/exams`, `/blogs`,
+  `/blogs/[slug]` (SSG), `/course/[slug]`, `/book/[slug]`, `/exam/[slug]` (SSG via `generateStaticParams`),
+  and every `/admin/*` list page shell.
+- **Dynamic on purpose:** `/dashboard`, `/course/[slug]/learn`, `/book/[slug]/read`, `/exam/[slug]/take`,
+  `/admin/{courses,books,exams,blogs}/[id]/edit`, `/api/revalidate`, `/api/send-email`.
+- **Never call `cookies()` / `hasSession()` or read `searchParams` in a public page** — it silently flips the
+  route to `ƒ` and kills prefetch. Personalisation is client-side instead:
+  `useOwned()` / `<OwnedOnly>` (`components/product/`) for ownership, `useQueryParam()`
+  (`lib/use-query-param.ts`) for `?q=`, `?category=`, `?tag=`, `?type=free`. Filters live in
+  `components/marketing/{catalog-explorer,exams-explorer,blogs-explorer}.tsx`; the full list stays in the
+  prerendered HTML (SEO) and the URL filter is applied after hydration.
+- Public API reads use `withFallback`'s default `revalidate = 300`; admin writes POST `/api/revalidate`
+  which runs `revalidatePath("/", "layout")`, so 5-minute data caching is safe.
+- `next.config.ts`: `experimental.staleTimes = { dynamic: 60, static: 300 }` (client router cache).
+- Product covers use `next/image` for our own hosts (AVIF/WebP); other hosts fall back to `<img>`.
+- Admin panel: `lib/admin-api.ts` keeps an in-memory GET cache (120s) + in-flight de-dupe, cleared on every
+  write and on logout; `warmAdminRoute(href)` fires on sidebar hover so the list data is already in flight
+  before the click. `app/admin/loading.tsx` renders the shell skeleton instantly.
+- Don't add `?_t=` cache busters to admin GETs — the request layer already caches by path; refreshing is
+  handled by the write-clear.
+
 **Continuity rules**
 - Answer questions from this file first; open code only when editing a file.
 - Keep this memory current: add new modules/routes/gotchas here as they appear.
