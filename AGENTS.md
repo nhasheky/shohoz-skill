@@ -111,7 +111,21 @@ BlogPost, Order, Coupon, Enrollment, ProgressItem, ExamAttempt, Review,
 BlockedContact, CheckoutDraft, SiteSetting, PageContent, ContactMessage,
 MarketingPixel.
 
-**Hosting status (2026-10-14 — read before any deploy)**
+**Hosting status (2026-10-20 — READ THIS FIRST)**
+- **The box now answers only on `141.95.34.163`.** `152.228.223.226` and `trex.infernodns.com` (still
+  resolving to that old IP) are **dead** — do not use them anywhere.
+- **Hostneko reset the DNS zone to cPanel defaults again (3rd time, ~2026-10-19)**: apex `A` → server IP with
+  TTL 14400, so `shohozskill.com.bd`/`www` served the LiteSpeed **autoindex** for a few hours.
+  Fixed 2026-10-20 (zone serial `2026101003`): `@` A → `216.198.79.1`, TTL 300. `www`/`mail` CNAME → apex,
+  `api` A → `141.95.34.163`, SPF + `_dmarc` + DKIM all present. **Re-check apex DNS after every Hostneko
+  maintenance** — if it points at the server IP again, the site is "down" while Vercel is perfectly fine.
+- **Shell access is gone**: `shell_exec()` is disabled on the account, so the old HTTP **runner is dead**
+  (`shz_runner.php` → fatal error). The working agent channel is now the **cPanel API token**
+  (`AGENTS.local.md` → 2026-10-20): UAPI for DNS / Fileman upload / Passenger restart, API2 `Fileman::fileop`
+  for delete/move. No command execution → `prisma generate` and `tar` are not runnable on the box.
+- API is **current** (newsletter commit `c62ed80` verified live in `dist`); nothing pending to deploy.
+
+**Historical note (2026-10-14)**
 - Account is **`shohozsk1`** on **`trex.infernodns.com` = `152.228.223.226`** (the server the user
   "changed" to). `141.95.34.163` is a **secondary IP of the same box** (not a different server). See `AGENTS.local.md`.
 - **Web (Vercel) is LIVE again**: Hostneko's server move had reset apex to the cPanel IP (site was
