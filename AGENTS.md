@@ -111,7 +111,19 @@ BlogPost, Order, Coupon, Enrollment, ProgressItem, ExamAttempt, Review,
 BlockedContact, CheckoutDraft, SiteSetting, PageContent, ContactMessage,
 MarketingPixel.
 
-**Hosting status (2026-10-20 — READ THIS FIRST)**
+**Hosting status (2026-10-22 — READ THIS FIRST)**
+- **Hostneko ran a full cPanel restore on 2026-10-21 ~18:25** → Postgres server gone, DNS zone reset again, PM2 back.
+  Details + recovery in `AGENTS.local.md` (2026-10-22 section).
+- **API is LIVE** on a **userland PostgreSQL 16.14** at `/home/shohozsk1/pg` (data restored from
+  `cpmove_failed_psql_dbs.*/shohozsk1_shohoz.tar`). Auto-start/watchdog cron `*/3 * * * * ~/pg/check-pg.sh`.
+  No `cPanel → PostgreSQL` module: the DB is user-managed, **not** part of cPanel backups.
+- **DNS is now Cloudflare** (`mira/thomas.ns.cloudflare.com`, zone **active**): apex `A 216.198.79.1` (Vercel),
+  `www → cname.vercel-dns.com`, `api/mail/cpanel/webmail/ftp → 141.95.34.163`, all **DNS-only**. BTCL is the registrar.
+  Hostneko zone resets can no longer take the site down.
+- Nightly DB backup `30 20 * * * ~/pg/backup-pg.sh` → `~/backups/` (14 days). `shell_exec` from PHP is flaky now —
+  use `shz_fix.php` (`?a=diag|ls|tail|write|del|restart`) as the shell-free channel.
+
+**Hosting status (2026-10-20 — superseded, kept for history)**
 - **The box now answers only on `141.95.34.163`.** `152.228.223.226` and `trex.infernodns.com` (still
   resolving to that old IP) are **dead** — do not use them anywhere.
 - **Hostneko reset the DNS zone to cPanel defaults again (3rd time, ~2026-10-19)**: apex `A` → server IP with
