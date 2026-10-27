@@ -64,15 +64,17 @@ export class CreateBookDto {
   @Min(1)
   pages: number;
 
+  @IsOptional()
   @IsString()
-  edition: string;
+  edition?: string;
 
   @IsOptional()
   @IsString()
   language?: string; // En | Bn | Mixture
 
+  @IsOptional()
   @IsString()
-  publisher: string;
+  publisher?: string;
 
   // Leave empty to hide the online PDF option for this book.
   @IsOptional()

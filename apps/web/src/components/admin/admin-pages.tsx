@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAdminTitle } from "@/lib/use-admin-title";
 import { useRouter } from "next/navigation";
 import { formatBdt } from "@/lib/format";
@@ -136,6 +136,13 @@ const blogFields: FieldDef[] = [
   { name: "tags", label: "Tags", type: "textarea", json: true, help: '["BCS","strategy"]' },
 ];
 
+// Keys produced by the sub-editors (not declared as fields). The API rejects
+// unknown properties, so only these are forwarded to the DTO.
+const courseExtras = ["prices", "curriculum", "learningOutcomes", "requirements", "whoIsFor", "faq", "allowedPaymentMethods", "seo", "suggested", "gift"];
+const bookExtras = ["allowedPaymentMethods", "seo", "suggested", "hasPdfFile"];
+const examExtras = ["subjects", "allowedPaymentMethods", "seo", "suggested"];
+const blogExtras = ["content", "seo"];
+
 // ─── Normalizers (API + demo shapes → editor form state) ──────────────────
 function num(v: unknown): number | "" {
   if (typeof v === "number") return v;
@@ -197,6 +204,87 @@ function normSubjects(row: Record<string, unknown>): SubjectRow[] {
 function normBlocks(v: unknown): BlogBlockRow[] {
   if (!Array.isArray(v)) return [];
   return v as BlogBlockRow[];
+}
+
+// ─── Payload cleaners (empty inputs must never reach the API validators) ───
+const isBlank = (v: unknown) => v === undefined || v === null || (typeof v === "string" && !v.trim());
+const numOrUndef = (v: unknown): number | undefined => (isBlank(v) || Number.isNaN(Number(v)) ? undefined : Number(v));
+const trimOrUndef = (v: unknown): string | undefined => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+
+function slugifyTopic(v: string): string {
+  return v
+    .toLowerCase()
+    .replace(/[^a-z0-9\u0980-\u09ff]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function cleanPrices(value: unknown) {
+  const rows = Array.isArray(value) ? (value as PriceRow[]) : [];
+  return rows
+    .filter((p) => p && numOrUndef(p.amount) !== undefined)
+    .map((p) => {
+      const original = numOrUndef(p.originalAmount);
+      return { duration: p.duration || "LIFETIME", amount: numOrUndef(p.amount) as number, ...(original !== undefined ? { originalAmount: original } : {}) };
+    });
+}
+
+function cleanCurriculum(value: unknown) {
+  const sections = Array.isArray(value) ? (value as SectionRow[]) : [];
+  return sections
+    .map((s) => ({
+      title: trimOrUndef(s.title),
+      lessons: (s.lessons ?? [])
+        .filter((l) => trimOrUndef(l.title) || trimOrUndef(l.sourceId))
+        .map((l) => ({
+          title: trimOrUndef(l.title),
+          durationMinutes: numOrUndef(l.durationMinutes),
+          sourceKind: trimOrUndef(l.sourceKind) ?? "youtube",
+          sourceId: typeof l.sourceId === "string" ? l.sourceId.trim() : "",
+          preview: Boolean(l.preview),
+        })),
+    }))
+    .filter((s) => s.title || s.lessons.length > 0);
+}
+
+function cleanSubjects(value: unknown) {
+  const subjects = Array.isArray(value) ? (value as SubjectRow[]) : [];
+  return subjects
+    .filter((s) => trimOrUndef(s.title) || (s.topics ?? []).length > 0)
+    .map((s, si) => {
+      const seen = new Set<string>();
+      const topics = (s.topics ?? [])
+        .filter((t) => trimOrUndef(t.title))
+        .map((t, ti) => {
+          const title = String(t.title).trim();
+          const base = slugifyTopic(trimOrUndef(t.slug) ?? title) || `topic-${si + 1}-${ti + 1}`;
+          let slug = base;
+          let n = 2;
+          while (seen.has(slug)) slug = `${base}-${n++}`;
+          seen.add(slug);
+          const questions = (t.questions ?? [])
+            .filter((q) => trimOrUndef(q.text))
+            .map((q) => ({
+              text: String(q.text).trim(),
+              options: Array.isArray(q.options) ? q.options.map((o) => String(o ?? "")) : [],
+              answerIndex: Number(q.answerIndex) || 0,
+              ...(trimOrUndef(q.explanation) ? { explanation: String(q.explanation).trim() } : {}),
+            }));
+          const duration = numOrUndef(t.durationMinutes);
+          const marks = numOrUndef(t.marksPerQuestion);
+          const negative = numOrUndef(t.negativeMarks);
+          const count = numOrUndef(t.questionsCount);
+          return {
+            title,
+            slug,
+            ...(count !== undefined ? { questionsCount: count } : {}),
+            ...(duration !== undefined ? { durationMinutes: duration } : {}),
+            ...(marks !== undefined ? { marksPerQuestion: marks } : {}),
+            ...(negative !== undefined ? { negativeMarks: negative } : {}),
+            questions,
+          };
+        });
+      return { title: trimOrUndef(s.title) ?? `Subject ${si + 1}`, topics };
+    });
 }
 
 // ─── Courses ───────────────────────────────────────────────────────────────
@@ -268,9 +356,12 @@ export function CourseFormPage({ id }: { id?: string }) {
         subtitle="Courses power the entire learning experience."
         fields={fields}
         initial={initial}
+        extras={courseExtras}
         backHref="/admin/courses"
         submitLabel={id ? "Save changes" : "Create course"}
         onSubmit={async (dto) => {
+          dto.prices = cleanPrices(dto.prices);
+          dto.curriculum = cleanCurriculum(dto.curriculum);
           if (id) await api.updateCourse(id, dto);
           else await api.createCourse(dto);
           router.push("/admin/courses");
@@ -352,6 +443,7 @@ export function BookFormPage({ id }: { id?: string }) {
         title={id ? "Edit Book" : "New Book"}
         fields={bookFields}
         initial={formInitial}
+        extras={bookExtras}
         backHref="/admin/books"
         submitLabel={id ? "Save changes" : "Create book"}
         onSubmit={async (dto) => {
@@ -433,9 +525,11 @@ export function ExamFormPage({ id }: { id?: string }) {
         title={id ? "Edit Exam" : "New Exam"}
         fields={examFields}
         initial={initial}
+        extras={examExtras}
         backHref="/admin/exams"
         submitLabel={id ? "Save changes" : "Create exam"}
         onSubmit={async (dto) => {
+          dto.subjects = cleanSubjects(dto.subjects);
           if (id) await api.updateExam(id, dto);
           else await api.createExam(dto);
           router.push("/admin/exams");
@@ -490,6 +584,7 @@ export function BlogFormPage({ id }: { id?: string }) {
         title={id ? "Edit Blog Post" : "New Blog Post"}
         fields={blogFields}
         initial={initial}
+        extras={blogExtras}
         backHref="/admin/blogs"
         submitLabel={id ? "Save changes" : "Create post"}
         onSubmit={async (dto) => {
@@ -535,25 +630,25 @@ function PageSkeleton({ title, loading, notFound, children }: { title: string; l
 }
 
 function useAdminRecord(id: string | undefined, fetchOne: (id: string) => Promise<Record<string, unknown>>, seedOne: () => Record<string, unknown>[]) {
-  const [initial, setInitial] = useState<Record<string, unknown> | null>(null);
+  const [initial, setInitial] = useState<Record<string, unknown> | null>(id ? null : {});
   const [loading, setLoading] = useState(Boolean(id));
   const [notFound, setNotFound] = useState(false);
+  const handlers = useRef({ fetchOne, seedOne });
 
   useEffect(() => {
-    if (!id) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setInitial({});
-      setLoading(false);
-      return;
-    }
+    handlers.current = { fetchOne, seedOne };
+  });
+
+  useEffect(() => {
+    if (!id) return;
     let cancelled = false;
     (async () => {
       try {
-        const row = await fetchOne(id);
+        const row = await handlers.current.fetchOne(id);
         if (!cancelled) setInitial(normalizeInitial(row));
       } catch {
         // demo fallback: find in seed data
-        const found = seedOne().find((r) => (r as { id?: unknown }).id === id);
+        const found = handlers.current.seedOne().find((r) => (r as { id?: unknown }).id === id);
         if (!cancelled) {
           if (found) setInitial(normalizeInitial(found));
           else setNotFound(true);
@@ -565,7 +660,7 @@ function useAdminRecord(id: string | undefined, fetchOne: (id: string) => Promis
     return () => {
       cancelled = true;
     };
-  }, [id, fetchOne, seedOne]);
+  }, [id]);
 
   return { initial, loading, notFound };
 }

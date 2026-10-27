@@ -93,7 +93,16 @@ async function rawRequest<T>(path: string, options: RequestInit = {}): Promise<T
     throw new ApiError(401, "Session expired — আবার লগইন করুন।");
   }
   if (!res.ok) {
-    throw new ApiError(res.status, `Request failed (${res.status})`);
+    let message = `Request failed (${res.status})`;
+    try {
+      const body = (await res.json()) as { message?: unknown };
+      const detail = body?.message;
+      if (Array.isArray(detail) && detail.length) message = detail.map(String).join(", ");
+      else if (typeof detail === "string" && detail) message = detail;
+    } catch {
+      /* keep the status-only message */
+    }
+    throw new ApiError(res.status, message);
   }
   if (method !== "GET") revalidateSite();
   return (await res.json()) as T;

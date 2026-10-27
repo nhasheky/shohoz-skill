@@ -21,10 +21,13 @@ export function toForm(fields: FieldDef[], initial?: Record<string, unknown> | n
   return base;
 }
 
+const serverKeys = new Set(["id", "createdAt", "updatedAt"]);
+
 /** Build the DTO from form state + extra (editor-managed) keys. Returns null on validation error. */
-export function buildDto(fields: FieldDef[], form: Record<string, unknown>): Record<string, unknown> | null {
+export function buildDto(fields: FieldDef[], form: Record<string, unknown>, extras?: string[]): Record<string, unknown> | null {
   const dto: Record<string, unknown> = {};
   const fieldNames = new Set(fields.map((f) => f.name));
+  const extraKeys = extras ? new Set(extras) : null;
   for (const f of fields) {
     if (f.showWhen && !f.showWhen(form)) continue; // hidden fields are not submitted
     let v = form[f.name];
@@ -48,7 +51,9 @@ export function buildDto(fields: FieldDef[], form: Record<string, unknown>): Rec
   }
   // Editor-managed keys (arrays/objects) pass through.
   for (const k of Object.keys(form)) {
-    if (!fieldNames.has(k) && form[k] !== undefined) dto[k] = form[k];
+    if (fieldNames.has(k) || serverKeys.has(k)) continue;
+    if (extraKeys && !extraKeys.has(k)) continue;
+    if (form[k] !== undefined) dto[k] = form[k];
   }
   return dto;
 }
@@ -60,6 +65,7 @@ export function AdminForm({
   initial,
   backHref,
   submitLabel = "Save",
+  extras,
   onSubmit,
   children,
 }: {
@@ -69,6 +75,7 @@ export function AdminForm({
   initial?: Record<string, unknown> | null;
   backHref: string;
   submitLabel?: string;
+  extras?: string[];
   onSubmit: (dto: Record<string, unknown>) => Promise<void>;
   children?: (form: Record<string, unknown>, set: (name: string, value: unknown) => void) => ReactNode;
 }) {
@@ -79,8 +86,11 @@ export function AdminForm({
     // `toForm` only knows about for declared fields — otherwise edit forms load empty.
     if (initial) {
       const fieldNames = new Set(fields.map((f) => f.name));
+      const extraKeys = extras ? new Set(extras) : null;
       for (const [k, v] of Object.entries(initial)) {
-        if (!fieldNames.has(k) && !(k in base)) base[k] = v;
+        if (fieldNames.has(k) || k in base || serverKeys.has(k)) continue;
+        if (extraKeys && !extraKeys.has(k)) continue;
+        base[k] = v;
       }
     }
     return base;
@@ -109,7 +119,7 @@ export function AdminForm({
       setError(req);
       return;
     }
-    const dto = buildDto(fields, form);
+    const dto = buildDto(fields, form, extras);
     if (!dto) return;
     if (dto.__error) {
       setError(String(dto.__error));

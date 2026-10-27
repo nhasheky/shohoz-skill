@@ -29,9 +29,9 @@ export class CoursePriceDto {
 }
 
 export class LessonDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  title: string;
+  title?: string;
 
   @IsOptional()
   @IsInt()
@@ -56,9 +56,9 @@ export class LessonDto {
 }
 
 export class CurriculumSectionDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  title: string;
+  title?: string;
 
   @IsOptional()
   @IsInt()

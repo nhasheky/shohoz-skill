@@ -14,9 +14,9 @@ import {
 } from 'class-validator';
 
 export class QuestionDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  text: string;
+  text?: string;
 
   @IsArray()
   @IsString({ each: true })
@@ -36,13 +36,13 @@ export class QuestionDto {
 }
 
 export class ExamTopicDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  title: string;
+  title?: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  slug: string;
+  slug?: string;
 
   @IsOptional()
   @IsInt()
@@ -74,9 +74,9 @@ export class ExamTopicDto {
 }
 
 export class ExamSubjectDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  title: string;
+  title?: string;
 
   @IsOptional()
   @IsInt()
