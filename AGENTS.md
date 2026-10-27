@@ -58,6 +58,20 @@ are about to edit. If you learn something new and important, append it here.
 - Admin auth uses **separate** localStorage keys (`shohoz_admin_token`/`_role`/`_name`)
   from the public site (`shohoz_token`), and `admin-api` clears + redirects to
   `/admin/login` on any 401 — public login/logout can no longer clobber the admin session.
+- **Admin form pages must stay freeze-free (2026-10-27)**: `useAdminRecord` (in
+  `components/admin/admin-pages.tsx`) is called with an inline `seedOne` arrow, so its
+  effect deps must **not** include the callbacks (that re-ran the fetch, set a fresh
+  `initial` object every render → endless render loop → "Page Unresponsive" on every
+  `/admin/{courses,books,exams,blogs}/{new,[id]/edit}`). It now keeps them in a ref and
+  depends on `id` only — keep it that way (same pattern as `AdminList`).
+- The API has `ValidationPipe({ forbidNonWhitelisted: true })`, so **any unknown body key
+  = 400** (`property id should not exist`) and **`""` fails `@IsInt`/`@IsNumber`**.
+  `AdminForm` therefore forwards only declared fields + the explicit `extras` list
+  (`courseExtras`/`bookExtras`/`examExtras`/`blogExtras`) — never raw Prisma rows
+  (`id`, `createdAt`, `updatedAt`, `instructor`, relations). Nested editors are cleaned
+  by `cleanPrices`/`cleanCurriculum`/`cleanSubjects` before submit; add new editor keys
+  to the matching `*Extras` array or the field will silently not save.
+  `admin-api` now surfaces the server's `message` array instead of `Request failed (400)`.
 - **Book landing page**: `book/[slug]/page.tsx` is a CartFlows-style landing page —
   big admin `headline` → `subheading` → cover (click = demo PDF) → `shortDescription`
   → `videoUrl` (YouTube/Vimeo/mp4) → `landingImageUrl` → full `description` → the
